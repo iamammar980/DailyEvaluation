@@ -894,18 +894,54 @@ function signIn() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ جارٍ التحميل...'; }
   loadFirebase(function() {
     var provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).catch(function(err) {
-      document.getElementById('loginErr').style.display = 'block';
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:22px;height:22px" alt="Google"> تسجيل الدخول بـ Google';
-      }
-      console.error(err);
-    });
+    provider.addScope('email');
+    provider.addScope('profile');
+ 
+    // Detect mobile/iPad — use redirect instead of popup
+    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+ 
+    if (isMobile) {
+      // Redirect method — works on all mobile browsers including Safari on iPad
+      auth.signInWithRedirect(provider).catch(function(err) {
+        document.getElementById('loginErr').style.display = 'block';
+        document.getElementById('loginErr').textContent = 'خطأ: ' + err.message;
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:22px;height:22px" alt="Google"> تسجيل الدخول بـ Google';
+        }
+      });
+    } else {
+      // Popup method — better UX on desktop
+      auth.signInWithPopup(provider).catch(function(err) {
+        // If popup blocked, fall back to redirect
+        if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
+          auth.signInWithRedirect(provider);
+        } else {
+          document.getElementById('loginErr').style.display = 'block';
+          document.getElementById('loginErr').textContent = 'خطأ: ' + err.message;
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:22px;height:22px" alt="Google"> تسجيل الدخول بـ Google';
+          }
+        }
+      });
+    }
   });
 }
  
 function attachAuthListener() {
+  // Handle redirect result (for mobile sign-in)
+  auth.getRedirectResult().then(function(result) {
+    // Redirect result is handled by onAuthStateChanged below
+    // This just catches any errors from the redirect
+  }).catch(function(err) {
+    if (err.code !== 'auth/no-current-user') {
+      document.getElementById('loginErr').style.display = 'block';
+      document.getElementById('loginErr').textContent = 'خطأ في تسجيل الدخول: ' + err.message;
+    }
+  });
+ 
   auth.onAuthStateChanged(function(user) {
     stopListeners();
     dataLoaded = false;
