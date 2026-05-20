@@ -434,7 +434,7 @@ window.addEventListener('load', function() {
           <div class="clock" id="clock">--:--:--</div>
           <div class="datedisp" id="datedisp">--</div>
         </div>
-        <button class="btn bo" onclick="openCal()" style="color:#fff;border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.1)">📅 التقويم</button>
+        <button class="btn bo" onclick="showTab('hist');setTimeout(openCal,100)" style="color:#fff;border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.1)">📅 سجل الأيام</button>
         <div class="user-info" onclick="handleUserClick()">
           <img class="user-avatar" id="userAvatar" src="" alt="">
           <span class="user-name" id="userName"></span>
@@ -1312,6 +1312,7 @@ function updateDateLabel(){
 // STUDENT LIST
 // ═══════════════════════════════════════════
 function renderList(){
+  curDate=today(); // Attendance tab always shows TODAY only
   var q=(document.getElementById('srch').value||'').toLowerCase();
   var sts=getStudents(), day=getSession(), html='', shown=0;
   updateDateLabel();
@@ -1382,6 +1383,7 @@ function clearDay(){
 // ═══════════════════════════════════════════
 function openEval(idx){
   curSt=idx;
+  curDate=today(); // Evaluation always works on today
   var s=getStudents()[idx], day=getSession(), rec=day[idx]||{}, sc=rec.scores||{};
   var pd=rec.paperDelivered;
   document.getElementById('mSN').textContent=s.name+' — '+curDate;
@@ -1548,6 +1550,7 @@ function closeMod(){document.getElementById('evalM').classList.remove('open');}
 // PAPER TAB
 // ═══════════════════════════════════════════
 function renderPaper(){
+  curDate=today(); // Paper tab always works on today
   var grpLbl=curGroup==='morning'?'الصباحية':'المسائية';
   document.getElementById('pdate').textContent=curDate+' — المجموعة '+grpLbl;
   var sts=getStudents(), day=getSession(), list=document.getElementById('pList'), html='', show=[], del=0, nd=0;
