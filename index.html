@@ -1270,6 +1270,8 @@ function showTab(n){
   var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb'};
   document.getElementById(panels[n]).classList.add('active');
   document.getElementById(btns[n]).classList.add('active');
+  // Attendance tab always shows TODAY — never shows historical data
+  if(n==='att'){ curDate=today(); renderList(); }
   if(n==='paper')  renderPaper();
   if(n==='roster') renderRoster();
   if(n==='hist')   renderHist();
@@ -1369,8 +1371,10 @@ function sortSt(){
 }
  
 function clearDay(){
-  if(!confirm('الانتقال إلى يوم جديد؟ بيانات الأيام السابقة محفوظة.')) return;
-  curDate=today(); renderList(); toast('تم الانتقال إلى: '+curDate);
+  if(!confirm('الانتقال إلى اليوم الحالي؟ بيانات الأيام السابقة محفوظة.')) return;
+  curDate = today();
+  renderList();
+  toast('تم الانتقال إلى اليوم: '+curDate);
 }
  
 // ═══════════════════════════════════════════
@@ -2043,8 +2047,22 @@ function renderCal(){
   html+='</div>';
   document.getElementById('calBody').innerHTML=html;
 }
-function selDate(ds){curDate=ds;closeCal();renderList();toast('تم التبديل إلى: '+ds+' ('+( curGroup==='morning'?'صباحي':'مسائي')+')');}  
- 
+function selDate(ds){
+  // Only change curDate if in attendance or paper tab
+  var ap = document.querySelector('.tab-panel.active');
+  var aid = ap ? ap.id : '';
+  if(aid==='pa'||aid==='pp'){
+    curDate=ds; closeCal(); renderList();
+    toast('تم التبديل إلى: '+ds);
+  } else {
+    // From history/other tabs — go to history tab filtered by that date
+    closeCal(); showTab('hist');
+    setTimeout(function(){
+      var s=document.getElementById('histSearch');
+      if(s){ s.value=ds; renderHist(); }
+    },100);
+  }
+}
 // ═══════════════════════════════════════════
 // CLOCK & TOAST
 // ═══════════════════════════════════════════
@@ -2595,6 +2613,7 @@ function applyGrpLoader(){
  
  
 tick(); setInterval(tick, 1000);
+curDate = today(); // Always start on today
 dbLoad();
 initConnectivityCheck();
  
