@@ -821,10 +821,7 @@ function getSession(){ return getDay(sessionKey()); }
 // Active students based on current group
 function getStudents(){ return curGroup==='morning'?studentsMorning:studentsEvening; }
 function setStudents(arr){ if(curGroup==='morning') studentsMorning=arr; else studentsEvening=arr; }
-/* [FIREBASE RESTORE — DB REF]
 function dbRef(path){ return db.ref('users/'+currentUser.uid+'/'+path); }
-*/
-function dbRef(path){ return null; } // no-op stub in offline build
  
 // Key helpers (kept — used by history rendering)
 function dateToKey(d){ return d.replace(/-/g,'_'); }
