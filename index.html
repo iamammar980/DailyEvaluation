@@ -1099,24 +1099,13 @@ function startListeners() {
     }
   }
  
-  var smRef = dbRef('students_morning');
-  smRef.on('value', function(snap) {
-    if (!isStillMe()) return;
-    var val = snap.val();
-    studentsMorning = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
-    loaded.students = true;
-    if (dataLoaded) { renderList(); cacheLocally(); } else checkAllLoaded();
-  });
-  dbListeners.push({ ref: smRef, event: 'value' });
- 
-  var seRef = dbRef('students_evening');
-  seRef.on('value', function(snap) {
-    if (!isStillMe()) return;
-    var val = snap.val();
-    studentsEvening = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
-    if (dataLoaded) { renderList(); cacheLocally(); }
-  });
-  dbListeners.push({ ref: seRef, event: 'value' });
+  // Students are NOT loaded from Firebase — they are session-only
+  // Instructor loads them fresh each day from the roster using "تحميل مجموعة"
+  // Try loading from today's localStorage session cache
+  var cachedStudents = loadTodayStudentsFromCache();
+  studentsMorning = cachedStudents.morning;
+  studentsEvening = cachedStudents.evening;
+  loaded.students = true;
  
   var hRef = dbRef('history');
   hRef.on('value', function(snap) {
@@ -1174,12 +1163,9 @@ function renderRosterIfActive() {
 // ── SAVE FUNCTIONS ────────────────────────────────────────────────────
 function saveStudents() {
   if (!dataLoaded || !currentUser) return;
-  if (isOfflineMode) { cacheLocally(); setSyncStatus('saved'); return; }
-  setSyncStatus('saving');
-  var key = curGroup === 'morning' ? 'students_morning' : 'students_evening';
-  dbRef(key).set(getStudents())
-    .then(function() { setSyncStatus('saved'); cacheLocally(); })
-    .catch(function(e) { setSyncStatus('offline'); console.error(e); });
+  // Students are session-only — saved to localStorage for today only
+  // Each day the instructor loads fresh groups from the roster
+  saveTodayStudents();
 }
  
 function saveDay(sessionK) {
@@ -1215,6 +1201,25 @@ function saveSettings() {
   dbRef('settings').set(s)
     .then(function() { setSyncStatus('saved'); })
     .catch(function(e) { setSyncStatus('offline'); });
+}
+ 
+function loadTodayStudentsFromCache(){
+  try{
+    var key='hsp_today_'+(currentUser?currentUser.uid:'offline');
+    var raw=localStorage.getItem(key);
+    if(!raw) return {morning:[],evening:[]};
+    var d=JSON.parse(raw);
+    if(d.date===today()) return {morning:d.morning||[],evening:d.evening||[]};
+    localStorage.removeItem(key);
+    return {morning:[],evening:[]};
+  }catch(e){ return {morning:[],evening:[]}; }
+}
+ 
+function saveTodayStudents(){
+  try{
+    var key='hsp_today_'+(currentUser?currentUser.uid:'offline');
+    localStorage.setItem(key,JSON.stringify({date:today(),morning:studentsMorning,evening:studentsEvening}));
+  }catch(e){}
 }
  
 function cacheLocally() {
