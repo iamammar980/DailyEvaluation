@@ -944,11 +944,21 @@ function attachAuthListener() {
     }
   });
  
+  var lastUid = null; // track UID to detect real account switches
+ 
   auth.onAuthStateChanged(function(user) {
-    stopListeners();
-    dataLoaded = false;
-    studentsMorning = []; studentsEvening = []; history = {}; roster = [];
     if (user) {
+      var isNewUser = (lastUid !== user.uid);
+      lastUid = user.uid;
+ 
+      // Only wipe memory if it's a DIFFERENT account signing in
+      // Do NOT wipe on token refresh or page reload for same account
+      if (isNewUser) {
+        stopListeners();
+        dataLoaded = false;
+        studentsMorning = []; studentsEvening = []; history = {}; roster = [];
+      }
+ 
       currentUser = user;
       isOfflineMode = false;
       document.getElementById('loginScreen').style.display = 'none';
@@ -960,9 +970,18 @@ function attachAuthListener() {
       document.getElementById('userName').textContent      = user.displayName || user.email;
       document.getElementById('userAction').textContent    = 'خروج';
       document.getElementById('offlineBanner').classList.remove('show');
-      setTimeout(function() { startListeners(); }, 100);
+ 
+      // Only start listeners if not already running for this user
+      if (isNewUser || !dataLoaded) {
+        startListeners();
+      }
     } else {
+      // Signed out — wipe everything
+      stopListeners();
+      lastUid = null;
+      dataLoaded = false;
       currentUser = null;
+      studentsMorning = []; studentsEvening = []; history = {}; roster = [];
       document.getElementById('sList').innerHTML = '';
       document.getElementById('hName').value = '';
       document.getElementById('hNo').value = '';
@@ -1074,10 +1093,12 @@ function startListeners() {
   function checkAllLoaded() {
     if (!isStillMe()) return;
     if (loaded.students && loaded.history && loaded.roster && loaded.settings) {
-      dataLoaded = true; setSyncStatus('saved'); renderList();
+      dataLoaded = true;
+      setSyncStatus('saved');
+      renderList();
       document.getElementById('clrRBtn').style.display = (roster && roster.length > 0) ? '' : 'none';
       cacheLocally();
-      dbLoad(); // Load student DB from localStorage (separate from Firebase)
+      dbLoad();
     }
   }
  
@@ -1167,8 +1188,10 @@ function saveStudents() {
 function saveDay(sessionK) {
   if (!dataLoaded || !currentUser) return;
   if (isOfflineMode) { cacheLocally(); return; }
-  setSyncStatus('saving');
   var dayData = history[sessionK] || {};
+  // Safety: never save an empty day object — prevents accidental data wipe
+  if (!Object.keys(dayData).length) return;
+  setSyncStatus('saving');
   var dbKey = sessionK.replace(/^(\d{4})-(\d{2})-(\d{2})_/, '$1_$2_$3_');
   dbRef('history/' + dbKey).set(dayData)
     .then(function() { setSyncStatus('saved'); cacheLocally(); })
