@@ -1037,8 +1037,8 @@ function loadFromCache(uid) {
     var raw = localStorage.getItem('hsp_' + uid);
     if (!raw) return false;
     var c = JSON.parse(raw);
-    studentsMorning = c.sm || [];
-    studentsEvening = c.se || [];
+    studentsMorning = []; // Students never restored from cache
+    studentsEvening = [];
     history         = c.h  || {};
     roster          = c.r  || [];
     if (c.hn) document.getElementById('hName').value   = c.hn;
@@ -1099,12 +1099,14 @@ function startListeners() {
     }
   }
  
-  // Students are NOT loaded from Firebase — they are session-only
-  // Instructor loads them fresh each day from the roster using "تحميل مجموعة"
-  // Try loading from today's localStorage session cache
-  var cachedStudents = loadTodayStudentsFromCache();
-  studentsMorning = cachedStudents.morning;
-  studentsEvening = cachedStudents.evening;
+  // Students always start EMPTY — instructor loads from roster each session
+  studentsMorning = [];
+  studentsEvening = [];
+  // Clear any stale student cache
+  try{
+    var stKey='hsp_today_'+(currentUser?currentUser.uid:'offline');
+    localStorage.removeItem(stKey);
+  }catch(e){}
   loaded.students = true;
  
   var hRef = dbRef('history');
@@ -1204,29 +1206,20 @@ function saveSettings() {
 }
  
 function loadTodayStudentsFromCache(){
-  try{
-    var key='hsp_today_'+(currentUser?currentUser.uid:'offline');
-    var raw=localStorage.getItem(key);
-    if(!raw) return {morning:[],evening:[]};
-    var d=JSON.parse(raw);
-    if(d.date===today()) return {morning:d.morning||[],evening:d.evening||[]};
-    localStorage.removeItem(key);
-    return {morning:[],evening:[]};
-  }catch(e){ return {morning:[],evening:[]}; }
+  // Students are NEVER loaded from cache — always start empty
+  // Instructor must use "تحميل مجموعة" button each session
+  return {morning:[], evening:[]};
 }
  
 function saveTodayStudents(){
-  try{
-    var key='hsp_today_'+(currentUser?currentUser.uid:'offline');
-    localStorage.setItem(key,JSON.stringify({date:today(),morning:studentsMorning,evening:studentsEvening}));
-  }catch(e){}
+  // Students not cached — intentionally empty
 }
  
 function cacheLocally() {
   if (!currentUser) return;
   try {
     localStorage.setItem('hsp_' + currentUser.uid, JSON.stringify({
-      sm: studentsMorning, se: studentsEvening, h: history, r: roster,
+      sm: [], se: [], h: history, r: roster,  // students never cached
       hn: document.getElementById('hName').value,
       ho: document.getElementById('hNo').value,
       sn: document.getElementById('supName').value
