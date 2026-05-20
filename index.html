@@ -491,6 +491,7 @@ window.addEventListener('load', function() {
           <input class="sbox" type="text" id="srch" placeholder="🔍 ابحث عن طالب..." oninput="renderList()">
           <button class="btn bp" onclick="sortSt()">🔤 أبجدي</button>
           <button class="btn ba" onclick="doExcel()">📥 Excel</button>
+          <button class="btn" style="background:#117a65;color:#fff" onclick="exportSummaryExcel()">📊 ملف الدرجات</button>
           <button class="btn" style="background:#c0392b;color:#fff" onclick="exportAttPDF()">🖨️ كشف الحضور</button>
           <button class="btn" style="background:#117a65;color:#fff" onclick="openGrpLoader()">📋 تحميل مجموعة</button>
           <button class="btn bw" onclick="clearDay()">🔄 يوم جديد</button>
@@ -567,7 +568,8 @@ window.addEventListener('load', function() {
           <h2>📅 السجل التاريخي للتقييمات</h2>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <input type="text" class="sbox" id="histSearch" placeholder="🔍 ابحث بالتاريخ أو اسم الطالب..." oninput="renderHist()" style="max-width:260px">
-            <button class="btn ba" onclick="doExcelAll()">📥 تصدير الكل Excel</button>
+            <button class="btn ba" onclick="doExcelAll()">📥 تصدير الكل</button>
+            <button class="btn" style="background:#117a65;color:#fff" onclick="exportSummaryExcel()">📊 ملف الدرجات الكامل</button>
           </div>
         </div>
         <div id="histList"></div>
@@ -1759,6 +1761,204 @@ function exportDayExcel(){
   }
   var ws=XLSX.utils.aoa_to_sheet(rows); XLSX.utils.book_append_sheet(wb,ws,'تقييم '+cleanDate);
   XLSX.writeFile(wb,'تقييم_'+cleanDate+'.xlsx'); toast('تم تصدير Excel ✓');
+}
+ 
+function exportSummaryExcel(){
+  // Collect all students from both groups with their full history
+  var wb = XLSX.utils.book_new();
+  var hN  = document.getElementById('hName').value  || '';
+  var hNo = document.getElementById('hNo').value    || '';
+  var sup = document.getElementById('supName').value|| '';
+ 
+  // Get all unique dates across all history
+  var allDates = Object.keys(history).sort();
+ 
+  // Build master student list combining morning and evening
+  var allStudents = [];
+  studentsMorning.forEach(function(s,i){ allStudents.push({name:s.name,group:'morning',idx:i}); });
+  studentsEvening.forEach(function(s,i){ allStudents.push({name:s.name,group:'evening',idx:i}); });
+ 
+  // Match with studentDb for extra info
+  function getDbInfo(name){
+    if(!studentDb||!studentDb.length) return {};
+    for(var i=0;i<studentDb.length;i++){
+      if(studentDb[i].name && studentDb[i].name.trim()===name.trim()) return studentDb[i];
+    }
+    return {};
+  }
+ 
+  // ── Sheet 1: Summary (one row per student, columns per day) ─────────
+  var summaryRows = [];
+ 
+  // Title rows
+  summaryRows.push(['ملف الدرجات الكامل — نظام تقييم الممارسة اليومية في المستشفى']);
+  summaryRows.push(['المستشفى: '+hN, 'رقم: '+hNo, 'المشرف: '+sup, 'تاريخ التصدير: '+today()]);
+  summaryRows.push([]);
+ 
+  // Build date columns — only dates that have evaluation data
+  var evalDates = allDates.filter(function(k){
+    return Object.keys(history[k]).some(function(idx){
+      return history[k][idx].evaluated;
+    });
+  });
+ 
+  var cleanDates = evalDates.map(function(k){
+    return k.replace('_morning','').replace('_evening','');
+  });
+ 
+  // Header row
+  var headers = ['م','اسم الطالب','نوع الدراسة','رقم المجموعة','اسم المستشفى','المنطقة','البريد الإلكتروني'];
+  evalDates.forEach(function(k){
+    var cleanD = k.replace('_morning','').replace('_evening','');
+    var grp    = k.indexOf('_morning')>=0?'ص':'م';
+    headers.push(cleanD+'('+grp+')');
+  });
+  headers.push('المتوسط','حالة الحضور الكلية','ملاحظات');
+  summaryRows.push(headers);
+ 
+  // Data rows
+  allStudents.forEach(function(st, rowNum){
+    var dbInfo  = getDbInfo(st.name);
+    var grpLbl  = st.group==='morning'?'صباحي':'مسائي';
+    var hospital= dbInfo.hospital || hN || '';
+    var area    = dbInfo.area     || '';
+    var grpNum  = dbInfo.group    || '';
+    var email   = dbInfo.email    || '';
+ 
+    var row = [
+      rowNum+1,
+      st.name,
+      grpLbl,
+      grpNum,
+      hospital,
+      area,
+      email
+    ];
+ 
+    // Grade per date
+    var totalSum=0, totalCount=0, presentDays=0, absentDays=0;
+    evalDates.forEach(function(dateKey){
+      var isMyGroup = (st.group==='morning' && dateKey.indexOf('_morning')>=0) ||
+                      (st.group==='evening' && dateKey.indexOf('_evening')>=0);
+      if(isMyGroup){
+        var rec = (history[dateKey]||{})[st.idx]||{};
+        var grade = rec.total!==undefined ? rec.total : null;
+        row.push(grade!==null ? parseFloat(grade.toFixed(2)) : '');
+        if(grade!==null){ totalSum+=grade; totalCount++; }
+        if(rec.attendance==='present') presentDays++;
+        if(rec.attendance==='absent')  absentDays++;
+      } else {
+        row.push(''); // not this student's group/date
+      }
+    });
+ 
+    var avg = totalCount>0 ? parseFloat((totalSum/totalCount).toFixed(2)) : '';
+    var attSummary = presentDays>0||absentDays>0 ? 'حاضر: '+presentDays+' | غائب: '+absentDays : '';
+ 
+    // Get notes from latest evaluation
+    var lastNote = '';
+    for(var di=evalDates.length-1;di>=0;di--){
+      var dk = evalDates[di];
+      var isMyGroup2 = (st.group==='morning' && dk.indexOf('_morning')>=0)||
+                       (st.group==='evening' && dk.indexOf('_evening')>=0);
+      if(isMyGroup2){
+        var rec2=(history[dk]||{})[st.idx]||{};
+        if(rec2.notes){ lastNote=rec2.notes; break; }
+      }
+    }
+    row.push(avg, attSummary, lastNote);
+    summaryRows.push(row);
+  });
+ 
+  var ws1 = XLSX.utils.aoa_to_sheet(summaryRows);
+  // Set column widths
+  var wscols = [{wch:4},{wch:24},{wch:10},{wch:10},{wch:22},{wch:12},{wch:26}];
+  evalDates.forEach(function(){ wscols.push({wch:12}); });
+  wscols.push({wch:10},{wch:18},{wch:30});
+  ws1['!cols'] = wscols;
+  XLSX.utils.book_append_sheet(wb, ws1, 'ملخص الدرجات');
+ 
+  // ── Sheet 2: Detailed (one row per student per day) ──────────────────
+  var detailRows = [
+    ['التاريخ','اسم الطالب','نوع الدراسة','المجموعة','المستشفى','المنطقة',
+     'الحضور','وقت الحضور','الملاحظة اليومية','م.جماعية','م.حالة',
+     'الطاقم','الطالب','المعلم','المريض','التأخر','الاجتماع','الموقع','الأوامر',
+     'الشارة','الحجاب','الزي','المعطف','المجموع الكلي','تسليم الورقة','ملاحظات']
+  ];
+ 
+  allDates.forEach(function(dateKey){
+    var dayData = history[dateKey]||{};
+    var isM     = dateKey.indexOf('_morning')>=0;
+    var sts     = isM ? studentsMorning : studentsEvening;
+    var grpLbl  = isM ? 'صباحي' : 'مسائي';
+    var cleanD  = dateKey.replace('_morning','').replace('_evening','');
+ 
+    sts.forEach(function(s,i){
+      var rec = dayData[i]||{};
+      if(!rec.attendance && !rec.evaluated) return; // skip empty
+      var sc  = rec.scores||{};
+      var dbI = getDbInfo(s.name);
+      var att = rec.attendance==='present'?'حاضر':rec.attendance==='absent'?'غائب':'—';
+      var pd  = rec.paperDelivered===true?'سلّم':rec.paperDelivered===false?'لم يسلّم':'—';
+ 
+      detailRows.push([
+        cleanD, s.name, grpLbl, dbI.group||'',
+        dbI.hospital||hN||'', dbI.area||'',
+        att, rec.attendanceTime||'',
+        sc.dailynote||0, sc.gdisc||0, sc.cdisc||0,
+        sc.staff||0, sc.std||0, sc.tchr||0, sc.pat||0,
+        sc.late||0, sc.meet||0, sc.loc||0, sc.ord||0,
+        sc.badge||0, sc.veil||0, sc.uni||0, sc.coat||0,
+        rec.total!==undefined?parseFloat(rec.total.toFixed(2)):0,
+        pd, rec.notes||''
+      ]);
+    });
+  });
+ 
+  var ws2 = XLSX.utils.aoa_to_sheet(detailRows);
+  ws2['!cols'] = [
+    {wch:12},{wch:24},{wch:10},{wch:10},{wch:22},{wch:12},
+    {wch:8},{wch:8},{wch:8},{wch:8},{wch:8},
+    {wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},
+    {wch:7},{wch:7},{wch:7},{wch:7},
+    {wch:10},{wch:10},{wch:28}
+  ];
+  XLSX.utils.book_append_sheet(wb, ws2, 'تفاصيل التقييمات');
+ 
+  // ── Sheet 3: Attendance only ─────────────────────────────────────────
+  var attRows = [['م','اسم الطالب','نوع الدراسة','المجموعة','المستشفى']];
+  var attDates = Object.keys(history).sort();
+  attDates.forEach(function(k){
+    attRows[0].push(k.replace('_morning','').replace('_evening','')+'('+(k.indexOf('_morning')>=0?'ص':'م')+')');
+  });
+  attRows[0].push('إجمالي الحضور','إجمالي الغياب');
+ 
+  allStudents.forEach(function(st,rowNum){
+    var dbI    = getDbInfo(st.name);
+    var grpLbl = st.group==='morning'?'صباحي':'مسائي';
+    var row    = [rowNum+1, st.name, grpLbl, dbI.group||'', dbI.hospital||hN||''];
+    var pCount=0, aCount=0;
+    attDates.forEach(function(dk){
+      var isMyGroup = (st.group==='morning'&&dk.indexOf('_morning')>=0)||
+                      (st.group==='evening'&&dk.indexOf('_evening')>=0);
+      if(isMyGroup){
+        var att=(history[dk]||{})[st.idx]||{};
+        var v=att.attendance==='present'?'✓':att.attendance==='absent'?'✗':'';
+        row.push(v);
+        if(att.attendance==='present')pCount++;
+        if(att.attendance==='absent')aCount++;
+      } else { row.push(''); }
+    });
+    row.push(pCount,aCount);
+    attRows.push(row);
+  });
+ 
+  var ws3 = XLSX.utils.aoa_to_sheet(attRows);
+  XLSX.utils.book_append_sheet(wb, ws3, 'سجل الحضور');
+ 
+  // Save file
+  XLSX.writeFile(wb, 'ملف_الدرجات_الكامل_'+today()+'.xlsx');
+  toast('✅ تم تصدير ملف الدرجات الكامل');
 }
  
 function doExcelAll(){
