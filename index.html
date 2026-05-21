@@ -849,9 +849,44 @@ function setSyncStatus(s) {
  
 // ── CONNECTIVITY DETECTION ────────────────────────────────────────────
 function initConnectivityCheck() {
-  detectAndShowLogin();
+  // Show loading spinner while Firebase checks existing session
+  // Don't show login screen yet — Firebase may already have a valid session
+  document.getElementById('loadingScreen').style.display = 'flex';
+  document.getElementById('loginScreen').style.display   = 'none';
+ 
   window.addEventListener('online',  onNetworkOnline);
   window.addEventListener('offline', onNetworkOffline);
+ 
+  if (navigator.onLine) {
+    // Load Firebase and check auth state — show login only if no session found
+    loadFirebase(function() {
+      // Give Firebase 4 seconds to confirm existing session
+      // If onAuthStateChanged fires before timeout, it handles the UI
+      setTimeout(function() {
+        // If still on loading screen after 4s, show login
+        var ls = document.getElementById('loadingScreen');
+        if (ls && ls.style.display !== 'none') {
+          detectAndShowLogin();
+        }
+      }, 4000);
+    });
+  } else {
+    // Offline — check localStorage for existing session
+    setTimeout(function() {
+      var hasSession = false;
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.startsWith('hsp_') && !k.startsWith('hsp_today_') && !k.startsWith('hsp_sdb')) {
+          hasSession = true; break;
+        }
+      }
+      if (hasSession) {
+        enterOfflineMode();
+      } else {
+        detectAndShowLogin();
+      }
+    }, 500);
+  }
 }
  
 function detectAndShowLogin() {
@@ -1174,8 +1209,14 @@ function saveDay(sessionK) {
   if (!dataLoaded || !currentUser) return;
   if (isOfflineMode) { cacheLocally(); return; }
   var dayData = history[sessionK] || {};
-  // Safety: never save an empty day object — prevents accidental data wipe
   if (!Object.keys(dayData).length) return;
+ 
+  // Store student names inside the day record so Excel works even after reload
+  var sts = sessionK.indexOf('_morning') >= 0 ? studentsMorning : studentsEvening;
+  if (sts && sts.length > 0) {
+    dayData['__names__'] = sts.map(function(s){ return s.name; });
+  }
+ 
   setSyncStatus('saving');
   var dbKey = sessionK.replace(/^(\d{4})-(\d{2})-(\d{2})_/, '$1_$2_$3_');
   dbRef('history/' + dbKey).set(dayData)
@@ -1771,21 +1812,62 @@ function openStudentDetail(date,idx){
  
 var ddDateKey='';
 function exportDayExcel(){
-  var histKey=ddDateKey;
-  var cleanDate=histKey.replace('_morning','').replace('_evening','');
-  var dayData=history[histKey]||{};
-  var ddStsList=histKey.indexOf('_morning')>=0?studentsMorning:studentsEvening;
-  var wb=XLSX.utils.book_new();
-  var hN=document.getElementById('hName').value||'', sup=document.getElementById('supName').value||'';
-  var rows=[['المشرف: '+sup,'المستشفى: '+hN,'التاريخ: '+cleanDate],[],['م','اسم الطالب','الحضور','الملاحظة اليومية','م.جماعية','م.حالة','الطاقم','الطالب','المعلم','المريض','التأخر','الاجتماع','الموقع','الأوامر','الشارة','الحجاب','الزي','المعطف','المجموع','تسليم الورقة','ملاحظات']];
-  for(var i=0;i<ddStsList.length;i++){
-    var r=dayData[i]||{}, sc=r.scores||{};
-    var att=r.attendance==='present'?'حاضر':r.attendance==='absent'?'غائب':'—';
-    var pd=r.paperDelivered===true?'سلّم':r.paperDelivered===false?'لم يسلّم':'—';
-    rows.push([i+1,ddStsList[i].name,att,sc.dailynote||0,sc.gdisc||0,sc.cdisc||0,sc.staff||0,sc.std||0,sc.tchr||0,sc.pat||0,sc.late||0,sc.meet||0,sc.loc||0,sc.ord||0,sc.badge||0,sc.veil||0,sc.uni||0,sc.coat||0,r.total!==undefined?r.total.toFixed(2):0,pd,r.notes||'']);
+  var histKey = ddDateKey;
+  var cleanDate = histKey.replace('_morning','').replace('_evening','');
+  var dayData = history[histKey] || {};
+  var isM = histKey.indexOf('_morning') >= 0;
+ 
+  // Use stored names from history record (saved when evaluation was done)
+  // Fall back to current student list if available
+  var storedNames = dayData['__names__'] || null;
+  var liveSts = isM ? studentsMorning : studentsEvening;
+ 
+  // Build student list from stored names or live list
+  var stNames = storedNames || liveSts.map(function(s){ return s.name; });
+ 
+  if (!stNames.length) {
+    toast('لا توجد أسماء طلاب لهذا اليوم'); return;
   }
-  var ws=XLSX.utils.aoa_to_sheet(rows); XLSX.utils.book_append_sheet(wb,ws,'تقييم '+cleanDate);
-  XLSX.writeFile(wb,'تقييم_'+cleanDate+'.xlsx'); toast('تم تصدير Excel ✓');
+ 
+  var wb = XLSX.utils.book_new();
+  var hN  = document.getElementById('hName').value  || '';
+  var sup = document.getElementById('supName').value || '';
+  var grpLabel = isM ? 'صباحي' : 'مسائي';
+ 
+  var rows = [
+    ['المشرف: '+sup, 'المستشفى: '+hN, 'التاريخ: '+cleanDate, 'المجموعة: '+grpLabel],
+    [],
+    ['م','اسم الطالب','الحضور','وقت الحضور','الملاحظة اليومية','م.جماعية','م.حالة',
+     'الطاقم','الطالب','المعلم','المريض','التأخر','الاجتماع','الموقع','الأوامر',
+     'الشارة','الحجاب','الزي','المعطف','المجموع','تسليم الورقة','ملاحظات']
+  ];
+ 
+  for (var i = 0; i < stNames.length; i++) {
+    var r  = dayData[i] || {};
+    var sc = r.scores  || {};
+    if (!r.attendance && !r.evaluated) continue; // skip completely empty rows
+    var att = r.attendance==='present'?'حاضر':r.attendance==='absent'?'غائب':'—';
+    var pd  = r.paperDelivered===true?'سلّم':r.paperDelivered===false?'لم يسلّم':'—';
+    rows.push([
+      i+1, stNames[i], att, r.attendanceTime||'',
+      sc.dailynote||0, sc.gdisc||0, sc.cdisc||0,
+      sc.staff||0, sc.std||0, sc.tchr||0, sc.pat||0,
+      sc.late||0, sc.meet||0, sc.loc||0, sc.ord||0,
+      sc.badge||0, sc.veil||0, sc.uni||0, sc.coat||0,
+      r.total !== undefined ? parseFloat(r.total.toFixed(2)) : 0,
+      pd, r.notes||''
+    ]);
+  }
+ 
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [
+    {wch:4},{wch:24},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},
+    {wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},
+    {wch:7},{wch:7},{wch:7},{wch:7},{wch:10},{wch:10},{wch:28}
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, 'تقييم '+cleanDate);
+  XLSX.writeFile(wb, 'تقييم_'+cleanDate+'_'+grpLabel+'.xlsx');
+  toast('تم تصدير Excel ✓');
 }
  
 function exportSummaryExcel(){
