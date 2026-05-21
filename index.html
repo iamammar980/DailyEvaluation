@@ -314,6 +314,32 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .email-modal{background:#fff;border-radius:14px;width:100%;max-width:680px;max-height:93vh;overflow-y:auto;direction:rtl}
 .email-hdr{background:#e74c3c;color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:2}
 .email-hdr h2{font-size:16px;font-weight:600}
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:18px}
+.cat-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:18px 16px;cursor:pointer;transition:all .15s;text-align:center}
+.cat-card:hover{border-color:var(--pl);box-shadow:0 4px 16px rgba(41,128,185,.15);transform:translateY(-2px)}
+.cat-card .cat-icon{font-size:32px;margin-bottom:8px}
+.cat-card .cat-name{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:4px}
+.cat-card .cat-count{font-size:12px;color:var(--muted)}
+.topic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.topic-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:all .15s}
+.topic-card:hover{border-color:var(--pl);box-shadow:0 4px 12px rgba(41,128,185,.12)}
+.topic-card .tc-thumb{width:100%;height:110px;object-fit:cover;background:var(--bg);display:block}
+.topic-card .tc-thumb-placeholder{width:100%;height:110px;background:linear-gradient(135deg,var(--bg),var(--border));display:flex;align-items:center;justify-content:center;font-size:28px}
+.topic-card .tc-name{font-size:13px;font-weight:600;color:var(--text);padding:8px 10px;border-top:1px solid var(--border)}
+.topic-card .tc-photos{font-size:11px;color:var(--muted);padding:0 10px 8px}
+.tm-modal{background:#fff;border-radius:14px;width:100%;max-width:760px;max-height:93vh;overflow-y:auto;direction:rtl}
+.tm-hdr{background:var(--primary);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:2}
+.tm-hdr h2{font-size:15px;font-weight:600}
+.photo-strip{display:flex;gap:10px;overflow-x:auto;padding:4px 0}
+.photo-strip img{height:280px;min-width:220px;max-width:360px;object-fit:contain;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:zoom-in}
+.upload-zone{border:2px dashed var(--border);border-radius:var(--r);padding:24px;text-align:center;cursor:pointer;transition:all .15s}
+.upload-zone:hover{border-color:var(--pl);background:#f0f8ff}
+.upload-zone input[type=file]{display:none}
+.preview-strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.preview-strip img{width:80px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border)}
+.fullscreen-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:999;display:none;align-items:center;justify-content:center;flex-direction:column}
+.fullscreen-overlay.open{display:flex}
+.fullscreen-overlay img{max-width:95vw;max-height:85vh;object-fit:contain;border-radius:8px}
 @media(max-width:600px){
   .stats-bar{grid-template-columns:repeat(2,1fr)}
   .lhdr,.srow{grid-template-columns:24px 1fr 88px 55px}
@@ -468,6 +494,7 @@ window.addEventListener('load', function() {
         <button class="tab-btn" id="tbr" onclick="showTab('roster')">🏥 جدول المجموعات</button>
         <button class="tab-btn" id="tbh" onclick="showTab('hist')">📅 السجل التاريخي</button>
         <button class="tab-btn" id="tbdb" onclick="showTab('db')">🗄️ قاعدة البيانات</button>
+        <button class="tab-btn" id="tbtm" onclick="showTab('teach')">📚 المواد التعليمية</button>
       </div>
  
       <!-- TAB: ATTENDANCE -->
@@ -663,8 +690,48 @@ window.addEventListener('load', function() {
             <div id="emailProgressBar" style="height:100%;background:#27ae60;border-radius:3px;width:0%;transition:width .3s"></div>
           </div>
         </div>
+      <!-- TAB: TEACHING MATERIALS -->
+      <div class="tab-panel" id="ptm">
+        <div id="tmWrap">
+          <!-- Breadcrumb -->
+          <div id="tmBread" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <span style="font-size:16px;font-weight:700;color:var(--primary)">📚 المواد التعليمية</span>
+            <span id="tmBreadCat" style="display:none;color:var(--muted);font-size:13px"></span>
+          </div>
+          <!-- Add topic button (shown in category view) -->
+          <div id="tmActions" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <button class="btn bp" onclick="tmOpenAddModal()" id="tmAddBtn" style="display:none">➕ إضافة موضوع</button>
+            <button class="btn bo" onclick="tmBackToCategories()" id="tmBackBtn" style="display:none">← الفئات</button>
+          </div>
+          <!-- Content area -->
+          <div id="tmContent"></div>
+        </div>
+      </div>
+ 
       </div>
     </div>
+  </div>
+</div>
+ 
+<!-- FULLSCREEN IMAGE VIEWER -->
+<div class="fullscreen-overlay" id="fsOverlay" onclick="fsClose()">
+  <img id="fsImg" src="" alt="">
+  <div style="margin-top:14px;display:flex;gap:10px">
+    <button onclick="fsPrev(event)" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 18px;font-size:18px;cursor:pointer">‹</button>
+    <button onclick="fsNext(event)" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 18px;font-size:18px;cursor:pointer">›</button>
+    <button onclick="fsClose()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 18px;font-size:14px;cursor:pointer">✕ إغلاق</button>
+  </div>
+  <div id="fsCaption" style="color:rgba(255,255,255,.8);font-size:13px;margin-top:8px"></div>
+</div>
+ 
+<!-- TEACHING ADD/VIEW MODAL -->
+<div class="overlay" id="tmModal">
+  <div class="tm-modal">
+    <div class="tm-hdr">
+      <h2 id="tmModalTitle">إضافة موضوع</h2>
+      <button style="background:rgba(255,255,255,.2);border:none;color:#fff;width:27px;height:27px;border-radius:50%;cursor:pointer;font-size:15px" onclick="tmCloseModal()">✕</button>
+    </div>
+    <div style="padding:18px" id="tmModalBody"></div>
   </div>
 </div>
  
@@ -1290,8 +1357,8 @@ var FIELDS=[
 function showTab(n){
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb'};
-  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb'};
+  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm'};
+  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm'};
   document.getElementById(panels[n]).classList.add('active');
   document.getElementById(btns[n]).classList.add('active');
   // Attendance tab always shows TODAY — never shows historical data
@@ -1300,6 +1367,7 @@ function showTab(n){
   if(n==='roster') renderRoster();
   if(n==='hist')   renderHist();
   if(n==='db')     dbRender();
+  if(n==='teach')  tmRender();
 }
  
 function switchGroup(g){
@@ -2144,6 +2212,7 @@ function tick(){
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2400);}
  
 document.getElementById('evalM').addEventListener('click',function(e){if(e.target===this)closeMod();});
+document.getElementById('tmModal').addEventListener('click',function(e){if(e.target===this)tmCloseModal();});
 document.getElementById('emailModal').addEventListener('click',function(e){if(e.target===this)closeEmailModal();});
 document.getElementById('grpLoaderM').addEventListener('click',function(e){if(e.target===this)closeGrpLoader();});
 document.getElementById('attPdfModal').addEventListener('click',function(e){if(e.target===this)document.getElementById('attPdfModal').classList.remove('open');});
@@ -2951,6 +3020,416 @@ function sendEmails(selectedOnly){
 }
  
  
+ 
+// ═══════════════════════════════════════════════════════════
+// TEACHING MATERIALS — Complete isolated feature
+// Uses ImgBB for image hosting + Firebase Realtime DB for metadata
+// ═══════════════════════════════════════════════════════════
+var IMGBB_KEY = 'c5d9f7f0c0e4b8d882213286812b2757';
+ 
+var TM_CATEGORIES = [
+  { id:'pharmacology',         name:'الأدوية والعلاج',          icon:'💊', color:'#1a5276' },
+  { id:'pregnancy_comp',       name:'مضاعفات الحمل',            icon:'🤰', color:'#6c3483' },
+  { id:'normal_postpartum',    name:'ما بعد الولادة الطبيعي',   icon:'👶', color:'#117a65' },
+  { id:'complicated_postpartum',name:'ما بعد الولادة المعقد',   icon:'⚕️', color:'#b7770d' },
+  { id:'gynecological',        name:'أمراض النساء',              icon:'🏥', color:'#922b21' }
+];
+ 
+var tmCurrentCat = null;   // current category id
+var tmTopics     = {};     // cached topics per category
+var tmListener   = null;   // active Firebase listener
+var fsImages     = [];     // fullscreen viewer images
+var fsIndex      = 0;      // current fullscreen index
+ 
+// ── RENDER CATEGORIES ─────────────────────────────────────────────────
+function tmRender(){
+  if(tmCurrentCat) { tmRenderTopics(tmCurrentCat); return; }
+  tmShowCategories();
+}
+ 
+function tmShowCategories(){
+  tmCurrentCat = null;
+  document.getElementById('tmBreadCat').style.display = 'none';
+  document.getElementById('tmAddBtn').style.display   = 'none';
+  document.getElementById('tmBackBtn').style.display  = 'none';
+ 
+  var html = '<div class="cat-grid">';
+  TM_CATEGORIES.forEach(function(cat){
+    var count = tmTopics[cat.id] ? Object.keys(tmTopics[cat.id]).length : '…';
+    html += '<div class="cat-card" onclick="tmSelectCategory(\''+cat.id+'\')">';
+      + '<div class="cat-icon">'+cat.icon+'</div>'
+      + '<div class="cat-name">'+cat.name+'</div>'
+      + '<div class="cat-count">'+count+' موضوع</div>'
+      + '</div>';
+  });
+  html += '</div>';
+  document.getElementById('tmContent').innerHTML = html;
+ 
+  // Load all categories count from Firebase
+  if(currentUser && typeof dbRef === 'function'){
+    TM_CATEGORIES.forEach(function(cat){
+      var ref = db.ref('materials/'+cat.id);
+      ref.once('value', function(snap){
+        var data = snap.val()||{};
+        var count = Object.keys(data).length;
+        // Update just the count in the card
+        var cards = document.querySelectorAll('.cat-card');
+        cards.forEach(function(card){
+          if(card.querySelector('.cat-name') && card.querySelector('.cat-name').textContent === cat.name){
+            card.querySelector('.cat-count').textContent = count+' موضوع';
+          }
+        });
+      });
+    });
+  }
+}
+ 
+function tmSelectCategory(catId){
+  tmCurrentCat = catId;
+  var cat = TM_CATEGORIES.find(function(c){ return c.id===catId; });
+  document.getElementById('tmBreadCat').style.display = 'inline';
+  document.getElementById('tmBreadCat').textContent   = '← '+cat.name;
+  document.getElementById('tmAddBtn').style.display   = '';
+  document.getElementById('tmBackBtn').style.display  = '';
+  tmRenderTopics(catId);
+  // Attach live listener for this category
+  if(tmListener){ tmListener(); tmListener=null; }
+  if(currentUser){
+    var ref = db.ref('materials/'+catId);
+    tmListener = ref.on('value', function(snap){
+      tmTopics[catId] = snap.val()||{};
+      if(tmCurrentCat===catId) tmRenderTopics(catId);
+    });
+  }
+}
+ 
+function tmBackToCategories(){
+  if(tmListener){ db.ref('materials/'+tmCurrentCat).off('value'); tmListener=null; }
+  tmCurrentCat = null;
+  tmShowCategories();
+}
+ 
+function tmRenderTopics(catId){
+  var cat    = TM_CATEGORIES.find(function(c){ return c.id===catId; });
+  var topics = tmTopics[catId]||{};
+  var keys   = Object.keys(topics).sort(function(a,b){ return (topics[a].name||'').localeCompare(topics[b].name||'','ar'); });
+ 
+  if(!keys.length){
+    document.getElementById('tmContent').innerHTML =
+      '<div style="text-align:center;padding:48px 20px;color:var(--muted)">'
+      +'<div style="font-size:40px;margin-bottom:10px">'+cat.icon+'</div>'
+      +'<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد مواضيع بعد في '+cat.name+'</div>'
+      +'<div style="font-size:13px;margin-bottom:16px">اضغط "إضافة موضوع" لإضافة أول موضوع</div>'
+      +'<button class="btn bp" onclick="tmOpenAddModal()">➕ إضافة أول موضوع</button>'
+      +'</div>';
+    return;
+  }
+ 
+  var html = '<div class="topic-grid">';
+  keys.forEach(function(key){
+    var t = topics[key];
+    var thumb = t.photos && t.photos.length > 0 ? t.photos[0] : null;
+    html += '<div class="topic-card" data-cat="'+catId+'" data-key="'+key+'" onclick="tmViewTopicEl(this)">';
+    if(thumb){
+      html += '<img class="tc-thumb" src="'+thumb+'" alt="'+t.name+'" loading="lazy" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">';
+      html += '<div class="tc-thumb-placeholder" style="display:none">'+cat.icon+'</div>';
+    } else {
+      html += '<div class="tc-thumb-placeholder">'+cat.icon+'</div>';
+    }
+    html += '<div class="tc-name">'+t.name+'</div>';
+    html += '<div class="tc-photos">'+(t.photos?t.photos.length:0)+' صورة</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('tmContent').innerHTML = html;
+}
+ 
+// ── VIEW TOPIC ────────────────────────────────────────────────────────
+function tmViewTopicEl(el){ tmViewTopic(el.getAttribute('data-cat'), el.getAttribute('data-key')); }
+function tmSendTopicEl(el){ tmSendTopic(el.getAttribute('data-cat'), el.getAttribute('data-key')); }
+function tmOpenEditEl(el){ tmOpenEditModal(el.getAttribute('data-cat'), el.getAttribute('data-key')); }
+function tmDeleteEl(el){ tmDeleteTopic(el.getAttribute('data-cat'), el.getAttribute('data-key')); }
+function fsOpenEl(el){ fsOpen(el.getAttribute('data-cat'), el.getAttribute('data-key'), parseInt(el.getAttribute('data-idx'))); }
+function tmViewTopic(catId, topicKey){
+  var cat   = TM_CATEGORIES.find(function(c){ return c.id===catId; });
+  var topic = (tmTopics[catId]||{})[topicKey];
+  if(!topic) return;
+ 
+  var html = '';
+  // Header info
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">';
+  html += '<div>';
+  html += '<div style="font-size:11px;color:var(--muted);margin-bottom:3px">'+cat.icon+' '+cat.name+'</div>';
+  html += '<div style="font-size:18px;font-weight:700;color:var(--primary)">'+topic.name+'</div>';
+  if(topic.notes) html += '<div style="font-size:13px;color:var(--muted);margin-top:4px">'+topic.notes+'</div>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:8px">';
+    html += '<button class="btn" style="background:#e74c3c;color:#fff;font-size:12px" data-cat="'+catId+'" data-key="'+topicKey+'" onclick="tmSendTopicEl(this)">📧 إرسال للطلاب</button>';
+    html += '<button class="btn bo" style="font-size:12px" data-cat="'+catId+'" data-key="'+topicKey+'" onclick="tmOpenEditEl(this)">✏️ تعديل</button>';
+    html += '<button class="btn" style="background:#c0392b;color:#fff;font-size:12px" data-cat="'+catId+'" data-key="'+topicKey+'" onclick="tmDeleteEl(this)">🗑</button>';
+  html += '</div></div>';
+ 
+  // Photos
+  if(topic.photos && topic.photos.length){
+    html += '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">📸 الصور التعليمية</div>';
+    html += '<div class="photo-strip">';
+    topic.photos.forEach(function(url, i){
+      html += '<img src="'+url+'" alt="صورة '+(i+1)+'" data-cat="'+catId+'" data-key="'+topicKey+'" data-idx="'+i+'" onclick="fsOpenEl(this)" title="اضغط للتكبير" class="photo-thumb">';
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="background:var(--bg);border-radius:var(--r);padding:24px;text-align:center;color:var(--muted);font-size:13px">لا توجد صور لهذا الموضوع</div>';
+  }
+ 
+  document.getElementById('tmModalTitle').textContent = topic.name;
+  document.getElementById('tmModalBody').innerHTML = html;
+  document.getElementById('tmModal').classList.add('open');
+}
+ 
+// ── ADD TOPIC MODAL ───────────────────────────────────────────────────
+var tmUploadPreviews = [];
+var tmUploadFiles    = [];
+ 
+function tmOpenAddModal(catId, existingKey){
+  var isEdit  = !!existingKey;
+  var cat     = TM_CATEGORIES.find(function(c){ return c.id===(catId||tmCurrentCat); });
+  var existing= isEdit ? (tmTopics[catId||tmCurrentCat]||{})[existingKey] : null;
+ 
+  tmUploadPreviews = existing ? (existing.photos||[]).slice() : [];
+  tmUploadFiles    = [];
+ 
+  document.getElementById('tmModalTitle').textContent = isEdit ? 'تعديل: '+existing.name : 'إضافة موضوع — '+cat.name;
+ 
+  var html = '';
+  html += '<div style="margin-bottom:14px">';
+  html += '<label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">اسم الموضوع *</label>';
+  html += '<input type="text" id="tmTopicName" value="'+(existing?existing.name:'')+'" placeholder="مثال: أوكسيتوسين، تسمم الحمل..." style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:14px;direction:rtl">';
+  html += '</div>';
+ 
+  html += '<div style="margin-bottom:14px">';
+  html += '<label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">ملاحظات (اختياري)</label>';
+  html += '<textarea id="tmTopicNotes" placeholder="وصف مختصر أو تعليمات للطالب..." style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;direction:rtl;resize:vertical;min-height:60px">'+(existing&&existing.notes?existing.notes:'')+'</textarea>';
+  html += '</div>';
+ 
+  html += '<div style="margin-bottom:14px">';
+  html += '<label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">الصور التعليمية (1-4 صور)</label>';
+  html += '<div class="upload-zone" onclick="document.getElementById(\'tmFileInput\').click()">';
+  html += '<div style="font-size:28px;margin-bottom:6px">📸</div>';
+  html += '<div style="font-size:14px;font-weight:600;color:var(--primary)">اضغط لرفع صور</div>';
+  html += '<div style="font-size:12px;color:var(--muted);margin-top:4px">JPG, PNG, GIF — حتى 4 صور</div>';
+  html += '<input type="file" id="tmFileInput" accept="image/*" multiple onchange="tmHandleFiles(this.files)">';
+  html += '</div>';
+  html += '<div class="preview-strip" id="tmPreviewStrip"></div>';
+  html += '</div>';
+ 
+  var catForSave = catId||tmCurrentCat;
+  html += '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;border-top:1px solid var(--border);padding-top:14px">';
+  html += '<button class="btn bo" onclick="tmCloseModal()">إلغاء</button>';
+  html += '<button class="btn bp" onclick="tmSaveTopic(\''+catForSave+'\',\''+(existingKey||'')+'\')" id="tmSaveBtn">💾 حفظ الموضوع</button>';
+  html += '</div>';
+ 
+  document.getElementById('tmModalBody').innerHTML = html;
+  document.getElementById('tmModal').classList.add('open');
+  tmRefreshPreviews();
+}
+ 
+function tmOpenEditModal(catId, topicKey){
+  tmCloseModal();
+  setTimeout(function(){ tmOpenAddModal(catId, topicKey); }, 150);
+}
+ 
+function tmHandleFiles(files){
+  var remaining = 4 - tmUploadPreviews.length;
+  var toAdd     = Math.min(files.length, remaining);
+  if(toAdd <= 0){ toast('الحد الأقصى 4 صور'); return; }
+  for(var i=0;i<toAdd;i++){
+    tmUploadFiles.push(files[i]);
+    var url = URL.createObjectURL(files[i]);
+    tmUploadPreviews.push(url);
+  }
+  tmRefreshPreviews();
+}
+ 
+function tmRefreshPreviews(){
+  var strip = document.getElementById('tmPreviewStrip');
+  if(!strip) return;
+  if(!tmUploadPreviews.length){ strip.innerHTML=''; return; }
+  var html = '';
+  tmUploadPreviews.forEach(function(url,i){
+    html += '<div style="position:relative;display:inline-block">';
+    html += '<img src="'+url+'" style="width:80px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">';
+    html += '<button onclick="tmRemovePreview('+i+')" style="position:absolute;top:-6px;right:-6px;background:#c0392b;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>';
+    html += '</div>';
+  });
+  strip.innerHTML = html;
+}
+ 
+function tmRemovePreview(i){
+  tmUploadPreviews.splice(i,1);
+  tmUploadFiles.splice(i,1);
+  tmRefreshPreviews();
+}
+ 
+// ── UPLOAD TO IMGBB ───────────────────────────────────────────────────
+function tmUploadToImgBB(file){
+  return new Promise(function(resolve, reject){
+    var form = new FormData();
+    form.append('image', file);
+    fetch('https://api.imgbb.com/1/upload?key='+IMGBB_KEY, {
+      method:'POST', body:form
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.success) resolve(d.data.display_url);
+      else reject(new Error(d.error&&d.error.message?d.error.message:'Upload failed'));
+    })
+    .catch(reject);
+  });
+}
+ 
+// ── SAVE TOPIC ────────────────────────────────────────────────────────
+function tmSaveTopic(catId, existingKey){
+  var name  = (document.getElementById('tmTopicName').value||'').trim();
+  var notes = (document.getElementById('tmTopicNotes').value||'').trim();
+  if(!name){ toast('أدخل اسم الموضوع'); return; }
+ 
+  var btn = document.getElementById('tmSaveBtn');
+  btn.disabled=true; btn.textContent='⏳ جاري الحفظ...';
+  toast('جاري رفع الصور...');
+ 
+  // Separate existing URLs from new File objects
+  var existingUrls = tmUploadPreviews.filter(function(u){ return u.startsWith('http'); });
+  var newFiles     = tmUploadFiles.filter(function(f){ return f instanceof File; });
+ 
+  // Upload new files
+  var uploadPromises = newFiles.map(function(f){ return tmUploadToImgBB(f); });
+ 
+  Promise.all(uploadPromises)
+    .then(function(newUrls){
+      var allPhotos = existingUrls.concat(newUrls);
+      var key       = existingKey || name.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_\u0600-\u06FF]/g,'').substring(0,40)+'_'+Date.now();
+      var data      = { name:name, notes:notes, photos:allPhotos, updatedAt:Date.now(), addedBy:currentUser?currentUser.displayName||currentUser.email:'' };
+      return db.ref('materials/'+catId+'/'+key).set(data).then(function(){ return key; });
+    })
+    .then(function(){
+      tmCloseModal();
+      toast('✅ تم حفظ الموضوع');
+      btn.disabled=false; btn.textContent='💾 حفظ الموضوع';
+    })
+    .catch(function(err){
+      toast('❌ فشل الرفع: '+err.message);
+      btn.disabled=false; btn.textContent='💾 حفظ الموضوع';
+    });
+}
+ 
+// ── DELETE TOPIC ──────────────────────────────────────────────────────
+function tmDeleteTopic(catId, topicKey){
+  var topic = (tmTopics[catId]||{})[topicKey];
+  if(!confirm('حذف الموضوع "'+( topic?topic.name:topicKey)+'"؟')) return;
+  db.ref('materials/'+catId+'/'+topicKey).remove()
+    .then(function(){ tmCloseModal(); toast('تم الحذف'); })
+    .catch(function(err){ toast('❌ '+err.message); });
+}
+ 
+// ── SEND TOPIC TO STUDENTS ────────────────────────────────────────────
+function tmSendTopic(catId, topicKey){
+  var topic = (tmTopics[catId]||{})[topicKey];
+  var cat   = TM_CATEGORIES.find(function(c){ return c.id===catId; });
+  if(!topic){ toast('الموضوع غير موجود'); return; }
+ 
+  var gasUrl = localStorage.getItem('hsp_gas_url')||'';
+  if(!gasUrl){ toast('أدخل Web App URL في قسم إرسال الدرجات أولاً'); return; }
+ 
+  // Collect students with emails
+  var allSts = studentsMorning.concat(studentsEvening);
+  function findEmail(name){
+    if(!studentDb||!studentDb.length) return '';
+    for(var i=0;i<studentDb.length;i++){
+      if(studentDb[i].name&&studentDb[i].name.trim()===name.trim()) return studentDb[i].email||'';
+    }
+    return '';
+  }
+  var withEmail = allSts.filter(function(s){ return !!findEmail(s.name); });
+  if(!withEmail.length){ toast('لا يوجد طلاب بعناوين بريد. ارفع قاعدة البيانات أولاً.'); return; }
+ 
+  var photoLinks = (topic.photos||[]).map(function(url,i){ return 'صورة '+(i+1)+': '+url; }).join('\n');
+  var msg = 'مواد تحضيرية للاختبار\n\nالفئة: '+cat.name+'\nالموضوع: '+topic.name+(topic.notes?'\n\n'+topic.notes:'')+'\n\nصور الموضوع:\n'+photoLinks;
+ 
+  if(!confirm('إرسال الموضوع "'+topic.name+'" لـ '+withEmail.length+' طالب؟')) return;
+ 
+  var sent=0, failed=0, total=withEmail.length;
+  toast('جاري الإرسال...');
+ 
+  function sendNext(i){
+    if(i>=total){
+      toast('✅ تم الإرسال: '+sent+' | فشل: '+failed);
+      return;
+    }
+    var s     = withEmail[i];
+    var email = findEmail(s.name);
+    var payload = {
+      to_email:      email,
+      to_name:       s.name,
+      from_name:     document.getElementById('supName').value||'المشرف',
+      hospital_name: document.getElementById('hName').value||'',
+      area:          '',
+      group_type:    'مواد تعليمية',
+      grades_table:  msg,
+      average_grade: '',
+      message:       'مواد تحضيرية للموضوع: '+topic.name,
+      date:          today()
+    };
+    fetch(gasUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)})
+      .then(function(r){return r.json();})
+      .then(function(d){ if(d.success)sent++; else failed++; sendNext(i+1); })
+      .catch(function(){ failed++; sendNext(i+1); });
+  }
+  sendNext(0);
+}
+ 
+// ── FULLSCREEN VIEWER ─────────────────────────────────────────────────
+function fsOpen(catId, topicKey, idx){
+  var topic = (tmTopics[catId]||{})[topicKey];
+  if(!topic||!topic.photos||!topic.photos.length) return;
+  fsImages = topic.photos;
+  fsIndex  = idx||0;
+  fsShow();
+  document.getElementById('fsOverlay').classList.add('open');
+}
+ 
+function fsShow(){
+  var img = document.getElementById('fsImg');
+  var cap = document.getElementById('fsCaption');
+  img.src = fsImages[fsIndex];
+  cap.textContent = 'صورة '+(fsIndex+1)+' من '+fsImages.length;
+}
+ 
+function fsPrev(e){ e&&e.stopPropagation(); fsIndex=(fsIndex-1+fsImages.length)%fsImages.length; fsShow(); }
+function fsNext(e){ e&&e.stopPropagation(); fsIndex=(fsIndex+1)%fsImages.length; fsShow(); }
+function fsClose(){ document.getElementById('fsOverlay').classList.remove('open'); }
+ 
+// ── MODAL HELPERS ─────────────────────────────────────────────────────
+function tmCloseModal(){
+  document.getElementById('tmModal').classList.remove('open');
+  tmUploadPreviews=[];
+  tmUploadFiles=[];
+}
+ 
+// Keyboard nav for fullscreen
+document.addEventListener('keydown', function(e){
+  var fs = document.getElementById('fsOverlay');
+  if(!fs||!fs.classList.contains('open')) return;
+  if(e.key==='ArrowLeft'||e.key==='ArrowRight') { e.key==='ArrowLeft'?fsNext():fsPrev(); }
+  if(e.key==='Escape') fsClose();
+});
+ 
+document.addEventListener('DOMContentLoaded', function(){
+  var mo = document.getElementById('tmModal');
+  if(mo) mo.addEventListener('click', function(e){ if(e.target===this) tmCloseModal(); });
+});
+ 
+ 
 </script>
 </body>
 </html>
+ 
