@@ -3054,17 +3054,16 @@ function tmShowCategories(){
   document.getElementById('tmBackBtn').style.display  = 'none';
  
   var html = '<div class="cat-grid">';
-  TM_CATEGORIES.forEach(function(cat){
+  TM_CATEGORIES.forEach(function(cat, idx){
     var count = tmTopics[cat.id] ? Object.keys(tmTopics[cat.id]).length : '…';
-    html += '<div class="cat-card" onclick="tmSelectCategory(\''+cat.id+'\')">';
+    html += '<div class="cat-card" data-catid="'+cat.id+'" onclick="tmSelectCategoryEl(this)">'
       + '<div class="cat-icon">'+cat.icon+'</div>'
       + '<div class="cat-name">'+cat.name+'</div>'
-      + '<div class="cat-count">'+count+' موضوع</div>'
+      + '<div class="cat-count" id="catcount_'+cat.id+'">'+count+' موضوع</div>'
       + '</div>';
   });
   html += '</div>';
   document.getElementById('tmContent').innerHTML = html;
- 
   // Load all categories count from Firebase
   if(currentUser && typeof dbRef === 'function'){
     TM_CATEGORIES.forEach(function(cat){
@@ -3073,17 +3072,14 @@ function tmShowCategories(){
         var data = snap.val()||{};
         var count = Object.keys(data).length;
         // Update just the count in the card
-        var cards = document.querySelectorAll('.cat-card');
-        cards.forEach(function(card){
-          if(card.querySelector('.cat-name') && card.querySelector('.cat-name').textContent === cat.name){
-            card.querySelector('.cat-count').textContent = count+' موضوع';
-          }
-        });
+        var el = document.getElementById('catcount_'+cat.id);
+        if(el) el.textContent = count+' موضوع';
       });
     });
   }
 }
  
+function tmSelectCategoryEl(el){ tmSelectCategory(el.getAttribute("data-catid")); }
 function tmSelectCategory(catId){
   tmCurrentCat = catId;
   var cat = TM_CATEGORIES.find(function(c){ return c.id===catId; });
