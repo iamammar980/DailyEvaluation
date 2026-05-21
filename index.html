@@ -856,24 +856,20 @@ function initConnectivityCheck() {
   window.addEventListener('offline', onNetworkOffline);
  
   if (!navigator.onLine) {
-    // No internet — go offline mode
     setTimeout(function() { enterOfflineMode(); }, 300);
     return;
   }
  
-  // Load Firebase — it will check for existing session automatically
+  // Always load Firebase immediately — never wait for user action
+  // This ensures onAuthStateChanged fires and restores existing session
   loadFirebase(function() {
-    // Firebase is loaded — onAuthStateChanged will fire within ~2 seconds
-    // If user was signed in before, it fires with their session (no login needed)
-    // If not signed in, it fires with null → show login screen
-    // We set a fallback timeout in case Firebase takes too long
+    // Firebase loaded — onAuthStateChanged handles everything from here
+    // Just set a safety fallback
     setTimeout(function() {
-      var ls = document.getElementById('loadingScreen');
-      if (ls && ls.style.display !== 'none') {
-        // Firebase didn't respond — show login screen
+      if (document.getElementById('loadingScreen').style.display !== 'none') {
         detectAndShowLogin();
       }
-    }, 8000); // 8 second max wait
+    }, 10000);
   });
 }
  
@@ -2687,7 +2683,33 @@ function applyGrpLoader(){
 tick(); setInterval(tick, 1000);
 curDate = today(); // Always start on today
 dbLoad();
-initConnectivityCheck();
+ 
+// Load Firebase immediately on every page load
+// This is the key fix — Firebase must start loading before anything else
+// so onAuthStateChanged can restore existing sessions on page reload
+document.getElementById('loadingScreen').style.display = 'flex';
+document.getElementById('loginScreen').style.display   = 'none';
+document.getElementById('appRoot').style.display       = 'none';
+document.getElementById('hdrEl').style.display         = 'none';
+document.getElementById('appBody').style.display       = 'none';
+ 
+loadFirebase(function() {
+  // Firebase loaded — onAuthStateChanged will fire automatically
+  // It will either restore the session or show the login screen
+  // Safety fallback: if nothing happens in 10 seconds, show login
+  setTimeout(function() {
+    if (document.getElementById('loadingScreen').style.display !== 'none') {
+      detectAndShowLogin();
+    }
+  }, 10000);
+});
+ 
+// Setup connectivity listeners
+window.addEventListener('online',  onNetworkOnline);
+window.addEventListener('offline', function() {
+  if (!currentUser && !isOfflineMode) { showLoginSection('offline'); }
+  else if (currentUser) { setSyncStatus('offline'); }
+});
  
  
  
@@ -2932,4 +2954,3 @@ function sendEmails(selectedOnly){
 </script>
 </body>
 </html>
- 
