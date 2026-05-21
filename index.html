@@ -849,44 +849,32 @@ function setSyncStatus(s) {
  
 // ── CONNECTIVITY DETECTION ────────────────────────────────────────────
 function initConnectivityCheck() {
-  // Show loading spinner while Firebase checks existing session
-  // Don't show login screen yet — Firebase may already have a valid session
   document.getElementById('loadingScreen').style.display = 'flex';
   document.getElementById('loginScreen').style.display   = 'none';
  
   window.addEventListener('online',  onNetworkOnline);
   window.addEventListener('offline', onNetworkOffline);
  
-  if (navigator.onLine) {
-    // Load Firebase and check auth state — show login only if no session found
-    loadFirebase(function() {
-      // Give Firebase 4 seconds to confirm existing session
-      // If onAuthStateChanged fires before timeout, it handles the UI
-      setTimeout(function() {
-        // If still on loading screen after 4s, show login
-        var ls = document.getElementById('loadingScreen');
-        if (ls && ls.style.display !== 'none') {
-          detectAndShowLogin();
-        }
-      }, 4000);
-    });
-  } else {
-    // Offline — check localStorage for existing session
+  if (!navigator.onLine) {
+    // No internet — go offline mode
+    setTimeout(function() { enterOfflineMode(); }, 300);
+    return;
+  }
+ 
+  // Load Firebase — it will check for existing session automatically
+  loadFirebase(function() {
+    // Firebase is loaded — onAuthStateChanged will fire within ~2 seconds
+    // If user was signed in before, it fires with their session (no login needed)
+    // If not signed in, it fires with null → show login screen
+    // We set a fallback timeout in case Firebase takes too long
     setTimeout(function() {
-      var hasSession = false;
-      for (var i = 0; i < localStorage.length; i++) {
-        var k = localStorage.key(i);
-        if (k && k.startsWith('hsp_') && !k.startsWith('hsp_today_') && !k.startsWith('hsp_sdb')) {
-          hasSession = true; break;
-        }
-      }
-      if (hasSession) {
-        enterOfflineMode();
-      } else {
+      var ls = document.getElementById('loadingScreen');
+      if (ls && ls.style.display !== 'none') {
+        // Firebase didn't respond — show login screen
         detectAndShowLogin();
       }
-    }, 500);
-  }
+    }, 8000); // 8 second max wait
+  });
 }
  
 function detectAndShowLogin() {
@@ -967,18 +955,19 @@ function signIn() {
 function attachAuthListener() {
   // Handle redirect result (for mobile sign-in)
   auth.getRedirectResult().then(function(result) {
-    // Redirect result is handled by onAuthStateChanged below
-    // This just catches any errors from the redirect
+    // handled by onAuthStateChanged
   }).catch(function(err) {
-    if (err.code !== 'auth/no-current-user') {
+    if (err.code !== 'auth/no-current-user' && err.code !== 'auth/null-user') {
       document.getElementById('loginErr').style.display = 'block';
-      document.getElementById('loginErr').textContent = 'خطأ في تسجيل الدخول: ' + err.message;
+      document.getElementById('loginErr').textContent = 'خطأ: ' + err.message;
     }
   });
  
-  var lastUid = null; // track UID to detect real account switches
+  var lastUid = null;
  
   auth.onAuthStateChanged(function(user) {
+    // Always hide loading screen when auth state is known
+    document.getElementById('loadingScreen').style.display = 'none';
     if (user) {
       var isNewUser = (lastUid !== user.uid);
       lastUid = user.uid;
