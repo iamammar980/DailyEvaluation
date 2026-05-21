@@ -3043,27 +3043,47 @@ var fsIndex      = 0;      // current fullscreen index
  
 // ── RENDER CATEGORIES ─────────────────────────────────────────────────
 function tmRender(){
-  if(tmCurrentCat) { tmRenderTopics(tmCurrentCat); return; }
-  tmShowCategories();
+  try {
+    var cont = document.getElementById('tmContent');
+    if(!cont){ console.error('tmContent not found'); return; }
+    if(tmCurrentCat){ tmRenderTopics(tmCurrentCat); return; }
+    tmShowCategories();
+  } catch(e){ 
+    console.error('tmRender error:', e);
+    var cont = document.getElementById('tmContent');
+    if(cont) cont.innerHTML = '<div style="padding:20px;color:red">خطأ: '+e.message+'</div>';
+  }
 }
  
 function tmShowCategories(){
-  tmCurrentCat = null;
-  document.getElementById('tmBreadCat').style.display = 'none';
-  document.getElementById('tmAddBtn').style.display   = 'none';
-  document.getElementById('tmBackBtn').style.display  = 'none';
+  try{
+    tmCurrentCat = null;
+    var bc = document.getElementById('tmBreadCat');
+    var ab = document.getElementById('tmAddBtn');
+    var bb = document.getElementById('tmBackBtn');
+    var cont = document.getElementById('tmContent');
+    if(bc) bc.style.display='none';
+    if(ab) ab.style.display='none';
+    if(bb) bb.style.display='none';
+    if(!cont){ console.error('tmContent missing'); return; }
  
-  var html = '<div class="cat-grid">';
-  TM_CATEGORIES.forEach(function(cat, idx){
-    var count = tmTopics[cat.id] ? Object.keys(tmTopics[cat.id]).length : '…';
-    html += '<div class="cat-card" data-catid="'+cat.id+'" onclick="tmSelectCategoryEl(this)">'
-      + '<div class="cat-icon">'+cat.icon+'</div>'
-      + '<div class="cat-name">'+cat.name+'</div>'
-      + '<div class="cat-count" id="catcount_'+cat.id+'">'+count+' موضوع</div>'
-      + '</div>';
-  });
-  html += '</div>';
-  document.getElementById('tmContent').innerHTML = html;
+    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:18px">';
+    for(var i=0;i<TM_CATEGORIES.length;i++){
+      var cat = TM_CATEGORIES[i];
+      var count = tmTopics[cat.id] ? Object.keys(tmTopics[cat.id]).length : 0;
+      html += '<div data-catid="'+cat.id+'" onclick="tmSelectCategoryEl(this)" style="background:#fff;border:1.5px solid #e2e6ea;border-radius:10px;padding:18px 16px;cursor:pointer;text-align:center">';
+      html += '<div style="font-size:32px;margin-bottom:8px">'+cat.icon+'</div>';
+      html += '<div style="font-size:15px;font-weight:700;color:#1a5276;margin-bottom:4px">'+cat.name+'</div>';
+      html += '<div id="catcount_'+cat.id+'" style="font-size:12px;color:#7f8c8d">'+count+' موضوع</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+    cont.innerHTML = html;
+  }catch(e){
+    console.error('tmShowCategories error:',e);
+    var cont=document.getElementById('tmContent');
+    if(cont) cont.innerHTML='<div style="padding:20px;color:red">خطأ في تحميل الفئات: '+e.message+'</div>';
+  }
   // Load all categories count from Firebase
   if(currentUser && typeof dbRef === 'function'){
     TM_CATEGORIES.forEach(function(cat){
