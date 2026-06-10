@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>تقييم الممارسة اليومية في المستشفى</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <!-- Firebase loads dynamically in JS only when online mode is chosen -->
 <style>
 :root{--bg:#f5f6fa;--surface:#fff;--border:#e2e6ea;--primary:#1a5276;--pl:#2980b9;--accent:#16a085;--danger:#c0392b;--warn:#e67e22;--success:#27ae60;--text:#2c3e50;--muted:#7f8c8d;--r:10px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;direction:rtl}
- 
+
 /* LOGIN SCREEN */
 .login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1a5276,#2980b9)}
 .login-card{background:#fff;border-radius:18px;padding:40px 36px;width:100%;max-width:400px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.2)}
@@ -21,14 +22,14 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .google-btn:hover{background:#f8f8f8;border-color:#ccc;box-shadow:0 2px 8px rgba(0,0,0,.1)}
 .google-btn img{width:22px;height:22px}
 .login-err{margin-top:14px;font-size:13px;color:var(--danger);display:none}
- 
+
 /* SYNC INDICATOR */
 .sync-bar{background:rgba(0,0,0,.15);padding:4px 20px;font-size:11px;color:rgba(255,255,255,.8);display:flex;align-items:center;gap:6px;min-height:22px}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0}
 .sync-dot.saving{background:#fbbf24;animation:pulse .8s infinite}
 .sync-dot.offline{background:#f87171}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
- 
+
 /* HEADER */
 .hdr{background:var(--primary);color:#fff;display:none}
 .hdr-top{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;flex-wrap:wrap;gap:8px}
@@ -51,11 +52,11 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .grp-badge{display:inline-block;font-size:11px;font-weight:700;border-radius:12px;padding:2px 10px;margin-right:6px}
 .grp-badge.morning{background:#2980b9;color:#fff}
 .grp-badge.evening{background:#8e44ad;color:#fff}
- 
+
 /* MAIN */
 .app-body{display:none}
 .main{max-width:980px;margin:0 auto;padding:16px 14px}
- 
+
 /* TABS */
 .tab-nav{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
 .tab-btn{flex:1;padding:10px 5px;font-size:13px;font-weight:600;border:none;border-left:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
@@ -64,7 +65,7 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .tab-btn:not(.active):hover{background:var(--bg);color:var(--text)}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
- 
+
 /* BUTTONS */
 .btn{cursor:pointer;border:none;border-radius:var(--r);padding:7px 12px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
 .btn:active{transform:scale(.97)}
@@ -75,18 +76,18 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .bpu{background:#6c3483;color:#fff}.bpu:hover{background:#7d3c98}
 .bt{background:#117a65;color:#fff}.bt:hover{background:#148f77}
 .bred{background:var(--danger);color:#fff}.bred:hover{background:#a93226}
- 
+
 /* STATS */
 .stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
 .sc{background:var(--surface);border-radius:var(--r);padding:11px;border:1px solid var(--border);text-align:center}
 .sc .num{font-size:22px;font-weight:700}.sc .lbl{font-size:11px;color:var(--muted);margin-top:2px}
 .sc.present .num{color:var(--success)}.sc.absent .num{color:var(--danger)}.sc.eval .num{color:var(--pl)}
- 
+
 /* TOOLBAR */
 .toolbar{display:flex;align-items:center;gap:7px;margin-bottom:13px;flex-wrap:wrap}
 .sbox{flex:1;min-width:140px;border:1px solid var(--border);border-radius:var(--r);padding:7px 11px;font-size:14px;background:var(--surface);color:var(--text)}
 .sbox:focus{outline:none;border-color:var(--pl)}
- 
+
 /* STUDENT LIST */
 .lhdr{display:grid;grid-template-columns:28px 1fr 100px 75px 72px;gap:6px;align-items:center;padding:8px 12px;font-size:11px;color:var(--muted);font-weight:700;background:var(--surface);border:1px solid var(--border);border-bottom:none;border-radius:var(--r) var(--r) 0 0}
 .slist{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);overflow:hidden}
@@ -111,7 +112,7 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .add-area{background:var(--surface);border:1px dashed var(--border);border-radius:var(--r);padding:11px 13px;margin-top:11px;display:flex;gap:8px;align-items:center}
 .add-area input{flex:1;border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:14px;color:var(--text)}
 .add-area input:focus{outline:none;border-color:var(--pl)}
- 
+
 /* MODAL */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center;padding:14px}
 .overlay.open{display:flex}
@@ -148,7 +149,7 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .narea textarea{width:100%;border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:14px;resize:vertical;min-height:62px;color:var(--text);font-family:inherit}
 .narea textarea:focus{outline:none;border-color:var(--pl)}
 .mftr{padding:11px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;background:#fafbfc;border-radius:0 0 14px 14px;position:sticky;bottom:0}
- 
+
 /* PAPER TAB */
 .phdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;flex-wrap:wrap;gap:10px}
 .phdr h2{font-size:16px;font-weight:700;color:var(--primary)}
@@ -168,7 +169,7 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .pbay{background:var(--success);color:#fff;border-color:var(--success)}
 .pban{background:var(--danger);color:#fff;border-color:var(--danger)}
 .pempty{padding:28px;text-align:center;color:var(--muted);font-size:14px}
- 
+
 /* ROSTER TAB */
 .rtop{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:13px;flex-wrap:wrap;gap:12px}
 .rtop h2{font-size:16px;font-weight:700;color:var(--primary)}
@@ -193,7 +194,7 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .grow{display:grid;grid-template-columns:24px 1fr 100px;gap:6px;align-items:center;padding:8px 15px;border-bottom:1px solid var(--border);font-size:14px}
 .grow:last-child{border-bottom:none}
 .grow:nth-child(even){background:#fafbfc}
- 
+
 /* CALENDAR */
 .cal-modal{background:var(--surface);border-radius:14px;width:100%;max-width:375px}
 .calhdr{background:var(--primary);color:#fff;padding:11px 18px;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between}
@@ -211,29 +212,29 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .cday.chd::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;background:var(--accent);border-radius:50%}
 .cday.ct.chd::after{background:#fff}
 .cday.cem{cursor:default}.cday.cem:hover{background:transparent}
- 
+
 /* TOAST */
 .toast{position:fixed;bottom:22px;right:22px;background:#2c3e50;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
- 
+
 /* OFFLINE BANNER */
 .offline-banner{display:none;background:#e67e22;color:#fff;padding:8px 18px;font-size:13px;font-weight:600;text-align:center;align-items:center;justify-content:center;gap:8px;position:sticky;top:0;z-index:50}
 .offline-banner.show{display:flex}
 .offline-reconnect{background:rgba(255,255,255,.25);border:none;color:#fff;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:700}
 .offline-reconnect:hover{background:rgba(255,255,255,.4)}
- 
+
 /* OFFLINE LOGIN OPTION */
 .offline-login-btn{display:none;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 20px;background:#e67e22;border:none;border-radius:10px;font-size:14px;font-weight:600;color:#fff;cursor:pointer;margin-top:10px;transition:all .2s}
 .offline-login-btn:hover{background:#d35400}
 .offline-login-btn.show{display:flex}
 .offline-sep{margin:12px 0;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
 .offline-sep::before,.offline-sep::after{content:'';flex:1;height:1px;background:var(--border)}
- 
+
 /* LOADING */
 .loading-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);flex-direction:column;gap:14px}
 .spinner{width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
- 
+
 /* HISTORY TAB */
 .hist-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
 .hist-hdr h2{font-size:16px;font-weight:700;color:var(--primary)}
@@ -261,7 +262,7 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .hst-paper{text-align:center;font-size:12px;font-weight:600}
 .hst-paper.del{color:var(--success)}.hst-paper.ndel{color:var(--danger)}.hst-paper.u{color:var(--muted)}
 .hist-empty{text-align:center;padding:48px 20px;color:var(--muted)}
- 
+
 /* DAY DETAIL MODAL */
 .dmodal{background:var(--surface);border-radius:14px;width:100%;max-width:760px;max-height:93vh;overflow-y:auto;direction:rtl}
 .dm-hdr{background:var(--primary);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:2}
@@ -277,7 +278,7 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .dm-field .lbl{font-size:11px;color:var(--muted);margin-bottom:3px}
 .dm-field .val{font-size:14px;font-weight:700;color:var(--primary)}
 .dm-notes{padding:0 14px 12px;font-size:13px;color:var(--muted);font-style:italic}
- 
+
 .db-tbl-wrap{overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r)}
 .db-tbl{width:100%;border-collapse:collapse;min-width:820px;font-size:13px}
 .db-tbl th{background:var(--primary);color:#fff;padding:9px 10px;font-size:11px;font-weight:700;text-align:right;white-space:nowrap;position:sticky;top:0}
@@ -348,7 +349,66 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
   .tab-btn{font-size:11px;padding:9px 3px}
   .user-name{display:none}
 }
- 
+
+/* ═══════════════════════════════════════════
+   MOTION SYSTEM — professional micro-interactions
+   ═══════════════════════════════════════════ */
+@keyframes panelIn{from{opacity:0;transform:translateY(16px) scale(.992)}to{opacity:1;transform:none}}
+.tab-panel.active{animation:panelIn .42s cubic-bezier(.22,1,.36,1)}
+@keyframes rowIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+.srow,.prow{animation:rowIn .32s cubic-bezier(.22,1,.36,1) both}
+.srow:nth-child(1),.prow:nth-child(1){animation-delay:.02s}
+.srow:nth-child(2),.prow:nth-child(2){animation-delay:.05s}
+.srow:nth-child(3),.prow:nth-child(3){animation-delay:.08s}
+.srow:nth-child(4),.prow:nth-child(4){animation-delay:.11s}
+.srow:nth-child(5),.prow:nth-child(5){animation-delay:.14s}
+.srow:nth-child(6),.prow:nth-child(6){animation-delay:.17s}
+.srow:nth-child(7),.prow:nth-child(7){animation-delay:.2s}
+.srow:nth-child(8),.prow:nth-child(8){animation-delay:.23s}
+.srow:nth-child(n+9),.prow:nth-child(n+9){animation-delay:.26s}
+@keyframes cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.hday-card,.gcard{animation:cardIn .4s cubic-bezier(.22,1,.36,1) both}
+.hday-card:nth-child(2),.gcard:nth-child(2){animation-delay:.07s}
+.hday-card:nth-child(3),.gcard:nth-child(3){animation-delay:.14s}
+.hday-card:nth-child(n+4),.gcard:nth-child(n+4){animation-delay:.2s}
+.hday-card{transition:transform .25s cubic-bezier(.22,1,.36,1),box-shadow .25s}
+.hday-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(26,82,118,.13)}
+.sc{transition:transform .25s cubic-bezier(.22,1,.36,1),box-shadow .25s}
+.sc:hover{transform:translateY(-3px);box-shadow:0 8px 22px rgba(26,82,118,.12)}
+@keyframes numPop{0%{transform:scale(1)}45%{transform:scale(1.28)}100%{transform:scale(1)}}
+.sc .num.bump{animation:numPop .45s cubic-bezier(.22,1,.36,1)}
+.btn{transition:transform .16s cubic-bezier(.22,1,.36,1),box-shadow .22s,background .2s,filter .2s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(0,0,0,.14);filter:brightness(1.04)}
+.btn:active{transform:scale(.96);box-shadow:none}
+.tab-btn{position:relative;transition:color .22s,background .25s}
+.tab-btn::after{content:'';position:absolute;bottom:0;right:14%;left:14%;height:3px;border-radius:3px 3px 0 0;background:var(--accent);transform:scaleX(0);transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.tab-btn.active::after{transform:scaleX(1)}
+.overlay{display:flex;opacity:0;pointer-events:none;visibility:hidden;transition:opacity .26s ease,visibility .26s}
+.overlay.open{opacity:1;pointer-events:auto;visibility:visible}
+.overlay>div{transform:translateY(22px) scale(.965);opacity:0;transition:transform .34s cubic-bezier(.22,1,.36,1),opacity .3s}
+.overlay.open>div{transform:none;opacity:1}
+.toast{transform:translateY(14px);transition:opacity .32s,transform .32s cubic-bezier(.22,1,.36,1)}
+.toast.show{transform:none}
+.ab,.pb{transition:transform .14s,background .18s,color .18s,box-shadow .2s}
+.ab:active,.pb:active{transform:scale(.9)}
+.user-info{transition:background .22s,transform .2s}
+.user-info:hover{background:rgba(255,255,255,.26);transform:translateY(-1px)}
+.login-screen{background:linear-gradient(-45deg,#1a5276,#2980b9,#16a085,#1a5276);background-size:380% 380%;animation:gradFlow 14s ease infinite}
+@keyframes gradFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes loginCardIn{from{opacity:0;transform:translateY(26px) scale(.97)}to{opacity:1;transform:none}}
+.login-card{animation:loginCardIn .55s cubic-bezier(.22,1,.36,1)}
+.hinput,.sbox{transition:background .22s,border-color .22s,box-shadow .22s}
+.sbox:focus{box-shadow:0 0 0 3px rgba(41,128,185,.15)}
+.ei{transition:transform .18s}
+.ei:hover{transform:scale(1.18)}
+.dchip,.hchip,.grp-badge{transition:transform .18s}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skel{background:linear-gradient(90deg,var(--bg) 25%,#e8ecf1 50%,var(--bg) 75%);background-size:200% 100%;animation:shimmer 1.3s infinite;border-radius:8px}
+@keyframes spinPulse{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+
 /* PDF PRINT STYLES */
 @media print {
   body * { visibility: hidden; }
@@ -378,7 +438,7 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
- 
+
 // ── OFFLINE REDIRECT (Option C) ──
 // If no service worker AND no internet → go to offline.html
 window.addEventListener('load', function() {
@@ -392,24 +452,24 @@ window.addEventListener('load', function() {
 </script>
 </head>
 <body>
- 
+
 <!-- LOADING -->
 <div class="loading-screen" id="loadingScreen">
   <div class="spinner"></div>
   <div style="font-size:14px;color:var(--muted)">جاري التحميل...</div>
 </div>
- 
+
 <!-- LOGIN — UNIFIED: auto-detects connectivity, both options always available -->
 <div class="login-screen" id="loginScreen" style="display:none">
   <div class="login-card">
     <div class="logo">🏥</div>
     <h2>تقييم الممارسة اليومية</h2>
- 
+
     <!-- Shown while detecting connectivity -->
     <div id="checkingSection" style="padding:10px 0;color:var(--muted);font-size:14px">
       ⏳ جارٍ التحقق من الاتصال...
     </div>
- 
+
     <!-- ONLINE SECTION -->
     <div id="onlineSection" style="display:none">
       <p style="margin-bottom:16px;font-size:13px;color:var(--muted)">متصل بالإنترنت — بياناتك تُزامَن على جميع أجهزتك</p>
@@ -427,7 +487,7 @@ window.addEventListener('load', function() {
         📴 دخول بدون حساب (بيانات محلية فقط)
       </button>
     </div>
- 
+
     <!-- OFFLINE SECTION -->
     <div id="offlineSection" style="display:none">
       <div style="background:#fef9ec;border:1px solid #f0c040;border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:13px;color:#7d5a00">
@@ -444,7 +504,7 @@ window.addEventListener('load', function() {
     </div>
   </div>
 </div>
- 
+
 <!-- APP -->
 <div id="appRoot" style="display:none">
   <!-- OFFLINE BANNER -->
@@ -485,7 +545,7 @@ window.addEventListener('load', function() {
       <input class="hinput" id="supName" placeholder="اسم المشرف..." onchange="saveSettings()">
     </div>
   </div>
- 
+
   <div class="app-body" id="appBody">
     <div class="main">
       <div class="tab-nav">
@@ -496,7 +556,7 @@ window.addEventListener('load', function() {
         <button class="tab-btn" id="tbdb" onclick="showTab('db')">🗄️ قاعدة البيانات</button>
         <button class="tab-btn" id="tbtm" onclick="showTab('teach')">📚 المواد التعليمية</button>
       </div>
- 
+
       <!-- TAB: ATTENDANCE -->
       <div class="tab-panel active" id="pa">
         <div class="stats-bar">
@@ -518,6 +578,7 @@ window.addEventListener('load', function() {
           <input class="sbox" type="text" id="srch" placeholder="🔍 ابحث عن طالب..." oninput="renderList()">
           <button class="btn bp" onclick="sortSt()">🔤 أبجدي</button>
           <button class="btn ba" onclick="doExcel()">📥 Excel</button>
+          <button class="btn" style="background:#8e2f5d;color:#fff" onclick="exportDayPDF()">📕 PDF تفصيلي</button>
           <button class="btn" style="background:#117a65;color:#fff" onclick="exportSummaryExcel()">📊 ملف الدرجات</button>
           <button class="btn" style="background:#c0392b;color:#fff" onclick="exportAttPDF()">🖨️ كشف الحضور</button>
           <button class="btn" style="background:#117a65;color:#fff" onclick="openGrpLoader()">📋 تحميل مجموعة</button>
@@ -538,7 +599,7 @@ window.addEventListener('load', function() {
           <button class="btn bp" onclick="addSt()">+ إضافة</button>
         </div>
       </div>
- 
+
       <!-- TAB: PAPER -->
       <div class="tab-panel" id="pp">
         <div class="phdr">
@@ -554,7 +615,7 @@ window.addEventListener('load', function() {
         </div>
         <div class="plist" id="pList"></div>
       </div>
- 
+
       <!-- TAB: ROSTER -->
       <div class="tab-panel" id="pr">
         <div class="rtop">
@@ -588,7 +649,7 @@ window.addEventListener('load', function() {
           </div>
         </div>
       </div>
- 
+
       <!-- TAB: HISTORY -->
       <div class="tab-panel" id="ph">
         <div class="hist-hdr">
@@ -597,11 +658,12 @@ window.addEventListener('load', function() {
             <input type="text" class="sbox" id="histSearch" placeholder="🔍 ابحث بالتاريخ أو اسم الطالب..." oninput="renderHist()" style="max-width:260px">
             <button class="btn ba" onclick="doExcelAll()">📥 تصدير الكل</button>
             <button class="btn" style="background:#117a65;color:#fff" onclick="exportSummaryExcel()">📊 ملف الدرجات الكامل</button>
+            <button class="btn" style="background:#8e2f5d;color:#fff" onclick="exportFullPDF()">📕 سجل الدرجات PDF</button>
           </div>
         </div>
         <div id="histList"></div>
       </div>
- 
+
       <!-- TAB: STUDENT DATABASE -->
       <div class="tab-panel" id="pdb">
         <div id="dbWrap">
@@ -619,16 +681,36 @@ window.addEventListener('load', function() {
           </div>
           <!-- Dynamic content -->
           <div id="dbContent"></div>
+
+          <!-- ★ DATA PROTECTION CENTER -->
+          <div style="margin-top:18px;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#117a65,#16a085);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+              <div>
+                <div style="font-size:16px;font-weight:700">🛡️ مركز حماية البيانات</div>
+                <div style="font-size:12px;opacity:.85;margin-top:2px">سحابة + تخزين محلي + نسخ تلقائية يومية — لا فقدان للبيانات في أي حال</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn" style="background:#fff;color:#117a65;font-weight:700" onclick="backupDownload()">💾 تنزيل نسخة احتياطية</button>
+                <button class="btn" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4)" onclick="document.getElementById('backupFileInput').click()">📂 استعادة من ملف</button>
+                <input type="file" id="backupFileInput" accept=".json" style="display:none" onchange="backupRestore(event)">
+              </div>
+            </div>
+            <div style="padding:14px 18px">
+              <div id="backupStatus" style="font-size:13px;color:var(--muted);margin-bottom:10px"></div>
+              <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">📸 النسخ التلقائية اليومية (آخر 7 أيام):</div>
+              <div id="snapList" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+            </div>
+          </div>
         </div>
       </div>
- 
+
       </div>
- 
+
       </div>
     </div>
   </div>
 </div>
- 
+
 <!-- GROUP LOADER MODAL -->
 <div class="overlay" id="grpLoaderM">
   <div class="grp-loader-modal">
@@ -643,9 +725,9 @@ window.addEventListener('load', function() {
     </div>
   </div>
 </div>
- 
- 
- 
+
+
+
 <!-- EMAIL MODAL -->
 <div class="overlay" id="emailModal">
   <div class="email-modal">
@@ -654,7 +736,7 @@ window.addEventListener('load', function() {
       <button style="background:rgba(255,255,255,.2);border:none;color:#fff;width:27px;height:27px;border-radius:50%;cursor:pointer;font-size:15px" onclick="closeEmailModal()">✕</button>
     </div>
     <div style="padding:18px">
- 
+
       <!-- Setup section -->
       <div style="background:#fff8e1;border:1px solid #f39c12;border-radius:10px;padding:14px 16px;margin-bottom:16px">
         <div style="font-size:14px;font-weight:700;color:#7d6608;margin-bottom:8px">⚙️ إعداد الخدمة (مرة واحدة فقط)</div>
@@ -670,10 +752,10 @@ window.addEventListener('load', function() {
           <input id="gasUrl" type="text" placeholder="https://script.google.com/macros/s/xxxxx/exec" style="width:100%;border:1px solid #ddd;border-radius:6px;padding:7px 10px;font-size:12px;direction:ltr" oninput="saveGasConfig()">
         </div>
       </div>
- 
+
       <!-- Student list -->
       <div id="emailStudentList"></div>
- 
+
       <!-- Send options -->
       <div id="emailSendOptions" style="display:none;margin-top:14px">
         <div style="background:#f8fafc;border:1px solid #ddd;border-radius:10px;padding:12px 14px;margin-bottom:12px">
@@ -707,12 +789,12 @@ window.addEventListener('load', function() {
           <div id="tmContent"></div>
         </div>
       </div>
- 
+
       </div>
     </div>
   </div>
 </div>
- 
+
 <!-- FULLSCREEN IMAGE VIEWER -->
 <div class="fullscreen-overlay" id="fsOverlay" onclick="fsClose()">
   <img id="fsImg" src="" alt="">
@@ -723,7 +805,7 @@ window.addEventListener('load', function() {
   </div>
   <div id="fsCaption" style="color:rgba(255,255,255,.8);font-size:13px;margin-top:8px"></div>
 </div>
- 
+
 <!-- TEACHING ADD/VIEW MODAL -->
 <div class="overlay" id="tmModal">
   <div class="tm-modal">
@@ -734,7 +816,7 @@ window.addEventListener('load', function() {
     <div style="padding:18px" id="tmModalBody"></div>
   </div>
 </div>
- 
+
 <!-- EVAL MODAL -->
 <div class="overlay" id="evalM">
   <div class="modal">
@@ -746,7 +828,7 @@ window.addEventListener('load', function() {
     </div>
   </div>
 </div>
- 
+
 <!-- CALENDAR MODAL -->
 <div class="overlay" id="calM">
   <div class="cal-modal">
@@ -762,7 +844,7 @@ window.addEventListener('load', function() {
     <div style="padding:0 13px 12px;text-align:center;font-size:12px;color:var(--muted)">انقر على يوم لعرض بياناته</div>
   </div>
 </div>
- 
+
 <!-- DAY DETAIL MODAL -->
 <div class="overlay" id="dayDetailM">
   <div class="dmodal">
@@ -770,13 +852,14 @@ window.addEventListener('load', function() {
       <h2 id="dmTitle">تفاصيل اليوم</h2>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn ba" style="padding:5px 10px;font-size:12px" onclick="exportDayExcel()">📥 Excel</button>
+        <button class="btn" style="background:#8e2f5d;color:#fff;padding:5px 10px;font-size:12px" onclick="exportHistDayPDF()">📕 PDF تفصيلي</button>
         <button class="mcl" onclick="closeDayDetail()">✕</button>
       </div>
     </div>
     <div class="dm-body" id="dmBody"></div>
   </div>
 </div>
- 
+
 <!-- ATTENDANCE PDF MODAL -->
 <div class="overlay" id="attPdfModal">
   <div style="background:#fff;border-radius:14px;width:100%;max-width:680px;max-height:94vh;overflow-y:auto;direction:rtl">
@@ -790,9 +873,9 @@ window.addEventListener('load', function() {
     <div style="padding:20px" id="attPdfPreview"></div>
   </div>
 </div>
- 
+
 <div class="toast" id="toast"></div>
- 
+
 <script>
 // ═══════════════════════════════════════════════════════════════════════
 // UNIFIED BUILD — one file, two modes
@@ -803,16 +886,16 @@ window.addEventListener('load', function() {
 //  The login screen auto-detects connectivity and highlights the right option.
 //  Both options are always visible so the user can choose either.
 // ═══════════════════════════════════════════════════════════════════════
- 
+
 // ── MODE FLAG ─────────────────────────────────────────────────────────
 var isOfflineMode = false;
- 
+
 // ── DYNAMIC FIREBASE LOADER ───────────────────────────────────────────
 // Firebase is NOT loaded at page start — only when the user chooses online mode.
 var firebaseLoaded = false;
 var firebaseListenerAttached = false;
 var auth, db;
- 
+
 function loadFirebase(callback) {
   if (firebaseLoaded) { if (callback) callback(); return; }
   var scripts = [
@@ -834,6 +917,9 @@ function loadFirebase(callback) {
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     auth = firebase.auth();
     db   = firebase.database();
+    // ★ FIX: force LOCAL persistence — the session survives page reloads,
+    // browser restarts and tab closes until the user explicitly signs out.
+    try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch(e) {}
     firebaseLoaded = true;
     if (!firebaseListenerAttached) { attachAuthListener(); firebaseListenerAttached = true; }
     if (callback) callback();
@@ -853,7 +939,7 @@ function loadFirebase(callback) {
     document.head.appendChild(s);
   });
 }
- 
+
 // ── dbRef / key helpers ───────────────────────────────────────────────
 function dbRef(path) {
   if (isOfflineMode || !db || !currentUser) return null;
@@ -862,7 +948,7 @@ function dbRef(path) {
 function dateToKey(d) { return d.replace(/-/g, '_'); }
 function keyToDate(k) { return k.replace(/_/g, '-'); }
 function sessionDbKey() { return dateToKey(curDate) + '_' + curGroup; }
- 
+
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
@@ -879,7 +965,7 @@ var calDt    = new Date();
 var currentUser = null;
 var dataLoaded  = false;
 var dbListeners = [];
- 
+
 function today(){ return new Date().toISOString().slice(0,10); }
 // Current session key = date + group
 function sessionKey(){ return curDate+'_'+curGroup; }
@@ -888,16 +974,125 @@ function getSession(){ return getDay(sessionKey()); }
 // Active students based on current group
 function getStudents(){ return curGroup==='morning'?studentsMorning:studentsEvening; }
 function setStudents(arr){ if(curGroup==='morning') studentsMorning=arr; else studentsEvening=arr; }
-function dbRef(path){ return db.ref('users/'+currentUser.uid+'/'+path); }
- 
-// Key helpers (kept — used by history rendering)
-function dateToKey(d){ return d.replace(/-/g,'_'); }
-function keyToDate(k){ return k.replace(/_/g,'-'); }
-// Full session DB key e.g. "2025_03_03_morning"
-function sessionDbKey(){ return dateToKey(curDate)+'_'+curGroup; }
- 
- 
- 
+// (dbRef / dateToKey / keyToDate / sessionDbKey are defined once above, with offline guards)
+
+// ═══════════════════════════════════════════════════════════════════════
+// ★ DATA GUARD LAYER — zero data loss architecture
+//
+//   Every write goes through 3 layers:
+//     1. Memory (instant UI)
+//     2. localStorage cache + pending-write queue (survives reload/crash/offline)
+//     3. Firebase cloud under the Google account (synced across devices)
+//
+//   If the cloud write fails (offline, refresh mid-save, network drop) the
+//   write stays in the persistent queue and is re-sent automatically when
+//   the connection returns. Daily snapshots (7-day rotation) add a final
+//   safety net, restorable from the Database tab.
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── Session memory: who was signed in (so reload restores instantly) ──
+function rememberSession(user){
+  try{ localStorage.setItem('hsp_session', JSON.stringify({
+    uid:user.uid, name:user.displayName||user.email||'', photo:user.photoURL||'', email:user.email||'', ts:Date.now()
+  })); }catch(e){}
+}
+function getRememberedSession(){
+  try{ var r=localStorage.getItem('hsp_session'); return r?JSON.parse(r):null; }catch(e){ return null; }
+}
+function forgetSession(){ try{ localStorage.removeItem('hsp_session'); }catch(e){} }
+
+// ── Pending write queue (persistent, per-account) ─────────────────────
+function qKey(){ return 'hsp_q_' + (currentUser ? currentUser.uid : 'anon'); }
+function loadQueue(){ try{ return JSON.parse(localStorage.getItem(qKey())||'{}'); }catch(e){ return {}; } }
+function persistQueue(q){ try{ localStorage.setItem(qKey(), JSON.stringify(q)); }catch(e){} }
+function queueWrite(path, data){
+  var q = loadQueue();
+  q[path] = { d: data, t: Date.now() };
+  persistQueue(q);
+  updatePendingBadge();
+}
+function dequeueWrite(path){
+  var q = loadQueue();
+  if (q[path] !== undefined) { delete q[path]; persistQueue(q); }
+  updatePendingBadge();
+}
+var flushing = false;
+function flushQueue(){
+  if (flushing || isOfflineMode || !currentUser || !db || !navigator.onLine) return;
+  var q = loadQueue(), paths = Object.keys(q);
+  if (!paths.length) return;
+  flushing = true;
+  setSyncStatus('saving');
+  var failed = 0;
+  paths.forEach(function(p){
+    dbRef(p).set(q[p].d)
+      .then(function(){ dequeueWrite(p); })
+      .catch(function(){ failed++; });
+  });
+  // settle check (compat SDK promises lack finally in old browsers)
+  setTimeout(function(){
+    flushing = false;
+    var remaining = Object.keys(loadQueue()).length;
+    if (remaining === 0) { setSyncStatus('saved'); }
+    else if (!navigator.onLine) { setSyncStatus('offline'); }
+  }, 2500);
+}
+function pendingCount(){ return Object.keys(loadQueue()).length; }
+function updatePendingBadge(){
+  var n = pendingCount();
+  var msg = document.getElementById('syncMsg');
+  if (msg && n > 0 && !isOfflineMode) msg.textContent = '⏳ ' + n + ' عملية بانتظار المزامنة...';
+}
+
+// ── Cloud write with queue protection ─────────────────────────────────
+function guardedSet(path, data, onOk){
+  // Layer 2: persist intent BEFORE attempting the network write
+  queueWrite(path, data);
+  cacheLocally();
+  if (isOfflineMode || !db || !currentUser) { setSyncStatus('offline'); return; }
+  setSyncStatus('saving');
+  dbRef(path).set(data)
+    .then(function(){ dequeueWrite(path); setSyncStatus('saved'); if(onOk) onOk(); })
+    .catch(function(e){ setSyncStatus('offline'); console.warn('queued for retry:', path, e && e.message); });
+}
+
+// ── Auto snapshots: daily safety copies, 7-day rotation ───────────────
+function takeSnapshot(){
+  if (!currentUser) return;
+  try{
+    var key = 'hsp_snap_' + currentUser.uid + '_' + today();
+    localStorage.setItem(key, JSON.stringify({
+      ts: Date.now(), h: history, r: roster, sdb: studentDb,
+      sm: studentsMorning, se: studentsEvening,
+      hn: document.getElementById('hName').value,
+      ho: document.getElementById('hNo').value,
+      sn: document.getElementById('supName').value
+    }));
+    // rotate: keep newest 7
+    var snaps = [];
+    for (var i = 0; i < localStorage.length; i++){
+      var k = localStorage.key(i);
+      if (k && k.indexOf('hsp_snap_' + currentUser.uid + '_') === 0) snaps.push(k);
+    }
+    snaps.sort();
+    while (snaps.length > 7) localStorage.removeItem(snaps.shift());
+  }catch(e){}
+}
+function listSnapshots(){
+  var out = [];
+  if (!currentUser) return out;
+  for (var i = 0; i < localStorage.length; i++){
+    var k = localStorage.key(i);
+    if (k && k.indexOf('hsp_snap_' + currentUser.uid + '_') === 0){
+      out.push({ key: k, date: k.split('_').slice(-3).join('-') });
+    }
+  }
+  out.sort(function(a,b){ return b.date.localeCompare(a.date); });
+  return out;
+}
+
+
+
 // ── SYNC STATUS ───────────────────────────────────────────────────────
 function setSyncStatus(s) {
   var dot = document.getElementById('syncDot');
@@ -913,20 +1108,20 @@ function setSyncStatus(s) {
     msg.textContent = isOfflineMode ? 'وضع غير متصل — محفوظ في المتصفح' : 'لا يوجد اتصال — محفوظ محلياً';
   }
 }
- 
+
 // ── CONNECTIVITY DETECTION ────────────────────────────────────────────
 function initConnectivityCheck() {
   document.getElementById('loadingScreen').style.display = 'flex';
   document.getElementById('loginScreen').style.display   = 'none';
- 
+
   window.addEventListener('online',  onNetworkOnline);
   window.addEventListener('offline', onNetworkOffline);
- 
+
   if (!navigator.onLine) {
     setTimeout(function() { enterOfflineMode(); }, 300);
     return;
   }
- 
+
   // Always load Firebase immediately — never wait for user action
   // This ensures onAuthStateChanged fires and restores existing session
   loadFirebase(function() {
@@ -939,19 +1134,19 @@ function initConnectivityCheck() {
     }, 10000);
   });
 }
- 
+
 function detectAndShowLogin() {
   document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display   = 'flex';
   showLoginSection(navigator.onLine ? 'online' : 'offline');
 }
- 
+
 function showLoginSection(mode) {
   document.getElementById('checkingSection').style.display  = 'none';
   document.getElementById('onlineSection').style.display    = mode === 'online'  ? 'block' : 'none';
   document.getElementById('offlineSection').style.display   = mode === 'offline' ? 'block' : 'none';
 }
- 
+
 function onNetworkOnline() {
   if (isOfflineMode) {
     document.getElementById('offlineBannerText').textContent = '🌐 الإنترنت متاح — أعد تسجيل الدخول للمزامنة السحابية';
@@ -960,7 +1155,7 @@ function onNetworkOnline() {
     showLoginSection('online');
   }
 }
- 
+
 function onNetworkOffline() {
   if (isOfflineMode) {
     document.getElementById('offlineBannerText').textContent = '📴 وضع غير متصل — البيانات محفوظة محلياً';
@@ -972,7 +1167,7 @@ function onNetworkOffline() {
     showLoginSection('offline');
   }
 }
- 
+
 // ── AUTH ──────────────────────────────────────────────────────────────
 function signIn() {
   var btn = document.querySelector('#onlineSection .google-btn');
@@ -981,11 +1176,11 @@ function signIn() {
     var provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('email');
     provider.addScope('profile');
- 
+
     // Detect mobile/iPad — use redirect instead of popup
     var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
- 
+
     if (isMobile) {
       // Redirect method — works on all mobile browsers including Safari on iPad
       auth.signInWithRedirect(provider).catch(function(err) {
@@ -1014,7 +1209,7 @@ function signIn() {
     }
   });
 }
- 
+
 function attachAuthListener() {
   // Handle redirect result (for mobile sign-in)
   auth.getRedirectResult().then(function(result) {
@@ -1025,16 +1220,17 @@ function attachAuthListener() {
       document.getElementById('loginErr').textContent = 'خطأ: ' + err.message;
     }
   });
- 
+
   var lastUid = null;
- 
+
   auth.onAuthStateChanged(function(user) {
     // Always hide loading screen when auth state is known
     document.getElementById('loadingScreen').style.display = 'none';
     if (user) {
+      if (typeof optimisticUid !== 'undefined') optimisticUid = null; // restore confirmed
       var isNewUser = (lastUid !== user.uid);
       lastUid = user.uid;
- 
+
       // Only wipe memory if it's a DIFFERENT account signing in
       // Do NOT wipe on token refresh or page reload for same account
       if (isNewUser) {
@@ -1042,9 +1238,10 @@ function attachAuthListener() {
         dataLoaded = false;
         studentsMorning = []; studentsEvening = []; history = {}; roster = [];
       }
- 
+
       currentUser = user;
       isOfflineMode = false;
+      rememberSession(user); // ★ reload restores instantly without flashing login
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('appRoot').style.display     = 'block';
       document.getElementById('hdrEl').style.display       = 'block';
@@ -1054,13 +1251,25 @@ function attachAuthListener() {
       document.getElementById('userName').textContent      = user.displayName || user.email;
       document.getElementById('userAction').textContent    = 'خروج';
       document.getElementById('offlineBanner').classList.remove('show');
- 
+
       // Only start listeners if not already running for this user
       if (isNewUser || !dataLoaded) {
         startListeners();
       }
     } else {
-      // Signed out — wipe everything
+      // No active Firebase session.
+      if (typeof optimisticUid !== 'undefined' && optimisticUid && isOfflineMode === false && !currentUser) {
+        // We showed the app optimistically but the token truly expired —
+        // continue in offline mode so NOTHING is interrupted or lost; the
+        // user can re-login whenever convenient and the queue will sync.
+        var ou = optimisticUid; optimisticUid = null;
+        enterOfflineModeWithUid(ou);
+        document.getElementById('offlineBannerText').textContent = '🔐 انتهت صلاحية الجلسة — بياناتك سليمة محلياً، أعد تسجيل الدخول للمزامنة';
+        document.getElementById('reconnectBtn').style.display = 'inline-block';
+        toast('انتهت صلاحية تسجيل الدخول — لم تفقد أي بيانات');
+        return;
+      }
+      // Signed out — clear the screen (local cache + snapshots remain intact)
       stopListeners();
       lastUid = null;
       dataLoaded = false;
@@ -1079,17 +1288,22 @@ function attachAuthListener() {
     }
   });
 }
- 
+
 function handleUserClick() {
   if (isOfflineMode) {
     if (confirm('العودة إلى شاشة الدخول؟ (بياناتك ستبقى محفوظة في المتصفح)')) {
       exitToLogin();
     }
   } else {
-    if (confirm('هل تريد تسجيل الخروج؟')) { if (auth) auth.signOut(); }
+    if (confirm('هل تريد تسجيل الخروج؟\n\nبياناتك محفوظة على السحابة وفي هذا المتصفح — لن تفقد شيئاً وستعود عند تسجيل الدخول.')) {
+      cacheLocally();      // final local copy
+      takeSnapshot();      // safety snapshot
+      forgetSession();     // explicit sign-out only
+      if (auth) auth.signOut();
+    }
   }
 }
- 
+
 function exitToLogin() {
   isOfflineMode = false;
   currentUser   = null;
@@ -1104,7 +1318,7 @@ function exitToLogin() {
   document.getElementById('appBody').style.display  = 'none';
   detectAndShowLogin();
 }
- 
+
 // ── OFFLINE ENTRY ─────────────────────────────────────────────────────
 function enterOfflineMode() {
   isOfflineMode = true;
@@ -1118,16 +1332,19 @@ function enterOfflineMode() {
   }
   if (!found) { enterOfflineModeWithUid('offline_user'); }
 }
- 
+
 function loadFromCache(uid) {
   try {
     var raw = localStorage.getItem('hsp_' + uid);
     if (!raw) return false;
     var c = JSON.parse(raw);
-    studentsMorning = []; // Students never restored from cache
-    studentsEvening = [];
-    history         = c.h  || {};
-    roster          = c.r  || [];
+    // Same-day students are restored; a new day starts fresh as designed
+    var sameDay = (c.sd === today());
+    studentsMorning = sameDay ? (c.sm || []) : [];
+    studentsEvening = sameDay ? (c.se || []) : [];
+    history         = c.h   || {};
+    roster          = c.r   || [];
+    if (c.sdb && c.sdb.length) studentDb = c.sdb;
     if (c.hn) document.getElementById('hName').value   = c.hn;
     if (c.ho) document.getElementById('hNo').value     = c.ho;
     if (c.sn) document.getElementById('supName').value = c.sn;
@@ -1135,7 +1352,7 @@ function loadFromCache(uid) {
     return true;
   } catch(e) { return false; }
 }
- 
+
 function enterOfflineModeWithUid(uid) {
   isOfflineMode = true;
   currentUser   = { uid: uid, displayName: 'غير متصل', photoURL: null, email: '' };
@@ -1155,7 +1372,7 @@ function enterOfflineModeWithUid(uid) {
   document.getElementById('clrRBtn').style.display = (roster && roster.length > 0) ? '' : 'none';
   dbLoad(); // Load student database from localStorage
 }
- 
+
 // ── RECONNECT (offline → back to login) ───────────────────────────────
 function tryReconnect() {
   if (navigator.onLine) {
@@ -1164,7 +1381,7 @@ function tryReconnect() {
     toast('لا يوجد اتصال بالإنترنت حالياً');
   }
 }
- 
+
 // ── FIREBASE REALTIME LISTENERS ───────────────────────────────────────
 function startListeners() {
   if (!currentUser || isOfflineMode) return;
@@ -1172,30 +1389,29 @@ function startListeners() {
   dataLoaded = false;
   setSyncStatus('saving');
   var loaded = { students: false, history: false, roster: false, settings: false };
- 
+
   function isStillMe() { return currentUser && currentUser.uid === myUid; }
   function checkAllLoaded() {
     if (!isStillMe()) return;
     if (loaded.students && loaded.history && loaded.roster && loaded.settings) {
       dataLoaded = true;
       setSyncStatus('saved');
+      // Restore today's students (reload-safe): cache first, then __names__ from today's history
+      restoreTodayStudents();
       renderList();
       document.getElementById('clrRBtn').style.display = (roster && roster.length > 0) ? '' : 'none';
       cacheLocally();
       dbLoad();
+      takeSnapshot();
+      flushQueue(); // re-send anything that failed before the reload
     }
   }
- 
-  // Students always start EMPTY — instructor loads from roster each session
+
+  // Students restored after history loads (see restoreTodayStudents)
   studentsMorning = [];
   studentsEvening = [];
-  // Clear any stale student cache
-  try{
-    var stKey='hsp_today_'+(currentUser?currentUser.uid:'offline');
-    localStorage.removeItem(stKey);
-  }catch(e){}
   loaded.students = true;
- 
+
   var hRef = dbRef('history');
   hRef.on('value', function(snap) {
     if (!isStillMe()) return;
@@ -1206,7 +1422,21 @@ function startListeners() {
     if (dataLoaded) { renderList(); cacheLocally(); } else checkAllLoaded();
   });
   dbListeners.push({ ref: hRef, event: 'value' });
- 
+
+  // ★ Student database now synced to the Google account (was localStorage-only)
+  var sdbRef = dbRef('studentDb');
+  sdbRef.on('value', function(snap) {
+    if (!isStillMe()) return;
+    var val = snap.val();
+    if (val) {
+      studentDb = Array.isArray(val) ? val : Object.values(val);
+      try{ localStorage.setItem('hsp_sdb', JSON.stringify(studentDb)); }catch(e){}
+      var pdb = document.getElementById('pdb');
+      if (pdb && pdb.classList.contains('active')) dbRender();
+    }
+  });
+  dbListeners.push({ ref: sdbRef, event: 'value' });
+
   var rRef = dbRef('roster');
   rRef.on('value', function(snap) {
     if (!isStillMe()) return;
@@ -1217,7 +1447,7 @@ function startListeners() {
     if (dataLoaded) { renderRosterIfActive(); cacheLocally(); } else checkAllLoaded();
   });
   dbListeners.push({ ref: rRef, event: 'value' });
- 
+
   var stRef = dbRef('settings');
   stRef.on('value', function(snap) {
     if (!isStillMe()) return;
@@ -1229,97 +1459,120 @@ function startListeners() {
     checkAllLoaded();
   });
   dbListeners.push({ ref: stRef, event: 'value' });
- 
+
   db.ref('.info/connected').on('value', function(snap) {
     if (!isStillMe()) return;
     if (snap.val() === true) { if (dataLoaded) setSyncStatus('saved'); }
     else { setSyncStatus('offline'); }
   });
 }
- 
+
 function stopListeners() {
   for (var i = 0; i < dbListeners.length; i++) {
     try { dbListeners[i].ref.off(); } catch(e) {}
   }
   dbListeners = [];
 }
- 
+
+// ★ Rebuild today's student lists after a reload — from local cache first,
+// then from the __names__ stored inside today's cloud history records.
+// A genuinely new day still starts empty by design.
+function restoreTodayStudents(){
+  var cached = loadTodayStudentsFromCache();
+  if (cached.morning.length) studentsMorning = cached.morning;
+  if (cached.evening.length) studentsEvening = cached.evening;
+  var tk = today();
+  if (!studentsMorning.length && history[tk+'_morning'] && history[tk+'_morning']['__names__']) {
+    studentsMorning = history[tk+'_morning']['__names__'].map(function(n){ return {name:n}; });
+  }
+  if (!studentsEvening.length && history[tk+'_evening'] && history[tk+'_evening']['__names__']) {
+    studentsEvening = history[tk+'_evening']['__names__'].map(function(n){ return {name:n}; });
+  }
+}
+
 function renderRosterIfActive() {
   var p = document.getElementById('pr');
   if (p && p.classList.contains('active')) renderRoster();
 }
- 
+
 // ── SAVE FUNCTIONS ────────────────────────────────────────────────────
 function saveStudents() {
   if (!dataLoaded || !currentUser) return;
-  // Students are session-only — saved to localStorage for today only
-  // Each day the instructor loads fresh groups from the roster
-  saveTodayStudents();
+  // Students for TODAY are cached locally so a mid-day reload never loses
+  // the loaded group. They still reset automatically on a new day.
+  cacheLocally();
 }
- 
+
 function saveDay(sessionK) {
   if (!dataLoaded || !currentUser) return;
   if (isOfflineMode) { cacheLocally(); return; }
   var dayData = history[sessionK] || {};
   if (!Object.keys(dayData).length) return;
- 
-  // Store student names inside the day record so Excel works even after reload
+
+  // Store student names inside the day record so exports work even after reload
   var sts = sessionK.indexOf('_morning') >= 0 ? studentsMorning : studentsEvening;
   if (sts && sts.length > 0) {
     dayData['__names__'] = sts.map(function(s){ return s.name; });
   }
- 
-  setSyncStatus('saving');
+  dayData['__savedAt__'] = Date.now();
+
   var dbKey = sessionK.replace(/^(\d{4})-(\d{2})-(\d{2})_/, '$1_$2_$3_');
-  dbRef('history/' + dbKey).set(dayData)
-    .then(function() { setSyncStatus('saved'); cacheLocally(); })
-    .catch(function(e) { setSyncStatus('offline'); console.error(e); });
+  guardedSet('history/' + dbKey, dayData);
 }
- 
+
 function saveRoster() {
   if (!dataLoaded || !currentUser) return;
   if (isOfflineMode) { cacheLocally(); return; }
-  setSyncStatus('saving');
-  dbRef('roster').set(roster)
-    .then(function() { setSyncStatus('saved'); cacheLocally(); })
-    .catch(function(e) { setSyncStatus('offline'); console.error(e); });
+  guardedSet('roster', roster);
 }
- 
+
 function saveSettings() {
   if (!currentUser) return;
-  if (isOfflineMode) { cacheLocally(); return; }
   var s = {
     hospitalName:   document.getElementById('hName').value || '',
     hospitalNo:     document.getElementById('hNo').value || '',
     supervisorName: document.getElementById('supName').value || ''
   };
-  dbRef('settings').set(s)
-    .then(function() { setSyncStatus('saved'); })
-    .catch(function(e) { setSyncStatus('offline'); });
+  if (isOfflineMode) { cacheLocally(); return; }
+  guardedSet('settings', s);
 }
- 
+
 function loadTodayStudentsFromCache(){
-  // Students are NEVER loaded from cache — always start empty
-  // Instructor must use "تحميل مجموعة" button each session
+  // Restores today's loaded groups after a reload (same-day only).
+  if(!currentUser) return {morning:[], evening:[]};
+  try{
+    var raw = localStorage.getItem('hsp_' + currentUser.uid);
+    if(raw){
+      var c = JSON.parse(raw);
+      if(c.sd === today()){
+        return { morning: c.sm || [], evening: c.se || [] };
+      }
+    }
+  }catch(e){}
   return {morning:[], evening:[]};
 }
- 
-function saveTodayStudents(){
-  // Students not cached — intentionally empty
-}
- 
+
+var lastSnapAt = 0;
 function cacheLocally() {
   if (!currentUser) return;
   try {
     localStorage.setItem('hsp_' + currentUser.uid, JSON.stringify({
-      sm: [], se: [], h: history, r: roster,  // students never cached
+      v: 2,
+      ts: Date.now(),
+      sd: today(),                 // date the student lists belong to
+      sm: studentsMorning,         // ★ today's students now cached — reload-safe
+      se: studentsEvening,
+      h: history, r: roster,
+      sdb: studentDb,
       hn: document.getElementById('hName').value,
       ho: document.getElementById('hNo').value,
       sn: document.getElementById('supName').value
     }));
   } catch(e) {}
+  // throttled auto-snapshot (at most once every 10 min)
+  if (Date.now() - lastSnapAt > 600000) { lastSnapAt = Date.now(); takeSnapshot(); }
 }
- 
+
 // ═══════════════════════════════════════════
 // EVAL FIELDS
 // ═══════════════════════════════════════════
@@ -1350,7 +1603,7 @@ var FIELDS=[
     {k:'coat',l:'المعطف',m:0.25}
   ]}
 ];
- 
+
 // ═══════════════════════════════════════════
 // TABS
 // ═══════════════════════════════════════════
@@ -1359,17 +1612,20 @@ function showTab(n){
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
   var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm'};
   var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm'};
-  document.getElementById(panels[n]).classList.add('active');
+  var panel=document.getElementById(panels[n]);
+  panel.classList.add('active');
+  // restart the entrance animation so every switch feels alive
+  panel.style.animation='none'; void panel.offsetWidth; panel.style.animation='';
   document.getElementById(btns[n]).classList.add('active');
   // Attendance tab always shows TODAY — never shows historical data
   if(n==='att'){ curDate=today(); renderList(); }
   if(n==='paper')  renderPaper();
   if(n==='roster') renderRoster();
   if(n==='hist')   renderHist();
-  if(n==='db')     dbRender();
+  if(n==='db'){ dbRender(); renderBackupCenter(); }
   if(n==='teach')  tmRender();
 }
- 
+
 function switchGroup(g){
   curGroup = g;
   // Update header buttons
@@ -1387,19 +1643,19 @@ function switchGroup(g){
   var pp=document.getElementById('pp');
   if(pp&&pp.classList.contains('active')) renderPaper();
 }
- 
+
 function newGroup(){
   var other = curGroup==='morning'?'مسائي':'صباحي';
   if(!confirm('الانتقال إلى المجموعة '+other+'؟ بيانات هذه المجموعة محفوظة.')) return;
   switchGroup(curGroup==='morning'?'evening':'morning');
   toast('تم الانتقال إلى المجموعة '+other);
 }
- 
+
 function updateDateLabel(){
   var el=document.getElementById('curDateLabel');
   if(el) el.textContent=curDate;
 }
- 
+
 // ═══════════════════════════════════════════
 // STUDENT LIST
 // ═══════════════════════════════════════════
@@ -1427,7 +1683,7 @@ function renderList(){
   document.getElementById('sList').innerHTML=html;
   updStats();
 }
- 
+
 function setAtt(e,i,v){
   e.stopPropagation();
   var d=getSession(); if(!d[i])d[i]={};
@@ -1441,35 +1697,49 @@ function setAtt(e,i,v){
   }
   saveDay(sessionKey()); renderList();
 }
- 
+
+// ★ Animated counters — stats count up/down smoothly with a pop
+function animateNum(el, target){
+  var cur = parseInt(el.textContent, 10) || 0;
+  if (cur === target) { el.textContent = target; return; }
+  el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+  var start = cur, diff = target - start, t0 = performance.now(), dur = 380;
+  function step(t){
+    var p = Math.min(1, (t - t0) / dur);
+    el.textContent = Math.round(start + diff * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
 function updStats(){
   var sts=getStudents(), day=getSession(),p=0,a=0,ev=0;
   for(var i=0;i<sts.length;i++){var r=day[i]||{};if(r.attendance==='present')p++;if(r.attendance==='absent')a++;if(r.evaluated)ev++;}
-  document.getElementById('stT').textContent=sts.length;
-  document.getElementById('stP').textContent=p;
-  document.getElementById('stA').textContent=a;
-  document.getElementById('stE').textContent=ev;
+  animateNum(document.getElementById('stT'), sts.length);
+  animateNum(document.getElementById('stP'), p);
+  animateNum(document.getElementById('stA'), a);
+  animateNum(document.getElementById('stE'), ev);
 }
- 
+
 function addSt(){
   var inp=document.getElementById('newN'), name=(inp.value||'').trim();
   if(!name) return;
   var arr=getStudents(); arr.push({name:name}); setStudents(arr);
   saveStudents(); inp.value=''; renderList(); toast('تمت إضافة: '+name);
 }
- 
+
 function sortSt(){
   var arr=getStudents(); arr.sort(function(a,b){return a.name.localeCompare(b.name,'ar')});
   setStudents(arr); saveStudents(); renderList(); toast('تم الترتيب الأبجدي');
 }
- 
+
 function clearDay(){
   if(!confirm('الانتقال إلى اليوم الحالي؟ بيانات الأيام السابقة محفوظة.')) return;
   curDate = today();
   renderList();
   toast('تم الانتقال إلى اليوم: '+curDate);
 }
- 
+
 // ═══════════════════════════════════════════
 // EVAL MODAL
 // ═══════════════════════════════════════════
@@ -1542,7 +1812,7 @@ function openEval(idx){
   recalc();
   document.getElementById('evalM').classList.add('open');
 }
- 
+
 function setEvalPaper(idx,val){
   var day=getSession(); if(!day[idx])day[idx]={};
   day[idx].paperDelivered=val;
@@ -1551,9 +1821,9 @@ function setEvalPaper(idx,val){
   var pp=document.getElementById('pp');
   if(pp&&pp.classList.contains('active')) renderPaper();
 }
- 
+
 function upd(k,v){var el=document.getElementById('v_'+k);if(el)el.textContent=parseFloat(v).toFixed(2);recalc();}
- 
+
 function updNum(k, v, maxVal){
   var inp = document.getElementById('f_'+k);
   var bar = document.getElementById('bar_'+k);
@@ -1576,7 +1846,7 @@ function updNum(k, v, maxVal){
   }
   recalc();
 }
- 
+
 function fixNum(k, maxVal){
   var inp = document.getElementById('f_'+k);
   if(!inp) return;
@@ -1593,7 +1863,7 @@ function updCk(k,checked){
   if(el)el.textContent=checked?'0.25':'0.00';
   recalc();
 }
- 
+
 function recalc(){
   var t=0;
   for(var fi=0;fi<FIELDS.length;fi++){
@@ -1614,7 +1884,7 @@ function recalc(){
   }
   var el=document.getElementById('mTot'); if(el)el.textContent=Math.min(t,15).toFixed(2);
 }
- 
+
 function saveEval(){
   var day=getSession(); if(!day[curSt])day[curSt]={};
   var rec=day[curSt]; rec.scores={}; var t=0;
@@ -1637,7 +1907,7 @@ function saveEval(){
   saveDay(sessionKey()); closeMod(); renderList(); toast('تم حفظ التقييم ✓');
 }
 function closeMod(){document.getElementById('evalM').classList.remove('open');}
- 
+
 // ═══════════════════════════════════════════
 // PAPER TAB
 // ═══════════════════════════════════════════
@@ -1667,7 +1937,7 @@ function setPaper(i,v){
   d[i].paperDelivered=v; saveDay(sessionKey()); renderPaper();
 }
 function updPS(){document.getElementById('pDel').textContent='✓ سلّم: 0';document.getElementById('pNd').textContent='✗ لم يسلّم: 0';}
- 
+
 // ═══════════════════════════════════════════
 // ROSTER TAB
 // ═══════════════════════════════════════════
@@ -1710,14 +1980,14 @@ function renderRoster(){
   if(!html) html='<div class="rempty" style="padding:32px">لا توجد نتائج للفلاتر المختارة</div>';
   cont.innerHTML=html;
 }
- 
+
 function getSched(sd){
   if(!sd) return [];
   var days=[], d=new Date(sd+'T00:00:00'), tries=0;
   while(days.length<4&&tries<14){tries++;var dw=d.getDay();if(dw!==5&&dw!==6)days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
   return days;
 }
- 
+
 function importRoster(event){
   var file=event.target.files[0]; if(!file) return;
   var reader=new FileReader();
@@ -1748,9 +2018,9 @@ function importRoster(event){
   };
   reader.readAsArrayBuffer(file);
 }
- 
+
 function clearRoster(){if(!confirm('مسح جدول المجموعات؟'))return;roster=[];saveRoster();renderRoster();toast('تم مسح الجدول');}
- 
+
 function dlTemplate(){
   var wb=XLSX.utils.book_new();
   var d=[['اسم المستشفى','رقم المجموعة','اسم الطالب','نوع الدراسة','تاريخ البدء','ملاحظات'],['مستشفى الكندي','1','أحمد محمد علي','صباحي','2025-03-03',''],['مستشفى الكندي','1','سارة خالد حسن','صباحي','2025-03-03',''],['مستشفى الكندي','2','نور أحمد سعيد','مسائي','2025-03-03',''],['مستشفى ابن سينا','3','زينب كريم طاهر','صباحي','2025-03-03',''],['مستشفى ابن سينا','4','ريم سامر نوري','مسائي','2025-03-03',''],['مستشفى الجمهوري','5','لينا فارس حيدر','صباحي','2025-03-10',''],['مستشفى الجمهوري','6','دينا أمير يوسف','مسائي','2025-03-10','']];
@@ -1758,10 +2028,18 @@ function dlTemplate(){
   XLSX.utils.book_append_sheet(wb,ws,'جدول الطلاب');
   XLSX.writeFile(wb,'student_roster_template.xlsx'); toast('تم تحميل القالب ✓');
 }
- 
+
 // ═══════════════════════════════════════════
 // HISTORY TAB
 // ═══════════════════════════════════════════
+// ★ Names for a past session come from the record itself (saved with the day),
+// so history stays accurate even after groups change.
+function sessionObjs(dateKey){
+  var d = history[dateKey] || {};
+  if (d['__names__'] && d['__names__'].length) return d['__names__'].map(function(n){ return {name:n}; });
+  return (dateKey.indexOf('_morning') >= 0 ? studentsMorning : studentsEvening);
+}
+
 function renderHist(){
   var q=(document.getElementById('histSearch').value||'').toLowerCase();
   var el=document.getElementById('histList');
@@ -1774,12 +2052,12 @@ function renderHist(){
     if(!dayData||!Object.keys(dayData).length) continue;
     var matchDate=date.indexOf(q)>=0;
     var matchStudents=[];
-    var tmpSts=date.indexOf('_morning')>=0?studentsMorning:studentsEvening;
+    var tmpSts=sessionObjs(date);
     for(var i=0;i<tmpSts.length;i++){if(tmpSts[i].name.toLowerCase().indexOf(q)>=0)matchStudents.push(i);}
     if(q&&!matchDate&&!matchStudents.length) continue;
     found++;
     var present=0,absent=0,evaluated=0,paperDel=0;
-    var hSts=date.indexOf('_morning')>=0?studentsMorning:studentsEvening;
+    var hSts=sessionObjs(date);
     for(var i=0;i<hSts.length;i++){var r=dayData[i]||{};if(r.attendance==='present')present++;if(r.attendance==='absent')absent++;if(r.evaluated)evaluated++;if(r.paperDelivered===true)paperDel++;}
     var cleanDate=date.replace('_morning','').replace('_evening',''), dobj=new Date(cleanDate+'T00:00:00'), dow=dnames[dobj.getDay()];
     html+='<div class="hday-card" onclick="openDayDetail(\''+date+'\')">';
@@ -1794,7 +2072,7 @@ function renderHist(){
     html+='</div></div>';
     html+='<div class="hday-body">';
     var isSessionMorning=date.indexOf('_morning')>=0;
-    var sessionStudents=isSessionMorning?studentsMorning:studentsEvening;
+    var sessionStudents=sessionObjs(date);
     var showList=q&&!matchDate?matchStudents:sessionStudents.map(function(_,i){return i;});
     for(var ji=0;ji<showList.length;ji++){
       var i=showList[ji]; if(i>=sessionStudents.length) continue;
@@ -1817,11 +2095,11 @@ function renderHist(){
   if(!found) html='<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">📅</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد تقييمات سابقة</div><div style="font-size:13px;color:var(--muted)">ستظهر هنا سجلات جميع الأيام السابقة بعد إجراء أول تقييم</div></div>';
   el.innerHTML=html;
 }
- 
+
 function openDayDetail(date){
   ddDateKey=date;
   var dayData=history[date]||{};
-  var ddStsList=date.indexOf('_morning')>=0?studentsMorning:studentsEvening;
+  var ddStsList=sessionObjs(date);
   var dnames=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
   var isM2=date.indexOf('_morning')>=0, grpT=isM2?'صباحي':'مسائي', cleanD2=date.replace('_morning','').replace('_evening',''), dobj2=new Date(cleanD2+'T00:00:00');
   document.getElementById('dmTitle').textContent='تفاصيل يوم: '+cleanD2+' — '+dnames[dobj2.getDay()]+' ('+grpT+')';
@@ -1854,7 +2132,7 @@ function openDayDetail(date){
   document.getElementById('dmBody').innerHTML=html;
   document.getElementById('dayDetailM').classList.add('open');
 }
- 
+
 function openStudentDetail(date,idx){
   openDayDetail(date);
   setTimeout(function(){
@@ -1862,31 +2140,31 @@ function openStudentDetail(date,idx){
     if(cards[idx]){cards[idx].scrollIntoView({behavior:'smooth',block:'center'});cards[idx].style.boxShadow='0 0 0 2px var(--pl)';setTimeout(function(){if(cards[idx])cards[idx].style.boxShadow='';},2000);}
   },120);
 }
- 
+
 var ddDateKey='';
 function exportDayExcel(){
   var histKey = ddDateKey;
   var cleanDate = histKey.replace('_morning','').replace('_evening','');
   var dayData = history[histKey] || {};
   var isM = histKey.indexOf('_morning') >= 0;
- 
+
   // Use stored names from history record (saved when evaluation was done)
   // Fall back to current student list if available
   var storedNames = dayData['__names__'] || null;
   var liveSts = isM ? studentsMorning : studentsEvening;
- 
+
   // Build student list from stored names or live list
   var stNames = storedNames || liveSts.map(function(s){ return s.name; });
- 
+
   if (!stNames.length) {
     toast('لا توجد أسماء طلاب لهذا اليوم'); return;
   }
- 
+
   var wb = XLSX.utils.book_new();
   var hN  = document.getElementById('hName').value  || '';
   var sup = document.getElementById('supName').value || '';
   var grpLabel = isM ? 'صباحي' : 'مسائي';
- 
+
   var rows = [
     ['المشرف: '+sup, 'المستشفى: '+hN, 'التاريخ: '+cleanDate, 'المجموعة: '+grpLabel],
     [],
@@ -1894,7 +2172,7 @@ function exportDayExcel(){
      'الطاقم','الطالب','المعلم','المريض','التأخر','الاجتماع','الموقع','الأوامر',
      'الشارة','الحجاب','الزي','المعطف','المجموع','تسليم الورقة','ملاحظات']
   ];
- 
+
   for (var i = 0; i < stNames.length; i++) {
     var r  = dayData[i] || {};
     var sc = r.scores  || {};
@@ -1911,7 +2189,7 @@ function exportDayExcel(){
       pd, r.notes||''
     ]);
   }
- 
+
   var ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = [
     {wch:4},{wch:24},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},
@@ -1922,22 +2200,22 @@ function exportDayExcel(){
   XLSX.writeFile(wb, 'تقييم_'+cleanDate+'_'+grpLabel+'.xlsx');
   toast('تم تصدير Excel ✓');
 }
- 
+
 function exportSummaryExcel(){
   // Collect all students from both groups with their full history
   var wb = XLSX.utils.book_new();
   var hN  = document.getElementById('hName').value  || '';
   var hNo = document.getElementById('hNo').value    || '';
   var sup = document.getElementById('supName').value|| '';
- 
+
   // Get all unique dates across all history
   var allDates = Object.keys(history).sort();
- 
+
   // Build master student list combining morning and evening
   var allStudents = [];
   studentsMorning.forEach(function(s,i){ allStudents.push({name:s.name,group:'morning',idx:i}); });
   studentsEvening.forEach(function(s,i){ allStudents.push({name:s.name,group:'evening',idx:i}); });
- 
+
   // Match with studentDb for extra info
   function getDbInfo(name){
     if(!studentDb||!studentDb.length) return {};
@@ -1946,26 +2224,26 @@ function exportSummaryExcel(){
     }
     return {};
   }
- 
+
   // ── Sheet 1: Summary (one row per student, columns per day) ─────────
   var summaryRows = [];
- 
+
   // Title rows
   summaryRows.push(['ملف الدرجات الكامل — نظام تقييم الممارسة اليومية في المستشفى']);
   summaryRows.push(['المستشفى: '+hN, 'رقم: '+hNo, 'المشرف: '+sup, 'تاريخ التصدير: '+today()]);
   summaryRows.push([]);
- 
+
   // Build date columns — only dates that have evaluation data
   var evalDates = allDates.filter(function(k){
     return Object.keys(history[k]).some(function(idx){
       return history[k][idx].evaluated;
     });
   });
- 
+
   var cleanDates = evalDates.map(function(k){
     return k.replace('_morning','').replace('_evening','');
   });
- 
+
   // Header row
   var headers = ['م','اسم الطالب','نوع الدراسة','رقم المجموعة','اسم المستشفى','المنطقة','البريد الإلكتروني'];
   evalDates.forEach(function(k){
@@ -1975,7 +2253,7 @@ function exportSummaryExcel(){
   });
   headers.push('المتوسط','حالة الحضور الكلية','ملاحظات');
   summaryRows.push(headers);
- 
+
   // Data rows
   allStudents.forEach(function(st, rowNum){
     var dbInfo  = getDbInfo(st.name);
@@ -1984,7 +2262,7 @@ function exportSummaryExcel(){
     var area    = dbInfo.area     || '';
     var grpNum  = dbInfo.group    || '';
     var email   = dbInfo.email    || '';
- 
+
     var row = [
       rowNum+1,
       st.name,
@@ -1994,7 +2272,7 @@ function exportSummaryExcel(){
       area,
       email
     ];
- 
+
     // Grade per date
     var totalSum=0, totalCount=0, presentDays=0, absentDays=0;
     evalDates.forEach(function(dateKey){
@@ -2011,10 +2289,10 @@ function exportSummaryExcel(){
         row.push(''); // not this student's group/date
       }
     });
- 
+
     var avg = totalCount>0 ? parseFloat((totalSum/totalCount).toFixed(2)) : '';
     var attSummary = presentDays>0||absentDays>0 ? 'حاضر: '+presentDays+' | غائب: '+absentDays : '';
- 
+
     // Get notes from latest evaluation
     var lastNote = '';
     for(var di=evalDates.length-1;di>=0;di--){
@@ -2029,7 +2307,7 @@ function exportSummaryExcel(){
     row.push(avg, attSummary, lastNote);
     summaryRows.push(row);
   });
- 
+
   var ws1 = XLSX.utils.aoa_to_sheet(summaryRows);
   // Set column widths
   var wscols = [{wch:4},{wch:24},{wch:10},{wch:10},{wch:22},{wch:12},{wch:26}];
@@ -2037,7 +2315,7 @@ function exportSummaryExcel(){
   wscols.push({wch:10},{wch:18},{wch:30});
   ws1['!cols'] = wscols;
   XLSX.utils.book_append_sheet(wb, ws1, 'ملخص الدرجات');
- 
+
   // ── Sheet 2: Detailed (one row per student per day) ──────────────────
   var detailRows = [
     ['التاريخ','اسم الطالب','نوع الدراسة','المجموعة','المستشفى','المنطقة',
@@ -2045,14 +2323,14 @@ function exportSummaryExcel(){
      'الطاقم','الطالب','المعلم','المريض','التأخر','الاجتماع','الموقع','الأوامر',
      'الشارة','الحجاب','الزي','المعطف','المجموع الكلي','تسليم الورقة','ملاحظات']
   ];
- 
+
   allDates.forEach(function(dateKey){
     var dayData = history[dateKey]||{};
     var isM     = dateKey.indexOf('_morning')>=0;
     var sts     = isM ? studentsMorning : studentsEvening;
     var grpLbl  = isM ? 'صباحي' : 'مسائي';
     var cleanD  = dateKey.replace('_morning','').replace('_evening','');
- 
+
     sts.forEach(function(s,i){
       var rec = dayData[i]||{};
       if(!rec.attendance && !rec.evaluated) return; // skip empty
@@ -2060,7 +2338,7 @@ function exportSummaryExcel(){
       var dbI = getDbInfo(s.name);
       var att = rec.attendance==='present'?'حاضر':rec.attendance==='absent'?'غائب':'—';
       var pd  = rec.paperDelivered===true?'سلّم':rec.paperDelivered===false?'لم يسلّم':'—';
- 
+
       detailRows.push([
         cleanD, s.name, grpLbl, dbI.group||'',
         dbI.hospital||hN||'', dbI.area||'',
@@ -2074,7 +2352,7 @@ function exportSummaryExcel(){
       ]);
     });
   });
- 
+
   var ws2 = XLSX.utils.aoa_to_sheet(detailRows);
   ws2['!cols'] = [
     {wch:12},{wch:24},{wch:10},{wch:10},{wch:22},{wch:12},
@@ -2084,7 +2362,7 @@ function exportSummaryExcel(){
     {wch:10},{wch:10},{wch:28}
   ];
   XLSX.utils.book_append_sheet(wb, ws2, 'تفاصيل التقييمات');
- 
+
   // ── Sheet 3: Attendance only ─────────────────────────────────────────
   var attRows = [['م','اسم الطالب','نوع الدراسة','المجموعة','المستشفى']];
   var attDates = Object.keys(history).sort();
@@ -2092,7 +2370,7 @@ function exportSummaryExcel(){
     attRows[0].push(k.replace('_morning','').replace('_evening','')+'('+(k.indexOf('_morning')>=0?'ص':'م')+')');
   });
   attRows[0].push('إجمالي الحضور','إجمالي الغياب');
- 
+
   allStudents.forEach(function(st,rowNum){
     var dbI    = getDbInfo(st.name);
     var grpLbl = st.group==='morning'?'صباحي':'مسائي';
@@ -2112,15 +2390,15 @@ function exportSummaryExcel(){
     row.push(pCount,aCount);
     attRows.push(row);
   });
- 
+
   var ws3 = XLSX.utils.aoa_to_sheet(attRows);
   XLSX.utils.book_append_sheet(wb, ws3, 'سجل الحضور');
- 
+
   // Save file
   XLSX.writeFile(wb, 'ملف_الدرجات_الكامل_'+today()+'.xlsx');
   toast('✅ تم تصدير ملف الدرجات الكامل');
 }
- 
+
 function doExcelAll(){
   var wb=XLSX.utils.book_new();
   var days=Object.keys(history).sort();
@@ -2128,7 +2406,7 @@ function doExcelAll(){
   var allRows=[['المشرف: '+sup,'المستشفى: '+hN],[],['التاريخ','المجموعة','اسم الطالب','الحضور','المجموع','الورقة اليومية','ملاحظات']];
   for(var di=0;di<days.length;di++){
     var date=days[di], dayData=history[date]||{};
-    var allSts=date.indexOf('_morning')>=0?studentsMorning:studentsEvening;
+    var allSts=sessionObjs(date);
     var cleanD=date.replace('_morning','').replace('_evening','');
     var grpLabel=date.indexOf('_morning')>=0?'صباحي':'مسائي';
     for(var i=0;i<allSts.length;i++){
@@ -2140,9 +2418,9 @@ function doExcelAll(){
   XLSX.utils.book_append_sheet(wb,ws,'السجل الكامل');
   XLSX.writeFile(wb,'السجل_الكامل_'+today()+'.xlsx'); toast('تم تصدير السجل الكامل ✓');
 }
- 
+
 function closeDayDetail(){document.getElementById('dayDetailM').classList.remove('open');}
- 
+
 // ═══════════════════════════════════════════
 // EXCEL EXPORT (current day)
 // ═══════════════════════════════════════════
@@ -2159,7 +2437,7 @@ function doExcel(){
   var ws=XLSX.utils.aoa_to_sheet(rows); XLSX.utils.book_append_sheet(wb,ws,'التقييم اليومي');
   XLSX.writeFile(wb,'تقييم_'+curDate+'.xlsx'); toast('تم تصدير Excel ✓');
 }
- 
+
 // ═══════════════════════════════════════════
 // CALENDAR
 // ═══════════════════════════════════════════
@@ -2210,7 +2488,7 @@ function tick(){
   document.getElementById('datedisp').textContent=days[now.getDay()]+'، '+now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear();
 }
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2400);}
- 
+
 document.getElementById('evalM').addEventListener('click',function(e){if(e.target===this)closeMod();});
 document.getElementById('tmModal').addEventListener('click',function(e){if(e.target===this)tmCloseModal();});
 document.getElementById('emailModal').addEventListener('click',function(e){if(e.target===this)closeEmailModal();});
@@ -2218,7 +2496,7 @@ document.getElementById('grpLoaderM').addEventListener('click',function(e){if(e.
 document.getElementById('attPdfModal').addEventListener('click',function(e){if(e.target===this)document.getElementById('attPdfModal').classList.remove('open');});
 document.getElementById('calM').addEventListener('click',function(e){if(e.target===this)closeCal();});
 document.getElementById('dayDetailM').addEventListener('click',function(e){if(e.target===this)closeDayDetail();});
- 
+
 // ═══════════════════════════════════════════
 // ATTENDANCE PDF EXPORT — Isolated feature
 // ═══════════════════════════════════════════
@@ -2232,12 +2510,12 @@ function exportAttPDF(){
   var grpEn = curGroup==='morning'?'صباحي':'مسائي';
   var hName = document.getElementById('hName').value||'—';
   var supName = document.getElementById('supName').value||'—';
- 
+
   if(!sts.length){
     toast('لا يوجد طلاب لتصدير كشف الحضور');
     return;
   }
- 
+
   // Build rows
   var rows = '';
   var presentCount=0, absentCount=0, unsetCount=0;
@@ -2248,7 +2526,7 @@ function exportAttPDF(){
     if(att==='present') presentCount++;
     else if(att==='absent') absentCount++;
     else unsetCount++;
- 
+
     var attCell, rowBg;
     if(att==='present'){
       attCell = '<td style="text-align:center;color:#1e8449;font-weight:700">حاضر ✓</td><td style="text-align:center;color:#555;font-size:12px">'+attTime+'</td>';
@@ -2267,15 +2545,15 @@ function exportAttPDF(){
       +'<td style="text-align:center;font-size:12px;color:#aaa"></td>'
       +'</tr>';
   }
- 
+
   var html = '<div id="printArea" style="font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#222;max-width:680px;margin:0 auto">'
- 
+
   // Header
   +'<div style="text-align:center;border-bottom:3px solid #c0392b;padding-bottom:14px;margin-bottom:16px">'
   +'<div style="font-size:20px;font-weight:800;color:#c0392b;margin-bottom:4px">كشف الحضور اليومي</div>'
   +'<div style="font-size:13px;color:#555">Daily Attendance Record</div>'
   +'</div>'
- 
+
   // Info grid
   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;background:#f8f8f8;border-radius:8px;padding:12px 16px;border:1px solid #e0e0e0">'
   +'<div><span style="font-size:11px;color:#888">المستشفى</span><div style="font-size:14px;font-weight:600">'+hName+'</div></div>'
@@ -2285,14 +2563,14 @@ function exportAttPDF(){
   +'<div><span style="font-size:11px;color:#888">وقت التسجيل</span><div style="font-size:14px;font-weight:600">'+timeStr+'</div></div>'
   +'<div><span style="font-size:11px;color:#888">إجمالي الطلاب</span><div style="font-size:14px;font-weight:600">'+sts.length+' طالب</div></div>'
   +'</div>'
- 
+
   // Stats bar
   +'<div style="display:flex;gap:10px;margin-bottom:16px">'
   +'<div style="flex:1;background:#e8f8f0;border:1px solid #27ae60;border-radius:8px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#1e8449">'+presentCount+'</div><div style="font-size:11px;color:#555">حاضر</div></div>'
   +'<div style="flex:1;background:#fdf2f2;border:1px solid #c0392b;border-radius:8px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#922b21">'+absentCount+'</div><div style="font-size:11px;color:#555">غائب</div></div>'
   +'<div style="flex:1;background:#f5f5f5;border:1px solid #ccc;border-radius:8px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#888">'+unsetCount+'</div><div style="font-size:11px;color:#555">لم يُسجَّل</div></div>'
   +'</div>'
- 
+
   // Table
   +'<table style="width:100%;border-collapse:collapse;border:1px solid #ddd;border-radius:8px;overflow:hidden">'
   +'<thead>'
@@ -2306,7 +2584,7 @@ function exportAttPDF(){
   +'</thead>'
   +'<tbody>'+rows+'</tbody>'
   +'</table>'
- 
+
   // Signature area
   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:28px;padding-top:16px;border-top:1px dashed #ccc">'
   +'<div style="text-align:center">'
@@ -2318,14 +2596,14 @@ function exportAttPDF(){
   +'<div style="border-top:1px solid #333;padding-top:6px;font-size:13px;color:#aaa">_____________________</div>'
   +'</div>'
   +'</div>'
- 
+
   +'<div style="text-align:center;margin-top:18px;font-size:11px;color:#bbb">تم إنشاء هذا الكشف بتاريخ '+dateStr+' — الساعة '+timeStr+'</div>'
   +'</div>';
- 
+
   document.getElementById('attPdfPreview').innerHTML = html;
   document.getElementById('attPdfModal').classList.add('open');
 }
- 
+
 function printAttSheet(){
   var preview = document.getElementById('attPdfPreview').innerHTML;
   var win = window.open('','_blank','width=800,height=900');
@@ -2351,17 +2629,320 @@ function printAttSheet(){
   );
   win.document.close();
 }
- 
- 
-// ════════════════════════════════════════
-// STUDENT DATABASE — clean isolated version
-// ════════════════════════════════════════
-var studentDb = [];
- 
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// ★ DETAILED PDF REPORTS — real downloadable PDF files (html2pdf engine)
+//    • exportDayPDF()      → today's session: every mark of every student
+//    • exportHistDayPDF()  → any past day from the day-detail window
+//    • exportFullPDF()     → the complete grades record across all days
+//    Arabic renders perfectly because the browser does the text shaping.
+// ═══════════════════════════════════════════════════════════════════════
+
+function pdfDownload(html, filename, landscape){
+  if (typeof html2pdf === 'undefined') {
+    // graceful fallback: print window (user can "Save as PDF")
+    var w = window.open('','_blank','width=900,height=950');
+    w.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>'+filename+'</title><style>body{font-family:Tahoma,Arial,sans-serif;direction:rtl;padding:16px}</style></head><body>'+html+'<script>window.print()<\/script></body></html>');
+    w.document.close();
+    return;
+  }
+  var holder = document.createElement('div');
+  holder.style.cssText = 'position:absolute;left:-12000px;top:0;width:'+(landscape?'1050px':'760px');
+  holder.innerHTML = html;
+  document.body.appendChild(holder);
+  toast('⏳ جاري إنشاء ملف PDF...');
+  html2pdf().set({
+    margin: [8, 7, 10, 7],
+    filename: filename,
+    image: { type: 'jpeg', quality: 0.96 },
+    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  }).from(holder.firstElementChild || holder).save().then(function(){
+    document.body.removeChild(holder);
+    toast('✅ تم تنزيل ملف PDF');
+  }).catch(function(e){
+    document.body.removeChild(holder);
+    console.error(e); toast('تعذّر إنشاء PDF — جرّب مرة أخرى');
+  });
+}
+
+function pdfHeader(title, sub, color){
+  var hN  = document.getElementById('hName').value  || '—';
+  var hNo = document.getElementById('hNo').value    || '—';
+  var sup = document.getElementById('supName').value|| '—';
+  var now = new Date();
+  return '<div style="text-align:center;border-bottom:3px solid '+color+';padding-bottom:12px;margin-bottom:14px">'
+    +'<div style="font-size:21px;font-weight:800;color:'+color+'">'+title+'</div>'
+    +'<div style="font-size:12px;color:#666;margin-top:3px">'+sub+'</div></div>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;background:#f7f9fb;border:1px solid #e3e8ee;border-radius:10px;padding:10px 14px">'
+    +'<div><div style="font-size:10px;color:#999">المستشفى</div><div style="font-size:13px;font-weight:700">'+hN+'</div></div>'
+    +'<div><div style="font-size:10px;color:#999">رقم</div><div style="font-size:13px;font-weight:700">'+hNo+'</div></div>'
+    +'<div><div style="font-size:10px;color:#999">المشرف</div><div style="font-size:13px;font-weight:700">'+sup+'</div></div>'
+    +'<div><div style="font-size:10px;color:#999">تاريخ الإصدار</div><div style="font-size:13px;font-weight:700">'+now.toISOString().slice(0,10)+' '+now.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})+'</div></div>'
+    +'</div>';
+}
+
+function pdfSignature(){
+  var sup = document.getElementById('supName').value || '—';
+  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:26px;padding-top:14px;border-top:1px dashed #ccc;page-break-inside:avoid">'
+    +'<div style="text-align:center"><div style="font-size:11px;color:#999;margin-bottom:30px">توقيع المشرف</div><div style="border-top:1px solid #333;padding-top:5px;font-size:13px;font-weight:700">'+sup+'</div></div>'
+    +'<div style="text-align:center"><div style="font-size:11px;color:#999;margin-bottom:30px">ختم القسم / المستشفى</div><div style="border-top:1px solid #333;padding-top:5px;color:#bbb">____________________</div></div>'
+    +'</div>';
+}
+
+function sectionSubtotal(sc, fi){
+  var t = 0;
+  FIELDS[fi].items.forEach(function(it){ t += parseFloat(sc[it.k]) || 0; });
+  return t;
+}
+
+// Detailed per-student report for one session (every single mark)
+function buildDayReportHTML(histKey){
+  var clean = histKey.replace('_morning','').replace('_evening','');
+  var isM = histKey.indexOf('_morning') >= 0;
+  var grp = isM ? 'الصباحية' : 'المسائية';
+  var dayData = history[histKey] || {};
+  var objs = sessionObjs(histKey);
+  var dnames=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  var dow = dnames[new Date(clean+'T00:00:00').getDay()];
+  var colors=['#1a5276','#117a65','#6c3483','#b7770d','#922b21'];
+
+  var p=0,a=0,ev=0,sum=0,cnt=0;
+  for(var i=0;i<objs.length;i++){var r=dayData[i]||{};if(r.attendance==='present')p++;if(r.attendance==='absent')a++;if(r.evaluated){ev++;sum+=r.total||0;cnt++;}}
+  var avg = cnt ? (sum/cnt).toFixed(2) : '—';
+
+  var html = '<div style="font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#222">'
+    + pdfHeader('التقرير التفصيلي للدرجات والتقييم', 'Detailed Daily Evaluation Report — '+clean+' ('+dow+') — المجموعة '+grp, '#1a5276')
+    + '<div style="display:flex;gap:8px;margin-bottom:14px">'
+    + '<div style="flex:1;background:#eef7ff;border:1px solid #bcd9f2;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#1a5276">'+objs.length+'</div><div style="font-size:10px;color:#666">الطلاب</div></div>'
+    + '<div style="flex:1;background:#e8f8f0;border:1px solid #a9dfc3;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#1e8449">'+p+'</div><div style="font-size:10px;color:#666">حاضر</div></div>'
+    + '<div style="flex:1;background:#fdf2f2;border:1px solid #ecb1ab;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#922b21">'+a+'</div><div style="font-size:10px;color:#666">غائب</div></div>'
+    + '<div style="flex:1;background:#f3eefc;border:1px solid #cdb9ec;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#6c3483">'+ev+'</div><div style="font-size:10px;color:#666">تم تقييمهم</div></div>'
+    + '<div style="flex:1;background:#fff8e9;border:1px solid #efd49a;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#b7770d">'+avg+'</div><div style="font-size:10px;color:#666">متوسط الدرجات /15</div></div>'
+    + '</div>';
+
+  for(var i=0;i<objs.length;i++){
+    var r = dayData[i]||{}, sc = r.scores||{};
+    if(!r.attendance && !r.evaluated) continue;
+    var att = r.attendance==='present'?'حاضر ✓':r.attendance==='absent'?'غائب ✗':'لم يُسجَّل';
+    var attC = r.attendance==='present'?'#1e8449':r.attendance==='absent'?'#922b21':'#999';
+    var pd = r.paperDelivered===true?'سلّم الورقة ✓':r.paperDelivered===false?'لم يسلّم الورقة ✗':'الورقة: —';
+    var pdC = r.paperDelivered===true?'#1e8449':r.paperDelivered===false?'#922b21':'#999';
+    html += '<div style="border:1px solid #dfe5ea;border-radius:10px;margin-bottom:10px;overflow:hidden;page-break-inside:avoid">'
+      + '<div style="background:#f4f7fa;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e3e8ee">'
+      + '<div style="font-size:14px;font-weight:800">'+(i+1)+'. '+objs[i].name+'</div>'
+      + '<div style="display:flex;gap:14px;align-items:center">'
+      + '<span style="font-size:12px;font-weight:700;color:'+attC+'">'+att+(r.attendanceTime?' <span style="font-weight:400;color:#888">('+r.attendanceTime+')</span>':'')+'</span>'
+      + '<span style="font-size:12px;font-weight:700;color:'+pdC+'">'+pd+'</span>'
+      + (r.total!==undefined ? '<span style="background:#1a5276;color:#fff;border-radius:14px;padding:3px 12px;font-size:13px;font-weight:800">'+r.total.toFixed(2)+' / 15</span>' : '')
+      + '</div></div>';
+    if(r.evaluated){
+      html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0;border-bottom:1px solid #eef1f4">';
+      for(var fi=0; fi<FIELDS.length; fi++){
+        var f = FIELDS[fi], col = colors[fi], st = sectionSubtotal(sc, fi);
+        var secMax = f.items.reduce(function(s,x){return s+x.m},0);
+        html += '<div style="border-left:1px solid #eef1f4;padding:7px 9px">'
+          + '<div style="font-size:10px;font-weight:800;color:'+col+';margin-bottom:5px">'+f.s+' <span style="color:#999;font-weight:400">('+st.toFixed(2)+'/'+secMax.toFixed(2)+')</span></div>';
+        f.items.forEach(function(it){
+          var v = sc[it.k]!==undefined ? parseFloat(sc[it.k]).toFixed(2) : '0.00';
+          html += '<div style="display:flex;justify-content:space-between;font-size:10.5px;padding:1.5px 0"><span style="color:#555">'+it.l+'</span><span style="font-weight:700">'+v+'<span style="color:#bbb;font-weight:400">/'+it.m+'</span></span></div>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+      if(r.notes) html += '<div style="padding:7px 12px;font-size:11px;color:#555;background:#fffdf2;border-top:1px solid #f1ebcd"><b>ملاحظات:</b> '+r.notes+'</div>';
+    } else {
+      html += '<div style="padding:9px 12px;font-size:12px;color:#999">لم يتم إجراء التقييم لهذا اليوم</div>';
+    }
+    html += '</div>';
+  }
+  html += pdfSignature() + '</div>';
+  return html;
+}
+
+function exportDayPDF(){
+  var key = sessionKey();
+  var dayData = history[key] || {};
+  if(!getStudents().length && !(dayData['__names__']||[]).length){ toast('لا يوجد طلاب لإنشاء التقرير'); return; }
+  var grp = curGroup==='morning'?'صباحي':'مسائي';
+  pdfDownload(buildDayReportHTML(key), 'تقرير_تفصيلي_'+curDate+'_'+grp+'.pdf', true);
+}
+
+function exportHistDayPDF(){
+  if(!ddDateKey){ toast('لا يوجد يوم محدد'); return; }
+  var clean = ddDateKey.replace('_morning','').replace('_evening','');
+  var grp = ddDateKey.indexOf('_morning')>=0?'صباحي':'مسائي';
+  pdfDownload(buildDayReportHTML(ddDateKey), 'تقرير_تفصيلي_'+clean+'_'+grp+'.pdf', true);
+}
+
+// The complete grades record: every session, every student, section subtotals
+function exportFullPDF(){
+  var days = Object.keys(history).sort();
+  if(!days.length){ toast('لا توجد بيانات في السجل'); return; }
+  var colors=['#1a5276','#117a65','#6c3483','#b7770d','#922b21'];
+  var html = '<div style="font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#222">'
+    + pdfHeader('سجل الدرجات الكامل', 'Complete Grades Record — جميع الأيام والمجموعات', '#117a65');
+
+  days.forEach(function(dk){
+    var dayData = history[dk]||{};
+    var objs = sessionObjs(dk);
+    var hasData = false;
+    for(var i=0;i<objs.length;i++){ var r=dayData[i]||{}; if(r.attendance||r.evaluated){ hasData=true; break; } }
+    if(!hasData) return;
+    var clean = dk.replace('_morning','').replace('_evening','');
+    var isM = dk.indexOf('_morning')>=0;
+    var rows='', sum=0, cnt=0;
+    for(var i=0;i<objs.length;i++){
+      var r=dayData[i]||{}, sc=r.scores||{};
+      if(!r.attendance && !r.evaluated) continue;
+      var att=r.attendance==='present'?'حاضر':r.attendance==='absent'?'غائب':'—';
+      var attC=r.attendance==='present'?'#1e8449':r.attendance==='absent'?'#922b21':'#999';
+      var pd=r.paperDelivered===true?'✓':r.paperDelivered===false?'✗':'—';
+      var secs='';
+      for(var fi=0;fi<FIELDS.length;fi++) secs+='<td style="text-align:center;padding:5px 4px;font-size:10.5px;color:'+colors[fi]+';font-weight:700">'+(r.evaluated?sectionSubtotal(sc,fi).toFixed(2):'—')+'</td>';
+      if(r.total!==undefined){ sum+=r.total; cnt++; }
+      rows+='<tr style="background:'+(i%2?'#fafbfc':'#fff')+'">'
+        +'<td style="text-align:center;padding:5px 4px;color:#999;font-size:10.5px">'+(i+1)+'</td>'
+        +'<td style="padding:5px 8px;font-size:11.5px;font-weight:600">'+objs[i].name+'</td>'
+        +'<td style="text-align:center;padding:5px 4px;font-size:10.5px;font-weight:700;color:'+attC+'">'+att+'</td>'
+        + secs
+        +'<td style="text-align:center;padding:5px 4px;font-size:11.5px;font-weight:800;background:#f0f6fb">'+(r.total!==undefined?r.total.toFixed(2):'—')+'</td>'
+        +'<td style="text-align:center;padding:5px 4px;font-size:11px">'+pd+'</td>'
+        +'<td style="padding:5px 6px;font-size:10px;color:#666">'+(r.notes||'')+'</td></tr>';
+    }
+    var avg = cnt?(sum/cnt).toFixed(2):'—';
+    html += '<div style="page-break-inside:avoid;margin-bottom:14px">'
+      + '<div style="display:flex;align-items:center;gap:8px;background:'+(isM?'#1a5276':'#6c3483')+';color:#fff;border-radius:8px 8px 0 0;padding:7px 12px">'
+      + '<span style="font-size:13px;font-weight:800">'+clean+'</span>'
+      + '<span style="font-size:11px;background:rgba(255,255,255,.22);border-radius:10px;padding:2px 10px">'+(isM?'صباحي':'مسائي')+'</span>'
+      + '<span style="font-size:11px;margin-right:auto">متوسط المجموع: <b>'+avg+'</b> / 15</span></div>'
+      + '<table style="width:100%;border-collapse:collapse;border:1px solid #dfe5ea">'
+      + '<thead><tr style="background:#f1f5f8">'
+      + '<th style="padding:6px 4px;font-size:10px;width:26px">#</th>'
+      + '<th style="padding:6px 8px;font-size:10.5px;text-align:right">اسم الطالب</th>'
+      + '<th style="padding:6px 4px;font-size:10px;width:50px">الحضور</th>';
+    for(var fi=0;fi<FIELDS.length;fi++) html+='<th style="padding:6px 3px;font-size:9.5px;color:'+colors[fi]+'">'+FIELDS[fi].s+'</th>';
+    html += '<th style="padding:6px 4px;font-size:10.5px;width:52px">المجموع /15</th>'
+      + '<th style="padding:6px 4px;font-size:10px;width:40px">الورقة</th>'
+      + '<th style="padding:6px 6px;font-size:10px">ملاحظات</th>'
+      + '</tr></thead><tbody>'+rows+'</tbody></table></div>';
+  });
+  html += pdfSignature() + '</div>';
+  pdfDownload(html, 'سجل_الدرجات_الكامل_'+today()+'.pdf', true);
+}
+
+// ═══════════════════════════════════════════
+// ★ BACKUP MANAGER — manual + automatic safety copies
+// ═══════════════════════════════════════════
+function backupDownload(){
+  var data = {
+    app: 'hospital-daily-evaluation', version: 2, exportedAt: new Date().toISOString(),
+    account: currentUser ? (currentUser.email || currentUser.uid) : 'offline',
+    history: history, roster: roster, studentDb: studentDb,
+    studentsMorning: studentsMorning, studentsEvening: studentsEvening,
+    settings: {
+      hospitalName: document.getElementById('hName').value,
+      hospitalNo: document.getElementById('hNo').value,
+      supervisorName: document.getElementById('supName').value
+    }
+  };
+  var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'نسخة_احتياطية_'+today()+'.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+  toast('✅ تم تنزيل النسخة الاحتياطية الكاملة');
+}
+
+function backupRestore(event){
+  var file = event.target.files[0]; if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var d = JSON.parse(e.target.result);
+      if(d.app !== 'hospital-daily-evaluation'){ toast('هذا الملف ليس نسخة احتياطية صالحة'); return; }
+      if(!confirm('استعادة النسخة الاحتياطية بتاريخ '+(d.exportedAt||'').slice(0,10)+'؟\nسيتم دمجها مع بياناتك الحالية وحفظها على السحابة.')) return;
+      applyBackup(d);
+      toast('✅ تمت الاستعادة والحفظ بنجاح');
+    }catch(err){ toast('خطأ في قراءة ملف النسخة الاحتياطية'); console.error(err); }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function applyBackup(d){
+  // merge history (backup fills gaps; existing days kept unless backup has them)
+  var bh = d.history || d.h || {};
+  Object.keys(bh).forEach(function(k){ history[k] = bh[k]; });
+  if ((d.roster||d.r||[]).length) roster = d.roster || d.r;
+  if ((d.studentDb||d.sdb||[]).length) studentDb = d.studentDb || d.sdb;
+  if (d.settings){
+    if(d.settings.hospitalName)  document.getElementById('hName').value   = d.settings.hospitalName;
+    if(d.settings.hospitalNo)    document.getElementById('hNo').value     = d.settings.hospitalNo;
+    if(d.settings.supervisorName)document.getElementById('supName').value = d.settings.supervisorName;
+  }
+  if (d.sm && d.sm.length) studentsMorning = d.sm;
+  if (d.se && d.se.length) studentsEvening = d.se;
+  if (d.studentsMorning && d.studentsMorning.length) studentsMorning = d.studentsMorning;
+  if (d.studentsEvening && d.studentsEvening.length) studentsEvening = d.studentsEvening;
+  // persist everything (queue-protected)
+  cacheLocally(); dbSave();
+  if (!isOfflineMode && currentUser && db){
+    Object.keys(history).forEach(function(k){
+      var dbKey = k.replace(/^(\d{4})-(\d{2})-(\d{2})_/, '$1_$2_$3_');
+      queueWrite('history/'+dbKey, history[k]);
+    });
+    queueWrite('roster', roster);
+    queueWrite('settings', {
+      hospitalName: document.getElementById('hName').value,
+      hospitalNo: document.getElementById('hNo').value,
+      supervisorName: document.getElementById('supName').value
+    });
+    flushQueue();
+  }
+  renderList(); renderBackupCenter();
+  var ph = document.getElementById('ph'); if(ph && ph.classList.contains('active')) renderHist();
+}
+
+function restoreSnapshot(key){
+  try{
+    var d = JSON.parse(localStorage.getItem(key) || 'null');
+    if(!d){ toast('النسخة غير موجودة'); return; }
+    if(!confirm('استعادة النسخة التلقائية؟ سيتم دمجها مع البيانات الحالية.')) return;
+    applyBackup(d);
+    toast('✅ تمت استعادة النسخة التلقائية');
+  }catch(e){ toast('خطأ في الاستعادة'); }
+}
+
+function renderBackupCenter(){
+  var st = document.getElementById('backupStatus');
+  var sl = document.getElementById('snapList');
+  if(!st || !sl) return;
+  var pend = pendingCount();
+  var mode = isOfflineMode ? '📴 وضع محلي — ستُزامَن البيانات عند تسجيل الدخول'
+           : (currentUser ? '☁️ مرتبط بحساب: <b>'+(currentUser.email||currentUser.displayName||'')+'</b>' : '');
+  st.innerHTML = mode
+    + ' &nbsp;•&nbsp; سجلات الأيام: <b>'+Object.keys(history).length+'</b>'
+    + ' &nbsp;•&nbsp; قاعدة الطلاب: <b>'+(studentDb?studentDb.length:0)+'</b>'
+    + (pend>0 ? ' &nbsp;•&nbsp; <span style="color:var(--warn)">⏳ بانتظار المزامنة: <b>'+pend+'</b></span>'
+              : ' &nbsp;•&nbsp; <span style="color:var(--success)">✓ كل شيء مُزامَن</span>');
+  var snaps = listSnapshots();
+  if(!snaps.length){ sl.innerHTML = '<span style="font-size:12px;color:var(--muted)">ستُنشأ النسخة الأولى تلقائياً أثناء العمل</span>'; return; }
+  sl.innerHTML = snaps.map(function(s){
+    return '<button class="btn bo" style="font-size:12px" onclick="restoreSnapshot(\''+s.key+'\')">📸 '+s.date+' — استعادة</button>';
+  }).join('');
+}
+
 function dbSave(){
   try{ localStorage.setItem('hsp_sdb', JSON.stringify(studentDb)); }catch(e){}
+  // ★ also persisted to the cloud under the signed-in Google account
+  if (!isOfflineMode && currentUser && db) guardedSet('studentDb', studentDb);
+  else cacheLocally();
 }
- 
+
 function dbLoad(){
   try{
     var raw = localStorage.getItem('hsp_sdb');
@@ -2372,7 +2953,7 @@ function dbLoad(){
   }catch(e){}
   return false;
 }
- 
+
 function dlDbTemplate(){
   var wb = XLSX.utils.book_new();
   var headers = ['م','اسم الطالب','نوع الدراسة','رقم المجموعة','اسم المستشفى','المنطقة','حالة الحضور','الدرجة النهائية','البريد الإلكتروني','التاريخ'];
@@ -2390,7 +2971,7 @@ function dlDbTemplate(){
   XLSX.writeFile(wb, 'student_database_template.xlsx');
   toast('تم تحميل القالب ✓');
 }
- 
+
 function importDbFile(event){
   var file = event.target.files[0];
   if(!file){ return; }
@@ -2403,7 +2984,7 @@ function importDbFile(event){
       var ws = wb.Sheets[wb.SheetNames[0]];
       var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
       if(!rows.length){ toast('الملف فارغ'); event.target.value=''; return; }
- 
+
       // Find header row containing اسم الطالب
       var hr = -1;
       for(var i=0; i<rows.length && i<10; i++){
@@ -2413,13 +2994,13 @@ function importDbFile(event){
         if(hr >= 0) break;
       }
       if(hr < 0){ toast('خطأ: لم يتم العثور على عمود اسم الطالب'); event.target.value=''; return; }
- 
+
       var hdrs = rows[hr].map(function(h){ return String(h).trim(); });
       function col(kw){ for(var x=0;x<hdrs.length;x++) if(hdrs[x].indexOf(kw)>=0) return x; return -1; }
- 
+
       var iN=col('الطالب'), iT=col('الدراسة'), iG=col('المجموعة'), iH=col('المستشفى');
       var iA=col('المنطقة'), iAt=col('الحضور'), iGr=col('الدرجة'), iE=col('البريد'), iD=col('التاريخ');
- 
+
       var result = [];
       for(var i=hr+1; i<rows.length; i++){
         var row = rows[i];
@@ -2461,11 +3042,11 @@ function importDbFile(event){
   reader.onerror = function(){ toast('فشل قراءة الملف'); event.target.value=''; };
   reader.readAsArrayBuffer(file);
 }
- 
+
 function dbRender(){
   var cont = document.getElementById('dbContent');
   if(!cont) return;
- 
+
   if(!studentDb || studentDb.length === 0){
     cont.innerHTML =
       '<div style="border:2px dashed #2980b9;border-radius:12px;padding:32px;text-align:center;background:#f0f8ff">'
@@ -2482,11 +3063,11 @@ function dbRender(){
     document.getElementById('dbFilters')  && (document.getElementById('dbFilters').style.display='none');
     return;
   }
- 
+
   // Show action buttons
   document.getElementById('dbApplyBtn') && (document.getElementById('dbApplyBtn').style.display='');
   document.getElementById('dbClearBtn') && (document.getElementById('dbClearBtn').style.display='');
- 
+
   // Stats
   var mo=0,ev=0,hSet={},gSet={};
   studentDb.forEach(function(r){
@@ -2494,7 +3075,7 @@ function dbRender(){
     if(r.hospital) hSet[r.hospital]=1;
     if(r.group)    gSet[r.group]=1;
   });
- 
+
   // Filters
   var fH = document.getElementById('dbFH') ? document.getElementById('dbFH').value : '';
   var fT = document.getElementById('dbFT') ? document.getElementById('dbFT').value : '';
@@ -2502,7 +3083,7 @@ function dbRender(){
   var fA = document.getElementById('dbFA') ? document.getElementById('dbFA').value : '';
   var fAt= document.getElementById('dbFAt')? document.getElementById('dbFAt').value : '';
   var q  = document.getElementById('dbQ')  ? (document.getElementById('dbQ').value||'').toLowerCase() : '';
- 
+
   var fil = studentDb.filter(function(r){
     if(fH && r.hospital !== fH) return false;
     if(fT && r.type     !== fT) return false;
@@ -2512,14 +3093,14 @@ function dbRender(){
     if(q && (r.name+r.hospital+r.area+r.group+r.type).toLowerCase().indexOf(q)<0) return false;
     return true;
   });
- 
+
   // Build filter options
   var hosps = Object.keys(hSet).sort();
   var grps  = Object.keys(gSet).sort(function(a,b){return Number(a)-Number(b);});
   var areas = []; studentDb.forEach(function(r){ if(r.area && areas.indexOf(r.area)<0) areas.push(r.area); }); areas.sort();
- 
+
   var html = '';
- 
+
   // Stats bar
   html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px">';
   html += '<div style="background:#fff;border:1px solid #ddd;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#1a5276">'+studentDb.length+'</div><div style="font-size:11px;color:#888">إجمالي</div></div>';
@@ -2528,13 +3109,13 @@ function dbRender(){
   html += '<div style="background:#d5f5e3;border:1px solid #27ae60;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#1e8449">'+Object.keys(hSet).length+'</div><div style="font-size:11px;color:#555">مستشفى</div></div>';
   html += '<div style="background:#fef9e7;border:1px solid #f39c12;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#b7770d">'+Object.keys(gSet).length+'</div><div style="font-size:11px;color:#555">مجموعة</div></div>';
   html += '</div>';
- 
+
   // Action buttons row
   html += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">';
   html += '<button onclick="dbApply()" style="background:#27ae60;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">✅ تطبيق على المجموعات</button>';
   html += '<button onclick="dbClear()" style="background:#c0392b;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">🗑 مسح قاعدة البيانات</button>';
   html += '</div>';
- 
+
   // Filters row
   html += '<div style="background:#fff;border:1px solid #e2e6ea;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
   html += '<input id="dbQ" type="text" placeholder="🔍 ابحث..." oninput="dbRender()" style="flex:1;min-width:140px;border:1px solid #ddd;border-radius:8px;padding:6px 10px;font-size:13px" value="'+(q||'')+'">';
@@ -2545,7 +3126,7 @@ function dbRender(){
   html += '<select id="dbFAt" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">كل الحالات</option><option value="حاضر"'+(fAt==='حاضر'?' selected':'')+'>حاضر</option><option value="غائب"'+(fAt==='غائب'?' selected':'')+'>غائب</option></select>';
   html += '<span style="font-size:12px;color:#888">'+fil.length+' / '+studentDb.length+'</span>';
   html += '</div>';
- 
+
   // Table
   html += '<div style="overflow-x:auto;border:1px solid #e2e6ea;border-radius:10px">';
   html += '<table style="width:100%;border-collapse:collapse;min-width:750px;font-size:13px">';
@@ -2554,7 +3135,7 @@ function dbRender(){
     html += '<th style="padding:9px 10px;text-align:right;font-size:12px;white-space:nowrap">'+h+'</th>';
   });
   html += '</tr></thead><tbody>';
- 
+
   for(var i=0; i<fil.length; i++){
     var r = fil[i];
     var bg = i%2===0 ? '#fff' : '#f8fafc';
@@ -2580,7 +3161,7 @@ function dbRender(){
   html += '</tbody></table></div>';
   cont.innerHTML = html;
 }
- 
+
 function dbApply(){
   if(!studentDb.length){ toast('قاعدة البيانات فارغة'); return; }
   var mo = studentDb.filter(function(r){ return r.type==='صباحي'; });
@@ -2595,7 +3176,7 @@ function dbApply(){
   renderList();
   toast('✅ تم تطبيق '+studentDb.length+' طالب');
 }
- 
+
 function dbClear(){
   if(!confirm('مسح قاعدة البيانات؟ لن تتأثر التقييمات أو الحضور.')) return;
   studentDb = [];
@@ -2603,23 +3184,23 @@ function dbClear(){
   dbRender();
   toast('تم مسح قاعدة البيانات');
 }
- 
- 
+
+
 // ════════════════════════════════════════════════════
 // GROUP LOADER — Load students from roster into attendance
 // Completely safe: never deletes evaluation or history data
 // ════════════════════════════════════════════════════
 var grpLoaderSelected = null;
- 
+
 function openGrpLoader(){
   if(!roster || !roster.length){
     toast('⚠️ لا يوجد جدول مجموعات. ارفع ملف Excel في تبويب "جدول المجموعات" أولاً');
     return;
   }
- 
+
   grpLoaderSelected = null;
   document.getElementById('grpLoaderApply').style.display = 'none';
- 
+
   // Build groups from roster
   var groups = {};
   for(var i=0; i<roster.length; i++){
@@ -2634,18 +3215,18 @@ function openGrpLoader(){
     };
     groups[key].students.push(r.name);
   }
- 
+
   var keys = Object.keys(groups).sort(function(a,b){
     var ga = groups[a], gb = groups[b];
     if(ga.hospital !== gb.hospital) return ga.hospital.localeCompare(gb.hospital,'ar');
     return (parseInt(ga.group)||0) - (parseInt(gb.group)||0);
   });
- 
+
   var today = new Date().toISOString().slice(0,10);
   var dnames = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
- 
+
   var html = '';
- 
+
   // Check if current group already has students — show warning
   var curSts = getStudents();
   if(curSts && curSts.length > 0){
@@ -2653,20 +3234,20 @@ function openGrpLoader(){
     html += '⚠️ المجموعة الحالية ('+(curGroup==='morning'?'صباحية':'مسائية')+') تحتوي على '+curSts.length+' طالب. سيتم استبدال الأسماء فقط — بيانات التقييم والحضور محفوظة.';
     html += '</div>';
   }
- 
+
   if(!keys.length){
     html += '<div style="text-align:center;padding:24px;color:var(--muted)">لا توجد مجموعات في الجدول</div>';
   } else {
     html += '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">اختر المجموعة التي تريد تحميلها في تبويب الحضور:</div>';
   }
- 
+
   for(var ki=0; ki<keys.length; ki++){
     var key = keys[ki];
     var g = groups[key];
     var isMo = g.type === 'صباحي';
     var sched = getSched(g.startDate);
     var isToday = sched.indexOf(today) >= 0;
- 
+
     var schedText = '';
     if(sched.length){
       var dObj = new Date(sched[0]+'T00:00:00');
@@ -2676,7 +3257,7 @@ function openGrpLoader(){
         schedText += ' — ' + dnames[dObj2.getDay()] + ' ' + sched[sched.length-1];
       }
     }
- 
+
     html += '<div class="grp-item" id="grpItem_'+ki+'" data-ki="'+ki+'" data-key="'+encodeURIComponent(key)+'" data-type="'+encodeURIComponent(g.type)+'" onclick="selectGrpItemEl(this)">';
     html += '<div class="grp-item-title">';
     if(isToday) html += '<span style="color:var(--success);font-size:12px">🟢 اليوم</span>';
@@ -2690,11 +3271,11 @@ function openGrpLoader(){
     html += '</div>';
     html += '</div>';
   }
- 
+
   document.getElementById('grpLoaderBody').innerHTML = html;
   document.getElementById('grpLoaderM').classList.add('open');
 }
- 
+
 function selectGrpItemEl(el){
   var idx  = el.getAttribute('data-ki');
   var key  = decodeURIComponent(el.getAttribute('data-key'));
@@ -2704,20 +3285,20 @@ function selectGrpItemEl(el){
   grpLoaderSelected = {key: key, type: type, idx: idx};
   document.getElementById('grpLoaderApply').style.display = '';
 }
- 
+
 function closeGrpLoader(){
   document.getElementById('grpLoaderM').classList.remove('open');
   grpLoaderSelected = null;
 }
- 
+
 function applyGrpLoader(){
   if(!grpLoaderSelected) return;
- 
+
   // Find the selected group's students in roster
   var key = grpLoaderSelected.key;
   var parts = key.split('|');
   var hosp = parts[0], grpNum = parts[1], typ = parts[2];
- 
+
   var names = [];
   for(var i=0; i<roster.length; i++){
     var r = roster[i];
@@ -2725,81 +3306,140 @@ function applyGrpLoader(){
       if(r.name) names.push({name: r.name});
     }
   }
- 
+
   if(!names.length){ toast('لا يوجد طلاب في هذه المجموعة'); return; }
- 
+
   // Determine target group (morning or evening based on type)
   var targetGroup = (typ === 'صباحي') ? 'morning' : 'evening';
- 
+
   // Switch to the correct morning/evening tab automatically
   var prevGroup = curGroup;
   curGroup = targetGroup;
- 
+
   // Set students
   setStudents(names);
   if(typeof saveStudents === 'function') saveStudents();
- 
+
   // Restore group view and re-render
   curGroup = targetGroup; // stay on the loaded group
   switchGroup(targetGroup);
   renderList();
- 
+
   closeGrpLoader();
   toast('✅ تم تحميل ' + names.length + ' طالب من المجموعة ' + grpNum + ' (' + (typ||'') + ')');
 }
- 
- 
+
+
 tick(); setInterval(tick, 1000);
 curDate = today(); // Always start on today
 dbLoad();
- 
-// Load Firebase immediately on every page load
-// This is the key fix — Firebase must start loading before anything else
-// so onAuthStateChanged can restore existing sessions on page reload
-document.getElementById('loadingScreen').style.display = 'flex';
-document.getElementById('loginScreen').style.display   = 'none';
-document.getElementById('appRoot').style.display       = 'none';
-document.getElementById('hdrEl').style.display         = 'none';
-document.getElementById('appBody').style.display       = 'none';
- 
-loadFirebase(function() {
-  // Firebase loaded — onAuthStateChanged will fire automatically
-  // It will either restore the session or show the login screen
-  // Safety fallback: if nothing happens in 10 seconds, show login
-  setTimeout(function() {
-    if (document.getElementById('loadingScreen').style.display !== 'none') {
-      detectAndShowLogin();
+
+// ═══════════════════════════════════════════════════════════════════════
+// ★ STARTUP — INSTANT SESSION RESTORE
+// If this browser had a signed-in session, the app opens IMMEDIATELY from
+// the local cache (no login flash, no spinner wait) while Firebase
+// re-authenticates silently in the background. onAuthStateChanged then
+// takes over and live cloud sync resumes. If re-auth can't complete in
+// 12s, the app falls back to offline mode — data intact, queue active.
+// ═══════════════════════════════════════════════════════════════════════
+var optimisticUid = null;
+
+function optimisticRestore(sess){
+  optimisticUid = sess.uid;
+  try {
+    var raw = localStorage.getItem('hsp_' + sess.uid);
+    if (raw) {
+      var c = JSON.parse(raw);
+      var sameDay = (c.sd === today());
+      studentsMorning = sameDay ? (c.sm || []) : [];
+      studentsEvening = sameDay ? (c.se || []) : [];
+      history = c.h || {};
+      roster  = c.r || [];
+      if (c.sdb && c.sdb.length) studentDb = c.sdb;
+      if (c.hn) document.getElementById('hName').value   = c.hn;
+      if (c.ho) document.getElementById('hNo').value     = c.ho;
+      if (c.sn) document.getElementById('supName').value = c.sn;
     }
-  }, 10000);
-});
- 
+  } catch(e) {}
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display   = 'none';
+  document.getElementById('appRoot').style.display       = 'block';
+  document.getElementById('hdrEl').style.display         = 'block';
+  document.getElementById('appBody').style.display       = 'block';
+  document.getElementById('userAvatar').src              = sess.photo || '';
+  document.getElementById('userAvatar').style.display    = sess.photo ? '' : 'none';
+  document.getElementById('userName').textContent        = sess.name || sess.email;
+  document.getElementById('userAction').textContent      = 'خروج';
+  setSyncStatus('saving');
+  var m = document.getElementById('syncMsg');
+  if (m) m.textContent = '🔄 جاري استعادة الاتصال بالسحابة...';
+  renderList();
+  document.getElementById('clrRBtn').style.display = (roster && roster.length > 0) ? '' : 'none';
+}
+
+var _sess = getRememberedSession();
+if (_sess && navigator.onLine) {
+  optimisticRestore(_sess);
+  loadFirebase(function() {
+    // If auth doesn't confirm within 12s, keep working in offline mode (no data loss)
+    setTimeout(function() {
+      if (!currentUser && optimisticUid) {
+        enterOfflineModeWithUid(optimisticUid);
+        toast('تعذّر الاتصال بالسحابة — تعمل الآن محلياً وستُزامَن بياناتك لاحقاً');
+      }
+    }, 12000);
+  });
+} else {
+  document.getElementById('loadingScreen').style.display = 'flex';
+  document.getElementById('loginScreen').style.display   = 'none';
+  document.getElementById('appRoot').style.display       = 'none';
+  document.getElementById('hdrEl').style.display         = 'none';
+  document.getElementById('appBody').style.display       = 'none';
+
+  loadFirebase(function() {
+    // onAuthStateChanged will either restore the session or show login
+    setTimeout(function() {
+      if (document.getElementById('loadingScreen').style.display !== 'none') {
+        detectAndShowLogin();
+      }
+    }, 10000);
+  });
+}
+
+// ★ Flush pending cloud writes whenever the connection returns
+window.addEventListener('online', function(){ setTimeout(flushQueue, 800); });
+// ★ Final cache write before the page closes — nothing is ever lost mid-action
+window.addEventListener('beforeunload', function(){ try{ cacheLocally(); }catch(e){} });
+// Periodic queue retry (covers flaky connections)
+setInterval(function(){ if (pendingCount() > 0) flushQueue(); }, 30000);
+
 // Setup connectivity listeners
 window.addEventListener('online',  onNetworkOnline);
 window.addEventListener('offline', function() {
   if (!currentUser && !isOfflineMode) { showLoginSection('offline'); }
   else if (currentUser) { setSyncStatus('offline'); }
 });
- 
- 
- 
- 
- 
+
+
+
+
+
 // ═══════════════════════════════════════════════════════════
 // EMAIL GRADES — Google Apps Script version
 // Simple, reliable, uses your own Gmail directly
 // ═══════════════════════════════════════════════════════════
- 
+
 function saveGasConfig(){
   try{ localStorage.setItem('hsp_gas_url', document.getElementById('gasUrl').value.trim()); }catch(e){}
 }
- 
+
 function loadGasConfig(){
   try{
     var url = localStorage.getItem('hsp_gas_url')||'';
     if(url) document.getElementById('gasUrl').value = url;
   }catch(e){}
 }
- 
+
 function openEmailPanel(){
   loadGasConfig();
   var sts = getStudents();
@@ -2807,12 +3447,12 @@ function openEmailPanel(){
   var hName   = document.getElementById('hName').value||'—';
   var supName = document.getElementById('supName').value||'—';
   var grpLabel= curGroup==='morning'?'صباحي':'مسائي';
- 
+
   // Get all dates with data for current group
   var datesWithData = Object.keys(history).filter(function(k){
     return k.indexOf('_'+curGroup)>=0 && Object.keys(history[k]).length>0;
   }).sort();
- 
+
   // Match emails from studentDb
   function findEmail(name){
     if(!studentDb||!studentDb.length) return '';
@@ -2821,7 +3461,7 @@ function openEmailPanel(){
     }
     return '';
   }
- 
+
   if(!sts.length){
     document.getElementById('emailStudentList').innerHTML =
       '<div style="text-align:center;padding:24px;color:var(--muted)">لا يوجد طلاب في المجموعة الحالية</div>';
@@ -2829,7 +3469,7 @@ function openEmailPanel(){
     document.getElementById('emailModal').classList.add('open');
     return;
   }
- 
+
   var hasAnyEmail = false;
   var html = '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">المجموعة: <strong>'+grpLabel+'</strong> | المستشفى: <strong>'+hName+'</strong> | '+sts.length+' طالب</div>';
   html += '<div style="overflow-x:auto;border:1px solid #e0e0e0;border-radius:10px;margin-bottom:14px">';
@@ -2843,14 +3483,14 @@ function openEmailPanel(){
   }
   html += '<th style="padding:9px 10px;text-align:center">المتوسط</th>';
   html += '</tr></thead><tbody>';
- 
+
   for(var i=0;i<sts.length;i++){
     var name  = sts[i].name;
     var email = findEmail(name);
     if(email) hasAnyEmail=true;
     var totalSum=0, totalCount=0;
     var rowBg = i%2===0?'#fff':'#f8fafc';
- 
+
     html += '<tr style="background:'+rowBg+'">';
     html += '<td style="padding:8px 10px;font-weight:500">';
     html += '<input type="checkbox" class="emailCheck" data-idx="'+i+'"'+(email?' checked':'')+(email?'':' disabled')+' style="margin-left:6px">';
@@ -2864,7 +3504,7 @@ function openEmailPanel(){
       html += '<span style="color:#aaa;font-size:11px">—</span>';
     }
     html += '</td>';
- 
+
     for(var di=0;di<datesWithData.length;di++){
       var dateKey=datesWithData[di];
       var rec=(history[dateKey]||{})[i]||{};
@@ -2879,11 +3519,11 @@ function openEmailPanel(){
     html += '</tr>';
   }
   html += '</tbody></table></div>';
- 
+
   if(!hasAnyEmail){
     html += '<div style="background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:10px 14px;font-size:13px;color:#7d6608">⚠️ لا توجد عناوين بريد. ارفع قاعدة البيانات في تبويب "قاعدة البيانات" أولاً.</div>';
   }
- 
+
   document.getElementById('emailStudentList').innerHTML = html;
   var withEmail = 0;
   for(var i=0;i<sts.length;i++) if(findEmail(sts[i].name)) withEmail++;
@@ -2891,18 +3531,18 @@ function openEmailPanel(){
   document.getElementById('emailSendOptions').style.display = withEmail>0?'':'none';
   document.getElementById('emailModal').classList.add('open');
 }
- 
+
 function toggleAllEmailCheck(checked){
   document.querySelectorAll('.emailCheck:not(:disabled)').forEach(function(cb){ cb.checked=checked; });
 }
- 
+
 function closeEmailModal(){
   document.getElementById('emailModal').classList.remove('open');
 }
- 
+
 function sendAllEmails(){ sendEmails(false); }
 function sendSelectedEmails(){ sendEmails(true); }
- 
+
 function sendEmails(selectedOnly){
   var gasUrl = (document.getElementById('gasUrl').value||'').trim();
   if(!gasUrl){
@@ -2913,18 +3553,18 @@ function sendEmails(selectedOnly){
     toast('❌ الرابط غير صحيح — يجب أن يبدأ بـ https://script.google.com/macros/s/');
     return;
   }
- 
+
   var sts     = getStudents();
   var hName   = document.getElementById('hName').value||'—';
   var supName = document.getElementById('supName').value||'—';
   var area    = studentDb&&studentDb.length ? (studentDb[0].area||'') : '';
   var grpLabel= curGroup==='morning'?'صباحي':'مسائي';
   var customMsg = document.getElementById('emailCustomMsg').value||'';
- 
+
   var datesWithData = Object.keys(history).filter(function(k){
     return k.indexOf('_'+curGroup)>=0 && Object.keys(history[k]).length>0;
   }).sort();
- 
+
   // Collect recipients
   var recipients = [];
   document.querySelectorAll('.emailCheck').forEach(function(cb){
@@ -2934,7 +3574,7 @@ function sendEmails(selectedOnly){
     var emailInput = document.querySelector('.emailAddr[data-student-idx="'+idx+'"]');
     var email = emailInput ? emailInput.value.trim() : '';
     if(!email) return;
- 
+
     var grades=[], dates=[];
     for(var di=0;di<datesWithData.length;di++){
       var dateKey=datesWithData[di];
@@ -2946,14 +3586,14 @@ function sendEmails(selectedOnly){
     var totalSum=0,totalCount=0;
     grades.forEach(function(g){if(g!==null){totalSum+=g;totalCount++;}});
     var avg=totalCount>0?(totalSum/totalCount).toFixed(2):'—';
- 
+
     // Build grades text
     var gradesText='';
     for(var di=0;di<dates.length;di++){
       gradesText+=dates[di]+': '+(grades[di]!==null?grades[di].toFixed(2)+'/15':'—')+'\n';
     }
     gradesText+='\nالمتوسط: '+avg+'/15';
- 
+
     recipients.push({
       to_email:      email,
       to_name:       sts[idx].name,
@@ -2967,19 +3607,19 @@ function sendEmails(selectedOnly){
       date:          curDate
     });
   });
- 
+
   if(!recipients.length){ toast('لا يوجد طلاب محددون للإرسال'); return; }
   if(!confirm('إرسال '+recipients.length+' بريد إلكتروني؟')) return;
- 
+
   var prog     = document.getElementById('emailProgress');
   var progText = document.getElementById('emailProgressText');
   var progBar  = document.getElementById('emailProgressBar');
   prog.style.display='';
   progBar.style.width='0%';
   progBar.style.background='#27ae60';
- 
+
   var sent=0, failed=0, total=recipients.length;
- 
+
   function sendNext(i){
     if(i>=total){
       progText.textContent='✅ اكتمل — تم الإرسال: '+sent+' | فشل: '+failed;
@@ -2991,7 +3631,7 @@ function sendEmails(selectedOnly){
     var r=recipients[i];
     progText.textContent='جاري الإرسال '+(i+1)+'/'+total+': '+r.to_name;
     progBar.style.width=Math.round(((i+1)/total)*100)+'%';
- 
+
     fetch(gasUrl, {
       method: 'POST',
       headers: {'Content-Type': 'text/plain'},
@@ -3018,15 +3658,15 @@ function sendEmails(selectedOnly){
   }
   sendNext(0);
 }
- 
- 
- 
+
+
+
 // ═══════════════════════════════════════════════════════════
 // TEACHING MATERIALS — Complete isolated feature
 // Uses ImgBB for image hosting + Firebase Realtime DB for metadata
 // ═══════════════════════════════════════════════════════════
 var IMGBB_KEY = 'c5d9f7f0c0e4b8d882213286812b2757';
- 
+
 var TM_CATEGORIES = [
   { id:'pharmacology',         name:'الأدوية والعلاج',          icon:'💊', color:'#1a5276' },
   { id:'pregnancy_comp',       name:'مضاعفات الحمل',            icon:'🤰', color:'#6c3483' },
@@ -3034,56 +3674,37 @@ var TM_CATEGORIES = [
   { id:'complicated_postpartum',name:'ما بعد الولادة المعقد',   icon:'⚕️', color:'#b7770d' },
   { id:'gynecological',        name:'أمراض النساء',              icon:'🏥', color:'#922b21' }
 ];
- 
+
 var tmCurrentCat = null;   // current category id
 var tmTopics     = {};     // cached topics per category
 var tmListener   = null;   // active Firebase listener
 var fsImages     = [];     // fullscreen viewer images
 var fsIndex      = 0;      // current fullscreen index
- 
+
 // ── RENDER CATEGORIES ─────────────────────────────────────────────────
 function tmRender(){
-  try {
-    var cont = document.getElementById('tmContent');
-    if(!cont){ console.error('tmContent not found'); return; }
-    if(tmCurrentCat){ tmRenderTopics(tmCurrentCat); return; }
-    tmShowCategories();
-  } catch(e){ 
-    console.error('tmRender error:', e);
-    var cont = document.getElementById('tmContent');
-    if(cont) cont.innerHTML = '<div style="padding:20px;color:red">خطأ: '+e.message+'</div>';
-  }
+  if(tmCurrentCat) { tmRenderTopics(tmCurrentCat); return; }
+  tmShowCategories();
 }
- 
+
 function tmShowCategories(){
-  try{
-    tmCurrentCat = null;
-    var bc = document.getElementById('tmBreadCat');
-    var ab = document.getElementById('tmAddBtn');
-    var bb = document.getElementById('tmBackBtn');
-    var cont = document.getElementById('tmContent');
-    if(bc) bc.style.display='none';
-    if(ab) ab.style.display='none';
-    if(bb) bb.style.display='none';
-    if(!cont){ console.error('tmContent missing'); return; }
- 
-    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:18px">';
-    for(var i=0;i<TM_CATEGORIES.length;i++){
-      var cat = TM_CATEGORIES[i];
-      var count = tmTopics[cat.id] ? Object.keys(tmTopics[cat.id]).length : 0;
-      html += '<div data-catid="'+cat.id+'" onclick="tmSelectCategoryEl(this)" style="background:#fff;border:1.5px solid #e2e6ea;border-radius:10px;padding:18px 16px;cursor:pointer;text-align:center">';
-      html += '<div style="font-size:32px;margin-bottom:8px">'+cat.icon+'</div>';
-      html += '<div style="font-size:15px;font-weight:700;color:#1a5276;margin-bottom:4px">'+cat.name+'</div>';
-      html += '<div id="catcount_'+cat.id+'" style="font-size:12px;color:#7f8c8d">'+count+' موضوع</div>';
-      html += '</div>';
-    }
-    html += '</div>';
-    cont.innerHTML = html;
-  }catch(e){
-    console.error('tmShowCategories error:',e);
-    var cont=document.getElementById('tmContent');
-    if(cont) cont.innerHTML='<div style="padding:20px;color:red">خطأ في تحميل الفئات: '+e.message+'</div>';
-  }
+  tmCurrentCat = null;
+  document.getElementById('tmBreadCat').style.display = 'none';
+  document.getElementById('tmAddBtn').style.display   = 'none';
+  document.getElementById('tmBackBtn').style.display  = 'none';
+
+  var html = '<div class="cat-grid">';
+  TM_CATEGORIES.forEach(function(cat){
+    var count = tmTopics[cat.id] ? Object.keys(tmTopics[cat.id]).length : '…';
+    html += '<div class="cat-card" onclick="tmSelectCategory(\''+cat.id+'\')">';
+      + '<div class="cat-icon">'+cat.icon+'</div>'
+      + '<div class="cat-name">'+cat.name+'</div>'
+      + '<div class="cat-count">'+count+' موضوع</div>'
+      + '</div>';
+  });
+  html += '</div>';
+  document.getElementById('tmContent').innerHTML = html;
+
   // Load all categories count from Firebase
   if(currentUser && typeof dbRef === 'function'){
     TM_CATEGORIES.forEach(function(cat){
@@ -3092,14 +3713,17 @@ function tmShowCategories(){
         var data = snap.val()||{};
         var count = Object.keys(data).length;
         // Update just the count in the card
-        var el = document.getElementById('catcount_'+cat.id);
-        if(el) el.textContent = count+' موضوع';
+        var cards = document.querySelectorAll('.cat-card');
+        cards.forEach(function(card){
+          if(card.querySelector('.cat-name') && card.querySelector('.cat-name').textContent === cat.name){
+            card.querySelector('.cat-count').textContent = count+' موضوع';
+          }
+        });
       });
     });
   }
 }
- 
-function tmSelectCategoryEl(el){ tmSelectCategory(el.getAttribute("data-catid")); }
+
 function tmSelectCategory(catId){
   tmCurrentCat = catId;
   var cat = TM_CATEGORIES.find(function(c){ return c.id===catId; });
@@ -3118,18 +3742,18 @@ function tmSelectCategory(catId){
     });
   }
 }
- 
+
 function tmBackToCategories(){
   if(tmListener){ db.ref('materials/'+tmCurrentCat).off('value'); tmListener=null; }
   tmCurrentCat = null;
   tmShowCategories();
 }
- 
+
 function tmRenderTopics(catId){
   var cat    = TM_CATEGORIES.find(function(c){ return c.id===catId; });
   var topics = tmTopics[catId]||{};
   var keys   = Object.keys(topics).sort(function(a,b){ return (topics[a].name||'').localeCompare(topics[b].name||'','ar'); });
- 
+
   if(!keys.length){
     document.getElementById('tmContent').innerHTML =
       '<div style="text-align:center;padding:48px 20px;color:var(--muted)">'
@@ -3140,7 +3764,7 @@ function tmRenderTopics(catId){
       +'</div>';
     return;
   }
- 
+
   var html = '<div class="topic-grid">';
   keys.forEach(function(key){
     var t = topics[key];
@@ -3159,7 +3783,7 @@ function tmRenderTopics(catId){
   html += '</div>';
   document.getElementById('tmContent').innerHTML = html;
 }
- 
+
 // ── VIEW TOPIC ────────────────────────────────────────────────────────
 function tmViewTopicEl(el){ tmViewTopic(el.getAttribute('data-cat'), el.getAttribute('data-key')); }
 function tmSendTopicEl(el){ tmSendTopic(el.getAttribute('data-cat'), el.getAttribute('data-key')); }
@@ -3170,7 +3794,7 @@ function tmViewTopic(catId, topicKey){
   var cat   = TM_CATEGORIES.find(function(c){ return c.id===catId; });
   var topic = (tmTopics[catId]||{})[topicKey];
   if(!topic) return;
- 
+
   var html = '';
   // Header info
   html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">';
@@ -3184,7 +3808,7 @@ function tmViewTopic(catId, topicKey){
     html += '<button class="btn bo" style="font-size:12px" data-cat="'+catId+'" data-key="'+topicKey+'" onclick="tmOpenEditEl(this)">✏️ تعديل</button>';
     html += '<button class="btn" style="background:#c0392b;color:#fff;font-size:12px" data-cat="'+catId+'" data-key="'+topicKey+'" onclick="tmDeleteEl(this)">🗑</button>';
   html += '</div></div>';
- 
+
   // Photos
   if(topic.photos && topic.photos.length){
     html += '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">📸 الصور التعليمية</div>';
@@ -3196,37 +3820,37 @@ function tmViewTopic(catId, topicKey){
   } else {
     html += '<div style="background:var(--bg);border-radius:var(--r);padding:24px;text-align:center;color:var(--muted);font-size:13px">لا توجد صور لهذا الموضوع</div>';
   }
- 
+
   document.getElementById('tmModalTitle').textContent = topic.name;
   document.getElementById('tmModalBody').innerHTML = html;
   document.getElementById('tmModal').classList.add('open');
 }
- 
+
 // ── ADD TOPIC MODAL ───────────────────────────────────────────────────
 var tmUploadPreviews = [];
 var tmUploadFiles    = [];
- 
+
 function tmOpenAddModal(catId, existingKey){
   var isEdit  = !!existingKey;
   var cat     = TM_CATEGORIES.find(function(c){ return c.id===(catId||tmCurrentCat); });
   var existing= isEdit ? (tmTopics[catId||tmCurrentCat]||{})[existingKey] : null;
- 
+
   tmUploadPreviews = existing ? (existing.photos||[]).slice() : [];
   tmUploadFiles    = [];
- 
+
   document.getElementById('tmModalTitle').textContent = isEdit ? 'تعديل: '+existing.name : 'إضافة موضوع — '+cat.name;
- 
+
   var html = '';
   html += '<div style="margin-bottom:14px">';
   html += '<label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">اسم الموضوع *</label>';
   html += '<input type="text" id="tmTopicName" value="'+(existing?existing.name:'')+'" placeholder="مثال: أوكسيتوسين، تسمم الحمل..." style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:14px;direction:rtl">';
   html += '</div>';
- 
+
   html += '<div style="margin-bottom:14px">';
   html += '<label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">ملاحظات (اختياري)</label>';
   html += '<textarea id="tmTopicNotes" placeholder="وصف مختصر أو تعليمات للطالب..." style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;direction:rtl;resize:vertical;min-height:60px">'+(existing&&existing.notes?existing.notes:'')+'</textarea>';
   html += '</div>';
- 
+
   html += '<div style="margin-bottom:14px">';
   html += '<label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">الصور التعليمية (1-4 صور)</label>';
   html += '<div class="upload-zone" onclick="document.getElementById(\'tmFileInput\').click()">';
@@ -3237,23 +3861,23 @@ function tmOpenAddModal(catId, existingKey){
   html += '</div>';
   html += '<div class="preview-strip" id="tmPreviewStrip"></div>';
   html += '</div>';
- 
+
   var catForSave = catId||tmCurrentCat;
   html += '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;border-top:1px solid var(--border);padding-top:14px">';
   html += '<button class="btn bo" onclick="tmCloseModal()">إلغاء</button>';
   html += '<button class="btn bp" onclick="tmSaveTopic(\''+catForSave+'\',\''+(existingKey||'')+'\')" id="tmSaveBtn">💾 حفظ الموضوع</button>';
   html += '</div>';
- 
+
   document.getElementById('tmModalBody').innerHTML = html;
   document.getElementById('tmModal').classList.add('open');
   tmRefreshPreviews();
 }
- 
+
 function tmOpenEditModal(catId, topicKey){
   tmCloseModal();
   setTimeout(function(){ tmOpenAddModal(catId, topicKey); }, 150);
 }
- 
+
 function tmHandleFiles(files){
   var remaining = 4 - tmUploadPreviews.length;
   var toAdd     = Math.min(files.length, remaining);
@@ -3265,7 +3889,7 @@ function tmHandleFiles(files){
   }
   tmRefreshPreviews();
 }
- 
+
 function tmRefreshPreviews(){
   var strip = document.getElementById('tmPreviewStrip');
   if(!strip) return;
@@ -3279,13 +3903,13 @@ function tmRefreshPreviews(){
   });
   strip.innerHTML = html;
 }
- 
+
 function tmRemovePreview(i){
   tmUploadPreviews.splice(i,1);
   tmUploadFiles.splice(i,1);
   tmRefreshPreviews();
 }
- 
+
 // ── UPLOAD TO IMGBB ───────────────────────────────────────────────────
 function tmUploadToImgBB(file){
   return new Promise(function(resolve, reject){
@@ -3302,24 +3926,24 @@ function tmUploadToImgBB(file){
     .catch(reject);
   });
 }
- 
+
 // ── SAVE TOPIC ────────────────────────────────────────────────────────
 function tmSaveTopic(catId, existingKey){
   var name  = (document.getElementById('tmTopicName').value||'').trim();
   var notes = (document.getElementById('tmTopicNotes').value||'').trim();
   if(!name){ toast('أدخل اسم الموضوع'); return; }
- 
+
   var btn = document.getElementById('tmSaveBtn');
   btn.disabled=true; btn.textContent='⏳ جاري الحفظ...';
   toast('جاري رفع الصور...');
- 
+
   // Separate existing URLs from new File objects
   var existingUrls = tmUploadPreviews.filter(function(u){ return u.startsWith('http'); });
   var newFiles     = tmUploadFiles.filter(function(f){ return f instanceof File; });
- 
+
   // Upload new files
   var uploadPromises = newFiles.map(function(f){ return tmUploadToImgBB(f); });
- 
+
   Promise.all(uploadPromises)
     .then(function(newUrls){
       var allPhotos = existingUrls.concat(newUrls);
@@ -3337,7 +3961,7 @@ function tmSaveTopic(catId, existingKey){
       btn.disabled=false; btn.textContent='💾 حفظ الموضوع';
     });
 }
- 
+
 // ── DELETE TOPIC ──────────────────────────────────────────────────────
 function tmDeleteTopic(catId, topicKey){
   var topic = (tmTopics[catId]||{})[topicKey];
@@ -3346,16 +3970,16 @@ function tmDeleteTopic(catId, topicKey){
     .then(function(){ tmCloseModal(); toast('تم الحذف'); })
     .catch(function(err){ toast('❌ '+err.message); });
 }
- 
+
 // ── SEND TOPIC TO STUDENTS ────────────────────────────────────────────
 function tmSendTopic(catId, topicKey){
   var topic = (tmTopics[catId]||{})[topicKey];
   var cat   = TM_CATEGORIES.find(function(c){ return c.id===catId; });
   if(!topic){ toast('الموضوع غير موجود'); return; }
- 
+
   var gasUrl = localStorage.getItem('hsp_gas_url')||'';
   if(!gasUrl){ toast('أدخل Web App URL في قسم إرسال الدرجات أولاً'); return; }
- 
+
   // Collect students with emails
   var allSts = studentsMorning.concat(studentsEvening);
   function findEmail(name){
@@ -3367,15 +3991,15 @@ function tmSendTopic(catId, topicKey){
   }
   var withEmail = allSts.filter(function(s){ return !!findEmail(s.name); });
   if(!withEmail.length){ toast('لا يوجد طلاب بعناوين بريد. ارفع قاعدة البيانات أولاً.'); return; }
- 
+
   var photoLinks = (topic.photos||[]).map(function(url,i){ return 'صورة '+(i+1)+': '+url; }).join('\n');
   var msg = 'مواد تحضيرية للاختبار\n\nالفئة: '+cat.name+'\nالموضوع: '+topic.name+(topic.notes?'\n\n'+topic.notes:'')+'\n\nصور الموضوع:\n'+photoLinks;
- 
+
   if(!confirm('إرسال الموضوع "'+topic.name+'" لـ '+withEmail.length+' طالب؟')) return;
- 
+
   var sent=0, failed=0, total=withEmail.length;
   toast('جاري الإرسال...');
- 
+
   function sendNext(i){
     if(i>=total){
       toast('✅ تم الإرسال: '+sent+' | فشل: '+failed);
@@ -3402,7 +4026,7 @@ function tmSendTopic(catId, topicKey){
   }
   sendNext(0);
 }
- 
+
 // ── FULLSCREEN VIEWER ─────────────────────────────────────────────────
 function fsOpen(catId, topicKey, idx){
   var topic = (tmTopics[catId]||{})[topicKey];
@@ -3412,25 +4036,25 @@ function fsOpen(catId, topicKey, idx){
   fsShow();
   document.getElementById('fsOverlay').classList.add('open');
 }
- 
+
 function fsShow(){
   var img = document.getElementById('fsImg');
   var cap = document.getElementById('fsCaption');
   img.src = fsImages[fsIndex];
   cap.textContent = 'صورة '+(fsIndex+1)+' من '+fsImages.length;
 }
- 
+
 function fsPrev(e){ e&&e.stopPropagation(); fsIndex=(fsIndex-1+fsImages.length)%fsImages.length; fsShow(); }
 function fsNext(e){ e&&e.stopPropagation(); fsIndex=(fsIndex+1)%fsImages.length; fsShow(); }
 function fsClose(){ document.getElementById('fsOverlay').classList.remove('open'); }
- 
+
 // ── MODAL HELPERS ─────────────────────────────────────────────────────
 function tmCloseModal(){
   document.getElementById('tmModal').classList.remove('open');
   tmUploadPreviews=[];
   tmUploadFiles=[];
 }
- 
+
 // Keyboard nav for fullscreen
 document.addEventListener('keydown', function(e){
   var fs = document.getElementById('fsOverlay');
@@ -3438,14 +4062,13 @@ document.addEventListener('keydown', function(e){
   if(e.key==='ArrowLeft'||e.key==='ArrowRight') { e.key==='ArrowLeft'?fsNext():fsPrev(); }
   if(e.key==='Escape') fsClose();
 });
- 
+
 document.addEventListener('DOMContentLoaded', function(){
   var mo = document.getElementById('tmModal');
   if(mo) mo.addEventListener('click', function(e){ if(e.target===this) tmCloseModal(); });
 });
- 
- 
+
+
 </script>
 </body>
 </html>
- 
