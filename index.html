@@ -598,6 +598,20 @@ window.addEventListener('load', function() {
           <input type="text" id="newN" placeholder="اكتب الاسم واضغط Enter..." onkeydown="if(event.key==='Enter')addSt()">
           <button class="btn bp" onclick="addSt()">+ إضافة</button>
         </div>
+
+        <!-- ★ DAY NOTES — linked to this evaluation day (date + group) -->
+        <div style="margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="background:linear-gradient(135deg,#34495e,#2c3e50);color:#fff;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <div style="font-size:14px;font-weight:700">📝 ملاحظات اليوم <span id="notesDayLabel" style="font-weight:400;opacity:.8;font-size:12px"></span></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span id="notesSavedTag" style="font-size:11px;opacity:.85"></span>
+              <button class="btn" style="background:#8e2f5d;color:#fff;padding:5px 10px;font-size:12px" onclick="exportNotesPDF()">📕 تنزيل الملاحظات PDF</button>
+            </div>
+          </div>
+          <div style="padding:12px 16px">
+            <textarea id="dayNotes" rows="5" placeholder="اكتب أي ملاحظات تخص هذا اليوم (سلوك الطلاب، أحداث مهمة، تعليمات للمشرف القادم...)" style="width:100%;resize:vertical;min-height:90px;font-family:Tahoma,Arial,sans-serif;font-size:14px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);direction:rtl" oninput="onNotesInput()"></textarea>
+          </div>
+        </div>
       </div>
 
       <!-- TAB: PAPER -->
@@ -1682,6 +1696,7 @@ function renderList(){
   if(shown===0) html='<div style="padding:22px;text-align:center;color:var(--muted);font-size:14px">لا يوجد طلاب. أضف طلاباً باستخدام الحقل أدناه.</div>';
   document.getElementById('sList').innerHTML=html;
   updStats();
+  loadDayNotes();
 }
 
 function setAtt(e,i,v){
@@ -2129,6 +2144,16 @@ function openDayDetail(date){
     }
     html+='</div>';
   }
+  // ★ Day notes — show whatever was written for this session, with its own PDF export
+  var dn = dayData['__dayNotes__'] || '';
+  html += '<div style="margin-top:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden">'
+    + '<div style="background:#34495e;color:#fff;padding:9px 14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
+    + '<div style="font-size:13px;font-weight:700">📝 ملاحظات اليوم</div>'
+    + (dn.trim() ? '<button class="btn" style="background:#8e2f5d;color:#fff;padding:4px 10px;font-size:11px" onclick="exportHistNotesPDF()">📕 تنزيل PDF</button>' : '')
+    + '</div>'
+    + '<div style="padding:12px 14px;font-size:13px;line-height:1.9;color:var(--text);white-space:pre-wrap">'
+    + (dn.trim() ? dn.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '<span style="color:var(--muted)">لا توجد ملاحظات لهذا اليوم</span>')
+    + '</div></div>';
   document.getElementById('dmBody').innerHTML=html;
   document.getElementById('dayDetailM').classList.add('open');
 }
@@ -2648,20 +2673,29 @@ function pdfDownload(html, filename, landscape){
     return;
   }
   var holder = document.createElement('div');
-  holder.style.cssText = 'position:absolute;left:-12000px;top:0;width:'+(landscape?'1050px':'760px');
+  // Render at a fixed, generous width so the canvas captures fine detail
+  // before being scaled down into the PDF — this is what makes text crisp.
+  holder.style.cssText = 'position:absolute;left:-12000px;top:0;width:'+(landscape?'1400px':'1000px')
+    +';background:#fff;font-smooth:always;-webkit-font-smoothing:antialiased';
   holder.innerHTML = html;
   document.body.appendChild(holder);
-  toast('⏳ جاري إنشاء ملف PDF...');
+  toast('⏳ جاري إنشاء ملف PDF بجودة عالية...');
   html2pdf().set({
     margin: [8, 7, 10, 7],
     filename: filename,
-    image: { type: 'jpeg', quality: 0.96 },
-    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait' },
+    image: { type: 'png' },                 // lossless — no JPEG compression artifacts
+    html2canvas: {
+      scale: 3.5,                            // high-resolution capture (was 2)
+      useCORS: true,
+      letterRendering: true,
+      logging: false,
+      dpi: 300
+    },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait', compress: false },
     pagebreak: { mode: ['css', 'legacy'] }
   }).from(holder.firstElementChild || holder).save().then(function(){
     document.body.removeChild(holder);
-    toast('✅ تم تنزيل ملف PDF');
+    toast('✅ تم تنزيل ملف PDF بجودة عالية');
   }).catch(function(e){
     document.body.removeChild(holder);
     console.error(e); toast('تعذّر إنشاء PDF — جرّب مرة أخرى');
@@ -2757,6 +2791,13 @@ function buildDayReportHTML(histKey){
       html += '<div style="padding:9px 12px;font-size:12px;color:#999">لم يتم إجراء التقييم لهذا اليوم</div>';
     }
     html += '</div>';
+  }
+  var dnPdf = dayData['__dayNotes__'] || '';
+  if (dnPdf.trim()){
+    var escN = dnPdf.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    html += '<div style="margin-top:12px;border:1px solid #dfe5ea;border-radius:10px;overflow:hidden;page-break-inside:avoid">'
+      + '<div style="background:#34495e;color:#fff;padding:7px 12px;font-size:12px;font-weight:700">📝 ملاحظات اليوم</div>'
+      + '<div style="padding:10px 12px;font-size:12px;line-height:1.9;white-space:pre-wrap">'+escN+'</div></div>';
   }
   html += pdfSignature() + '</div>';
   return html;
@@ -2934,6 +2975,83 @@ function renderBackupCenter(){
   sl.innerHTML = snaps.map(function(s){
     return '<button class="btn bo" style="font-size:12px" onclick="restoreSnapshot(\''+s.key+'\')">📸 '+s.date+' — استعادة</button>';
   }).join('');
+}
+
+// ═══════════════════════════════════════════
+// ★ DAY NOTES — free-text notes linked to this evaluation day
+//   Stored inside the day's history record as __dayNotes__, so they
+//   sync, cache and snapshot exactly like the marks do.
+// ═══════════════════════════════════════════
+var notesSaveTimer = null;
+var loadingNotes = false;
+
+function loadDayNotes(){
+  loadingNotes = true;
+  var day = getSession();
+  var ta = document.getElementById('dayNotes');
+  if (ta) ta.value = day['__dayNotes__'] || '';
+  var lbl = document.getElementById('notesDayLabel');
+  if (lbl) lbl.textContent = '— ' + curDate + ' (' + (curGroup==='morning'?'صباحي':'مسائي') + ')';
+  var tag = document.getElementById('notesSavedTag');
+  if (tag) tag.textContent = day['__dayNotes__'] ? '✓ محفوظة' : '';
+  loadingNotes = false;
+}
+
+function onNotesInput(){
+  if (loadingNotes) return;
+  var tag = document.getElementById('notesSavedTag');
+  if (tag) tag.textContent = '⏳ جاري الحفظ...';
+  clearTimeout(notesSaveTimer);
+  notesSaveTimer = setTimeout(saveDayNotes, 600); // debounce while typing
+}
+
+function saveDayNotes(){
+  var ta = document.getElementById('dayNotes');
+  if (!ta) return;
+  var day = getSession();
+  var val = ta.value;
+  if (val && val.trim()) day['__dayNotes__'] = val;
+  else delete day['__dayNotes__'];
+  saveDay(sessionKey());
+  var tag = document.getElementById('notesSavedTag');
+  if (tag) tag.textContent = val.trim() ? '✓ تم الحفظ' : '';
+}
+
+// High-quality PDF of today's/this session's notes
+function exportNotesPDF(){
+  var day = getSession();
+  var notes = (document.getElementById('dayNotes') && document.getElementById('dayNotes').value) || day['__dayNotes__'] || '';
+  if (!notes.trim()) { toast('لا توجد ملاحظات لهذا اليوم'); return; }
+  // ensure latest text is saved before exporting
+  if (day['__dayNotes__'] !== notes) { day['__dayNotes__'] = notes; saveDay(sessionKey()); }
+  var grp = curGroup==='morning'?'صباحي':'مسائي';
+  pdfDownload(buildNotesPDF(curDate, curGroup, notes), 'ملاحظات_'+curDate+'_'+grp+'.pdf', false);
+}
+
+// PDF for a past day's notes (used from the history day-detail window)
+function exportHistNotesPDF(){
+  if(!ddDateKey){ toast('لا يوجد يوم محدد'); return; }
+  var dayData = history[ddDateKey] || {};
+  var notes = dayData['__dayNotes__'] || '';
+  if (!notes.trim()) { toast('لا توجد ملاحظات لهذا اليوم'); return; }
+  var clean = ddDateKey.replace('_morning','').replace('_evening','');
+  var isM = ddDateKey.indexOf('_morning')>=0;
+  pdfDownload(buildNotesPDF(clean, isM?'morning':'evening', notes), 'ملاحظات_'+clean+'_'+(isM?'صباحي':'مسائي')+'.pdf', false);
+}
+
+function buildNotesPDF(dateStr, group, notes){
+  var grp = group==='morning'?'الصباحية':'المسائية';
+  var dnames=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  var dow = dnames[new Date(dateStr+'T00:00:00').getDay()];
+  // Escape HTML then turn newlines into paragraphs/line breaks for clean PDF text
+  var esc = notes.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  var body = esc.split(/\n{2,}/).map(function(p){
+    return '<p style="margin:0 0 12px 0">'+p.replace(/\n/g,'<br>')+'</p>';
+  }).join('');
+  return '<div style="font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#222">'
+    + pdfHeader('ملاحظات اليوم', 'Daily Notes — '+dateStr+' ('+dow+') — المجموعة '+grp, '#34495e')
+    + '<div style="border:1px solid #dfe5ea;border-radius:10px;padding:18px 20px;font-size:14px;line-height:2;background:#fdfdfd;min-height:120px">'+body+'</div>'
+    + pdfSignature() + '</div>';
 }
 
 function dbSave(){
