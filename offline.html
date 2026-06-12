@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>تقييم الممارسة اليومية في المستشفى</title>
+<!-- ★ PWA: installable + offline-launchable -->
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<meta name="theme-color" content="#1a5276">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="تقييم الممارسة">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <!-- Firebase loads dynamically in JS only when online mode is chosen -->
@@ -490,16 +499,24 @@ window.addEventListener('load', function() {
 
     <!-- OFFLINE SECTION -->
     <div id="offlineSection" style="display:none">
-      <div style="background:#fef9ec;border:1px solid #f0c040;border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:13px;color:#7d5a00">
-        ⚠️ لا يوجد اتصال بالإنترنت
+      <div style="background:#fef9ec;border:1px solid #f0c040;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#7d5a00">
+        ⚠️ لا يوجد اتصال بالإنترنت حالياً
       </div>
-      <p style="margin-bottom:18px;font-size:13px;color:var(--muted)">البيانات تُحفظ في هذا المتصفح على هذا الجهاز</p>
+      <p style="margin-bottom:10px;font-size:13px;color:var(--muted);line-height:1.8">
+        يمكنك الاستمرار بالعمل بدون انترنت — التطبيق الكامل يعمل محلياً على هذا الجهاز:
+      </p>
+      <ul style="text-align:right;font-size:12.5px;color:var(--muted);line-height:2;margin:0 0 16px 0;padding-right:18px">
+        <li>تسجيل الحضور والتقييم اليومي بكامل التفاصيل</li>
+        <li>إدارة المجموعات وقاعدة بيانات الطلاب والسجل التاريخي</li>
+        <li>تصدير Excel وتصدير PDF عالي الجودة</li>
+        <li>كل البيانات محفوظة في هذا المتصفح ولن تُفقد</li>
+        <li>تُزامَن تلقائياً مع حسابك في Google عند عودة الاتصال</li>
+      </ul>
       <button class="google-btn" onclick="enterOfflineMode()" style="background:var(--primary);color:#fff;border-color:var(--primary);justify-content:center;font-size:15px">
-        🏥 دخول مباشر
+        🏥 الاستمرار بدون انترنت
       </button>
       <div style="margin-top:14px;font-size:12px;color:#888;text-align:center;line-height:1.7">
-        عند عودة الاتصال، أعد تحميل الصفحة لتسجيل الدخول بـ Google<br>
-        <a href="/offline.html" style="color:var(--pl);text-decoration:none;font-weight:600">📱 أو افتح النسخة المحلية الكاملة</a>
+        عند عودة الاتصال، أعد تحميل الصفحة لتسجيل الدخول بـ Google ومزامنة بياناتك
       </div>
     </div>
   </div>
@@ -944,11 +961,7 @@ function loadFirebase(callback) {
     s.onload = function() { loaded++; if (loaded === scripts.length) onAllLoaded(); };
     s.onerror = function() {
       showLoginSection('offline');
-      toast('تعذّر تحميل Firebase — الوضع غير المتصل متاح');
-      // After 3 seconds auto-redirect to offline.html if still no connection
-      setTimeout(function(){
-        if(!navigator.onLine) window.location.href='/offline.html';
-      }, 3000);
+      toast('تعذّر تحميل الاتصال السحابي — يمكنك الاستمرار بدون انترنت');
     };
     document.head.appendChild(s);
   });
@@ -1339,12 +1352,13 @@ function enterOfflineMode() {
   var found = false;
   for (var i = 0; i < localStorage.length; i++) {
     var k = localStorage.key(i);
-    if (k && k.startsWith('hsp_')) {
+    if (k && k.startsWith('hsp_') && k.indexOf('hsp_q_')!==0 && k.indexOf('hsp_snap_')!==0 && k!=='hsp_session' && k!=='hsp_sdb') {
       var uid = k.replace('hsp_', '');
       if (loadFromCache(uid)) { found = true; break; }
     }
   }
   if (!found) { enterOfflineModeWithUid('offline_user'); }
+  return found;
 }
 
 function loadFromCache(uid) {
@@ -2168,6 +2182,8 @@ function openStudentDetail(date,idx){
 
 var ddDateKey='';
 function exportDayExcel(){
+  if (typeof XLSX === 'undefined') { toast('⏳ مكتبة Excel لم تُحمَّل بعد — حاول مرة أخرى بعد ثوانٍ أو افتح الصفحة وأنت متصل مرة واحدة'); return; }
+
   var histKey = ddDateKey;
   var cleanDate = histKey.replace('_morning','').replace('_evening','');
   var dayData = history[histKey] || {};
@@ -2227,6 +2243,8 @@ function exportDayExcel(){
 }
 
 function exportSummaryExcel(){
+  if (typeof XLSX === 'undefined') { toast('⏳ مكتبة Excel لم تُحمَّل بعد — حاول مرة أخرى بعد ثوانٍ أو افتح الصفحة وأنت متصل مرة واحدة'); return; }
+
   // Collect all students from both groups with their full history
   var wb = XLSX.utils.book_new();
   var hN  = document.getElementById('hName').value  || '';
@@ -2425,6 +2443,8 @@ function exportSummaryExcel(){
 }
 
 function doExcelAll(){
+  if (typeof XLSX === 'undefined') { toast('⏳ مكتبة Excel لم تُحمَّل بعد — حاول مرة أخرى بعد ثوانٍ أو افتح الصفحة وأنت متصل مرة واحدة'); return; }
+
   var wb=XLSX.utils.book_new();
   var days=Object.keys(history).sort();
   var hN=document.getElementById('hName').value||'', sup=document.getElementById('supName').value||'';
@@ -2450,6 +2470,8 @@ function closeDayDetail(){document.getElementById('dayDetailM').classList.remove
 // EXCEL EXPORT (current day)
 // ═══════════════════════════════════════════
 function doExcel(){
+  if (typeof XLSX === 'undefined') { toast('⏳ مكتبة Excel لم تُحمَّل بعد — حاول مرة أخرى بعد ثوانٍ أو افتح الصفحة وأنت متصل مرة واحدة'); return; }
+
   var wb=XLSX.utils.book_new(), day=getSession(), sts=getStudents();
   var hN=document.getElementById('hName').value||'', hNo=document.getElementById('hNo').value||'', sup=document.getElementById('supName').value||'';
   var rows=[['اسم المستشفى: '+hN,'رقم: '+hNo,'المشرف: '+sup,'التاريخ: '+curDate],[],['م','اسم الطالب','الحضور','الملاحظة اليومية','م.جماعية','م.حالة','الطاقم','الطالب','المعلم','المريض','التأخر','الاجتماع','الموقع','الأوامر','الشارة','الحجاب','الزي','المعطف','المجموع','تسليم الورقة','ملاحظات']];
@@ -3496,7 +3518,35 @@ function optimisticRestore(sess){
 }
 
 var _sess = getRememberedSession();
-if (_sess && navigator.onLine) {
+
+function findCachedUid(){
+  for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i);
+    if (k && k.indexOf('hsp_')===0 && k.indexOf('hsp_q_')!==0 && k.indexOf('hsp_snap_')!==0 && k!=='hsp_session' && k!=='hsp_sdb') {
+      return k.replace('hsp_', '');
+    }
+  }
+  return null;
+}
+
+if (!navigator.onLine) {
+  // ═════════════════════════════════════════════════════════════════
+  // ★ FULLY OFFLINE STARTUP
+  // No network at all → never attempt Firebase (even if its scripts are
+  // cached, auth/database calls would hang waiting for a server).
+  // Jump straight into the app using whatever is saved locally, or
+  // offer "continue without internet" on a brand-new device.
+  // ═════════════════════════════════════════════════════════════════
+  document.getElementById('loadingScreen').style.display = 'none';
+  var cachedUid = (_sess && _sess.uid) || findCachedUid();
+  if (cachedUid) {
+    loadFromCache(cachedUid); // → enterOfflineModeWithUid (full app, cached data restored)
+  } else {
+    // truly first-ever offline visit: show the "continue without internet" screen
+    document.getElementById('loginScreen').style.display = 'flex';
+    showLoginSection('offline');
+  }
+} else if (_sess) {
   optimisticRestore(_sess);
   loadFirebase(function() {
     // If auth doesn't confirm within 12s, keep working in offline mode (no data loss)
