@@ -555,6 +555,7 @@ window.addEventListener('load', function() {
         <button class="tab-btn" id="tbh" onclick="showTab('hist')">📅 السجل التاريخي</button>
         <button class="tab-btn" id="tbdb" onclick="showTab('db')">🗄️ قاعدة البيانات</button>
         <button class="tab-btn" id="tbtm" onclick="showTab('teach')">📚 المواد التعليمية</button>
+        <button class="tab-btn" id="tbal" onclick="showTab('audit')">📋 سجل التغييرات</button>
       </div>
 
       <!-- TAB: ATTENDANCE -->
@@ -676,6 +677,19 @@ window.addEventListener('load', function() {
           </div>
         </div>
         <div id="histList"></div>
+      </div>
+
+      <!-- TAB: AUDIT LOG (change tracking) -->
+      <div class="tab-panel" id="pal">
+        <div class="hist-hdr">
+          <h2>📋 سجل التغييرات على التقييمات</h2>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="text" class="sbox" id="auditSearch" placeholder="🔍 ابحث باسم الطالب أو التاريخ أو المُحرِّر..." oninput="renderAudit()" style="max-width:300px">
+            <button class="btn ba" onclick="exportAuditExcel()">📥 تصدير Excel</button>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">يُسجَّل هنا تلقائياً كل إنشاء أو تعديل لأي تقييم: ماذا تغيّر، متى، وبأي حساب — مرتبط بحسابك على Google.</div>
+        <div id="auditList"></div>
       </div>
 
       <!-- TAB: STUDENT DATABASE -->
@@ -1418,6 +1432,7 @@ function startListeners() {
       dbLoad();
       takeSnapshot();
       flushQueue(); // re-send anything that failed before the reload
+      flushAudit(); // ★ re-send any offline audit entries
     }
   }
 
@@ -1473,6 +1488,18 @@ function startListeners() {
     checkAllLoaded();
   });
   dbListeners.push({ ref: stRef, event: 'value' });
+
+  // ★ Audit log listener — append-only history of assessment changes
+  var alRef = dbRef('auditLog');
+  alRef.on('value', function(snap){
+    if (!isStillMe()) return;
+    var raw = snap.val() || {};
+    auditData = Object.keys(raw).map(function(k){ return raw[k]; })
+                .sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+    var pal = document.getElementById('pal');
+    if (pal && pal.classList.contains('active')) renderAudit();
+  });
+  dbListeners.push({ ref: alRef, event: 'value' });
 
   db.ref('.info/connected').on('value', function(snap) {
     if (!isStillMe()) return;
@@ -1624,8 +1651,8 @@ var FIELDS=[
 function showTab(n){
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm'};
-  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm'};
+  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal'};
+  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal'};
   var panel=document.getElementById(panels[n]);
   panel.classList.add('active');
   // restart the entrance animation so every switch feels alive
@@ -1638,6 +1665,7 @@ function showTab(n){
   if(n==='hist')   renderHist();
   if(n==='db'){ dbRender(); renderBackupCenter(); }
   if(n==='teach')  tmRender();
+  if(n==='audit')  renderAudit();
 }
 
 function switchGroup(g){
@@ -1901,7 +1929,10 @@ function recalc(){
 }
 
 function saveEval(){
-  var day=getSession(); if(!day[curSt])day[curSt]={};
+  var day=getSession();
+  // ★ snapshot the old record BEFORE editing (deep copy) for the audit log
+  var oldRec = day[curSt] ? JSON.parse(JSON.stringify(day[curSt])) : null;
+  if(!day[curSt])day[curSt]={};
   var rec=day[curSt]; rec.scores={}; var t=0;
   for(var fi=0;fi<FIELDS.length;fi++){
     for(var ii=0;ii<FIELDS[fi].items.length;ii++){
@@ -1919,9 +1950,129 @@ function saveEval(){
   rec.total=Math.min(t,15);
   rec.notes=document.getElementById('eNotes').value;
   rec.evaluated=true;
+  logChange(sessionKey(), curSt, getStudents()[curSt].name, oldRec, rec); // ★ audit trail
   saveDay(sessionKey()); closeMod(); renderList(); toast('تم حفظ التقييم ✓');
 }
 function closeMod(){document.getElementById('evalM').classList.remove('open');}
+
+// ═══════════════════════════════════════════
+// ★ AUDIT LOG — append-only record of every assessment change
+//   Stored at users/{uid}/auditLog via push() (never overwritten).
+//   Editor = the signed-in Google account.
+// ═══════════════════════════════════════════
+var auditData = [];
+
+function logChange(sessionK, idx, studentName, oldRec, newRec){
+  if (!currentUser) return;
+  var labels = {};
+  FIELDS.forEach(function(f){ f.items.forEach(function(it){ labels[it.k]=it.l; }); });
+  var os = (oldRec && oldRec.scores) || {}, ns = (newRec && newRec.scores) || {};
+  var changes = [];
+  Object.keys(labels).forEach(function(k){
+    var ov = os[k], nv = ns[k];
+    if (ov !== nv) changes.push({ field: labels[k], from: ov===undefined?'—':ov, to: nv===undefined?'—':nv });
+  });
+  var ot = (oldRec && oldRec.total!==undefined) ? oldRec.total : undefined;
+  var nt = (newRec && newRec.total!==undefined) ? newRec.total : undefined;
+  if (ot !== nt) changes.push({ field:'المجموع', from: ot===undefined?'—':ot.toFixed(2), to: nt===undefined?'—':nt.toFixed(2) });
+  if (!changes.length) return; // nothing actually changed
+
+  var entry = {
+    ts: Date.now(),
+    date: sessionK.replace('_morning','').replace('_evening',''),
+    group: sessionK.indexOf('_morning')>=0 ? 'صباحي' : 'مسائي',
+    student: studentName,
+    editor: (currentUser.email || currentUser.displayName || 'غير معروف'),
+    action: (oldRec && oldRec.evaluated) ? 'تعديل' : 'إنشاء',
+    changes: changes
+  };
+  if (!isOfflineMode && db && currentUser){
+    var r = dbRef('auditLog');
+    if (r) { r.push(entry).catch(function(){ queueAudit(entry); }); }
+    else queueAudit(entry);
+  } else {
+    queueAudit(entry);
+  }
+}
+
+// Offline fallback queue (flushed when reconnected)
+function queueAudit(entry){
+  if (!currentUser) return;
+  try{
+    var k = 'hsp_audit_'+currentUser.uid;
+    var arr = JSON.parse(localStorage.getItem(k)||'[]');
+    arr.push(entry); localStorage.setItem(k, JSON.stringify(arr));
+  }catch(e){}
+}
+
+function flushAudit(){
+  if (isOfflineMode || !db || !currentUser || !navigator.onLine) return;
+  var k = 'hsp_audit_'+currentUser.uid;
+  var arr = [];
+  try{ arr = JSON.parse(localStorage.getItem(k)||'[]'); }catch(e){ return; }
+  if (!arr.length) return;
+  var ref = dbRef('auditLog');
+  if (!ref) return;
+  var pending = arr.slice();
+  pending.forEach(function(entry){ ref.push(entry).catch(function(){}); });
+  try{ localStorage.removeItem(k); }catch(e){}
+}
+
+function renderAudit(){
+  var el = document.getElementById('auditList');
+  if(!el) return;
+  var q = (document.getElementById('auditSearch') && document.getElementById('auditSearch').value || '').toLowerCase();
+  var rows = auditData.filter(function(e){
+    if(!q) return true;
+    return (e.student||'').toLowerCase().indexOf(q)>=0
+        || (e.date||'').indexOf(q)>=0
+        || (e.editor||'').toLowerCase().indexOf(q)>=0;
+  });
+  if(!rows.length){
+    el.innerHTML = '<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">📋</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد تغييرات مسجلة بعد</div><div style="font-size:13px;color:var(--muted)">سيُسجَّل هنا كل إنشاء أو تعديل لأي تقييم تلقائياً</div></div>';
+    return;
+  }
+  var html = '';
+  rows.forEach(function(e){
+    var when = new Date(e.ts);
+    var changeRows = (e.changes||[]).map(function(c){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px solid #f0f0f0"><span style="color:#555">'+c.field+'</span><span><span style="color:#c0392b">'+c.from+'</span> <span style="color:#999">←</span> <span style="color:#1e8449;font-weight:700">'+c.to+'</span></span></div>';
+    }).join('');
+    var badgeCls = e.action==='تعديل' ? 'hpap' : 'hp';
+    html += '<div class="hday-card" style="cursor:default">'
+      + '<div class="hday-hdr"><div>'
+      + '<div class="hday-date" style="display:flex;align-items:center;gap:6px">'
+      + '<span style="font-size:11px;font-weight:700;border-radius:12px;padding:2px 8px;background:'+(e.group==='صباحي'?'#2980b9':'#8e44ad')+';color:#fff">'+(e.group||'')+'</span>'
+      + e.student+'</div>'
+      + '<div class="hday-dow">'+e.date+' — '+when.toLocaleString('ar-SA')+'</div></div>'
+      + '<span class="hchip '+badgeCls+'">'+(e.action||'')+'</span></div>'
+      + '<div style="padding:10px 16px">'
+      + '<div style="font-size:11px;color:#888;margin-bottom:6px">بواسطة: '+(e.editor||'')+'</div>'
+      + changeRows + '</div></div>';
+  });
+  el.innerHTML = html;
+}
+
+function exportAuditExcel(){
+  if(!auditData.length){ toast('لا توجد تغييرات لتصديرها'); return; }
+  var wb = XLSX.utils.book_new();
+  var rows = [['التاريخ والوقت','اليوم','المجموعة','اسم الطالب','الإجراء','المُحرِّر','الحقل','من','إلى']];
+  auditData.forEach(function(e){
+    var when = new Date(e.ts).toLocaleString('ar-SA');
+    if(!e.changes || !e.changes.length){
+      rows.push([when, e.date, e.group, e.student, e.action, e.editor, '', '', '']);
+    } else {
+      e.changes.forEach(function(c){
+        rows.push([when, e.date, e.group, e.student, e.action, e.editor, c.field, c.from, c.to]);
+      });
+    }
+  });
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:20},{wch:12},{wch:8},{wch:22},{wch:8},{wch:26},{wch:16},{wch:8},{wch:8}];
+  XLSX.utils.book_append_sheet(wb, ws, 'سجل التغييرات');
+  XLSX.writeFile(wb, 'سجل_التغييرات_'+today()+'.xlsx');
+  toast('✅ تم تصدير سجل التغييرات');
+}
 
 // ═══════════════════════════════════════════
 // PAPER TAB
@@ -3525,11 +3676,11 @@ if (_sess && navigator.onLine) {
 }
 
 // ★ Flush pending cloud writes whenever the connection returns
-window.addEventListener('online', function(){ setTimeout(flushQueue, 800); });
+window.addEventListener('online', function(){ setTimeout(function(){ flushQueue(); flushAudit(); }, 800); });
 // ★ Final cache write before the page closes — nothing is ever lost mid-action
 window.addEventListener('beforeunload', function(){ try{ cacheLocally(); }catch(e){} });
 // Periodic queue retry (covers flaky connections)
-setInterval(function(){ if (pendingCount() > 0) flushQueue(); }, 30000);
+setInterval(function(){ if (pendingCount() > 0) flushQueue(); flushAudit(); }, 30000);
 
 // Setup connectivity listeners
 window.addEventListener('online',  onNetworkOnline);
