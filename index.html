@@ -742,12 +742,27 @@ window.addEventListener('load', function() {
         </div>
       </div>
 
+      <!-- TAB: TEACHING MATERIALS -->
+      <div class="tab-panel" id="ptm">
+        <div id="tmWrap">
+          <!-- Breadcrumb -->
+          <div id="tmBread" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <span style="font-size:16px;font-weight:700;color:var(--primary)">📚 المواد التعليمية</span>
+            <span id="tmBreadCat" style="display:none;color:var(--muted);font-size:13px"></span>
+          </div>
+          <!-- Add topic button (shown in category view) -->
+          <div id="tmActions" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <button class="btn bp" onclick="tmOpenAddModal()" id="tmAddBtn" style="display:none">➕ إضافة موضوع</button>
+            <button class="btn bo" onclick="tmBackToCategories()" id="tmBackBtn" style="display:none">← الفئات</button>
+          </div>
+          <!-- Content area -->
+          <div id="tmContent"></div>
+        </div>
       </div>
 
-      </div>
-    </div>
-  </div>
-</div>
+    </div><!-- /main -->
+  </div><!-- /appBody -->
+</div><!-- /appRoot -->
 
 <!-- GROUP LOADER MODAL -->
 <div class="overlay" id="grpLoaderM">
@@ -810,24 +825,6 @@ window.addEventListener('load', function() {
             <div id="emailProgressBar" style="height:100%;background:#27ae60;border-radius:3px;width:0%;transition:width .3s"></div>
           </div>
         </div>
-      <!-- TAB: TEACHING MATERIALS -->
-      <div class="tab-panel" id="ptm">
-        <div id="tmWrap">
-          <!-- Breadcrumb -->
-          <div id="tmBread" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-            <span style="font-size:16px;font-weight:700;color:var(--primary)">📚 المواد التعليمية</span>
-            <span id="tmBreadCat" style="display:none;color:var(--muted);font-size:13px"></span>
-          </div>
-          <!-- Add topic button (shown in category view) -->
-          <div id="tmActions" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-            <button class="btn bp" onclick="tmOpenAddModal()" id="tmAddBtn" style="display:none">➕ إضافة موضوع</button>
-            <button class="btn bo" onclick="tmBackToCategories()" id="tmBackBtn" style="display:none">← الفئات</button>
-          </div>
-          <!-- Content area -->
-          <div id="tmContent"></div>
-        </div>
-      </div>
-
       </div>
     </div>
   </div>
