@@ -576,6 +576,14 @@ window.addEventListener('load', function() {
             <span style="font-size:12px;color:var(--muted)" id="curDateLabel"></span>
           </div>
         </div>
+
+        <!-- ★ ROTATION CONTEXT BAR — hospital / block / day(1-4) / unit -->
+        <div id="rotBar" style="background:linear-gradient(135deg,#0f6e56,#16a085);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="font-size:13px;font-weight:700">🔄 الدورة الحالية</div>
+          <span id="rotSummary" style="font-size:13px;opacity:.95;flex:1">— لم تُحدَّد بعد —</span>
+          <button class="btn" style="background:rgba(255,255,255,.2);color:#fff;font-size:12px;padding:5px 12px" onclick="openRotModal()">✏️ تحديد المستشفى واليوم</button>
+        </div>
+
         <div class="toolbar">
           <input class="sbox" type="text" id="srch" placeholder="🔍 ابحث عن طالب..." oninput="renderList()">
           <button class="btn bp" onclick="sortSt()">🔤 أبجدي</button>
@@ -864,6 +872,45 @@ window.addEventListener('load', function() {
   </div>
 </div>
 
+<!-- ROTATION CONTEXT MODAL -->
+<div class="overlay" id="rotModal">
+  <div class="modal" style="max-width:480px">
+    <div class="mhdr" style="background:#0f6e56"><h2>🔄 تحديد الدورة الحالية</h2><button class="mcl" onclick="closeRotModal()">✕</button></div>
+    <div class="mbody">
+      <div id="rotAutoHint" style="background:#e8f8f0;border:1px solid var(--success);border-radius:8px;padding:9px 12px;margin-bottom:14px;font-size:12px;color:#0f6e56;display:none"></div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px">المستشفى</label>
+        <input type="text" id="rotHospital" placeholder="اسم المستشفى" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:14px;direction:rtl">
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:150px">
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px">بداية فترة الأسبوعين</label>
+          <input type="date" id="rotBlock" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:14px;direction:ltr">
+        </div>
+        <div style="flex:1;min-width:120px">
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px">اليوم</label>
+          <select id="rotDayNo" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:14px">
+            <option value="">—</option>
+            <option value="1">اليوم 1</option>
+            <option value="2">اليوم 2</option>
+            <option value="3">اليوم 3</option>
+            <option value="4">اليوم 4</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:6px">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px">الوحدة / القسم (الطلاب يتناوبون عليها)</label>
+        <input type="text" id="rotUnit" placeholder="مثال: الطوارئ، الباطنية، النسائية..." style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:14px;direction:rtl">
+      </div>
+    </div>
+    <div class="mftr">
+      <button class="btn bo" onclick="autoFillRot()">🔄 كشف تلقائي</button>
+      <button class="btn bo" onclick="closeRotModal()">إلغاء</button>
+      <button class="btn bp" style="background:#0f6e56" onclick="saveRotModal()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
 <!-- CALENDAR MODAL -->
 <div class="overlay" id="calM">
   <div class="cal-modal">
@@ -1021,6 +1068,138 @@ function getSession(){ return getDay(sessionKey()); }
 function getStudents(){ return curGroup==='morning'?studentsMorning:studentsEvening; }
 function setStudents(arr){ if(curGroup==='morning') studentsMorning=arr; else studentsEvening=arr; }
 // (dbRef / dateToKey / keyToDate / sessionDbKey are defined once above, with offline guards)
+
+// ═══════════════════════════════════════════════════════════════════════
+// ★ ROTATION CONTEXT — hospital / 2-week block / day(1-4) / unit
+//   Each day record carries these tags so a student's marks can roll up:
+//   day → hospital (avg of up to 4 days) → overall (all hospitals).
+//   Auto-detected from the loaded roster group, with manual override.
+// ═══════════════════════════════════════════════════════════════════════
+// Returns {hospital, block, dayNo, unit} stored on the current session, if any.
+function getRotation(){
+  var d = getSession();
+  return {
+    hospital: d['__hospital__'] || '',
+    block:    d['__block__']    || '',
+    dayNo:    d['__dayNo__']    || '',
+    unit:     d['__unit__']     || ''
+  };
+}
+function setRotation(rot){
+  var d = getSession();
+  if(rot.hospital) d['__hospital__']=rot.hospital; else delete d['__hospital__'];
+  if(rot.block)    d['__block__']=rot.block;       else delete d['__block__'];
+  if(rot.dayNo)    d['__dayNo__']=rot.dayNo;        else delete d['__dayNo__'];
+  if(rot.unit)     d['__unit__']=rot.unit;          else delete d['__unit__'];
+  saveDay(sessionKey());
+}
+// Given a roster group (hospital + start date) auto-detect which day (1-4)
+// today is within its 2-week / 4-working-day schedule.
+function autoDetectRotation(hospital, startDate){
+  var sched = getSched(startDate);              // up to 4 working days
+  var idx = sched.indexOf(today());
+  return {
+    hospital: hospital || '',
+    block:    startDate || '',
+    dayNo:    idx >= 0 ? String(idx+1) : '',     // 1..4, or '' if today not in schedule
+    unit:     ''
+  };
+}
+// Pull the rotation tags off ANY stored day record (for history/progress).
+function rotationOf(rec){
+  rec = rec || {};
+  return {
+    hospital: rec['__hospital__'] || '',
+    block:    rec['__block__']    || '',
+    dayNo:    rec['__dayNo__']    || '',
+    unit:     rec['__unit__']     || ''
+  };
+}
+
+// Render the rotation summary bar on the attendance tab.
+function renderRotBar(){
+  var el = document.getElementById('rotSummary');
+  if(!el) return;
+  var r = getRotation();
+  if(!r.hospital && !r.dayNo && !r.unit){
+    el.textContent = '— لم تُحدَّد بعد (اضغط لتحديد المستشفى واليوم) —';
+    return;
+  }
+  var parts = [];
+  if(r.hospital) parts.push('🏥 '+r.hospital);
+  if(r.dayNo)    parts.push('📅 اليوم '+r.dayNo+'/4');
+  if(r.unit)     parts.push('🩺 '+r.unit);
+  el.textContent = parts.join('  •  ');
+}
+
+// Try to auto-detect the active group's hospital + start date from the roster,
+// matching by the students currently loaded into the active group.
+function detectActiveGroupRoster(){
+  if(!roster || !roster.length) return null;
+  var sts = getStudents();
+  if(!sts || !sts.length) return null;
+  var firstName = sts[0].name;
+  for(var i=0;i<roster.length;i++){
+    if((roster[i].name||'').trim() === firstName.trim()){
+      return { hospital: roster[i].hospital||'', startDate: roster[i].startDate||'' };
+    }
+  }
+  return null;
+}
+
+function openRotModal(){
+  var r = getRotation();
+  document.getElementById('rotHospital').value = r.hospital || document.getElementById('hName').value || '';
+  document.getElementById('rotBlock').value    = r.block || '';
+  document.getElementById('rotDayNo').value    = r.dayNo || '';
+  document.getElementById('rotUnit').value     = r.unit || '';
+  // If nothing set yet, try an auto-detect to pre-fill (manual override still possible)
+  var hint = document.getElementById('rotAutoHint');
+  hint.style.display='none';
+  if(!r.hospital && !r.dayNo){
+    var rg = detectActiveGroupRoster();
+    if(rg && rg.startDate){
+      var auto = autoDetectRotation(rg.hospital, rg.startDate);
+      document.getElementById('rotHospital').value = auto.hospital;
+      document.getElementById('rotBlock').value    = auto.block;
+      document.getElementById('rotDayNo').value    = auto.dayNo;
+      hint.style.display='block';
+      hint.textContent = auto.dayNo
+        ? '🔄 تم الكشف تلقائياً من الجدول: اليوم '+auto.dayNo+' — يمكنك التعديل'
+        : '🔄 المستشفى من الجدول — اليوم خارج فترة الجدول، حدّده يدوياً';
+    }
+  }
+  document.getElementById('rotModal').classList.add('open');
+}
+
+function autoFillRot(){
+  var rg = detectActiveGroupRoster();
+  if(!rg || !rg.startDate){ toast('لا يوجد جدول مطابق — أدخل البيانات يدوياً'); return; }
+  var auto = autoDetectRotation(rg.hospital, rg.startDate);
+  document.getElementById('rotHospital').value = auto.hospital;
+  document.getElementById('rotBlock').value    = auto.block;
+  document.getElementById('rotDayNo').value    = auto.dayNo;
+  var hint = document.getElementById('rotAutoHint');
+  hint.style.display='block';
+  hint.textContent = auto.dayNo
+    ? '🔄 اليوم '+auto.dayNo+' من فترة الأسبوعين'
+    : '🔄 اليوم الحالي خارج جدول هذه المجموعة — حدّده يدوياً';
+  toast('تم الكشف التلقائي');
+}
+
+function saveRotModal(){
+  setRotation({
+    hospital: (document.getElementById('rotHospital').value||'').trim(),
+    block:    document.getElementById('rotBlock').value||'',
+    dayNo:    document.getElementById('rotDayNo').value||'',
+    unit:     (document.getElementById('rotUnit').value||'').trim()
+  });
+  closeRotModal();
+  renderRotBar();
+  toast('✅ تم حفظ بيانات الدورة');
+}
+
+function closeRotModal(){ document.getElementById('rotModal').classList.remove('open'); }
 
 // ═══════════════════════════════════════════════════════════════════════
 // ★ DATA GUARD LAYER — zero data loss architecture
@@ -1745,6 +1924,7 @@ function renderList(){
   document.getElementById('sList').innerHTML=html;
   updStats();
   loadDayNotes();
+  renderRotBar();
 }
 
 function setAtt(e,i,v){
@@ -2303,22 +2483,35 @@ function buildStudentProfiles(){
     }
     var day = history[dk] || {};
     var clean = dk.replace('_morning','').replace('_evening','');
+    var rot = rotationOf(day); // hospital/block/dayNo/unit for this session
     names.forEach(function(nm, i){
       if(!nm) return;
       var r = day[i] || {};
       if(!r.attendance && !r.evaluated) return;
-      if(!prof[nm]) prof[nm] = {name:nm, sessions:[], sum:0, cnt:0, present:0, absent:0, missingPaper:0, evals:0};
+      if(!prof[nm]) prof[nm] = {name:nm, sessions:[], sum:0, cnt:0, present:0, absent:0, missingPaper:0, evals:0, hospitals:{}};
       var p = prof[nm];
-      p.sessions.push({ date:clean, group:isM?'صباحي':'مسائي', total:(r.total!==undefined?r.total:null), att:r.attendance||null, paper:r.paperDelivered, scores:r.scores||{} });
+      p.sessions.push({ date:clean, group:isM?'صباحي':'مسائي', total:(r.total!==undefined?r.total:null), att:r.attendance||null, paper:r.paperDelivered, scores:r.scores||{}, hospital:rot.hospital, block:rot.block, dayNo:rot.dayNo, unit:rot.unit });
       if(r.attendance==='present') p.present++;
       if(r.attendance==='absent')  p.absent++;
       if(r.paperDelivered===false) p.missingPaper++;
       if(r.evaluated){ p.evals++; if(r.total!==undefined){ p.sum+=r.total; p.cnt++; } }
+      // ★ per-hospital rollup (keyed by hospital + block so two visits stay separate)
+      if(rot.hospital){
+        var hk = rot.hospital + (rot.block?(' • '+rot.block):'');
+        if(!p.hospitals[hk]) p.hospitals[hk] = {hospital:rot.hospital, block:rot.block, days:[], sum:0, cnt:0};
+        var h = p.hospitals[hk];
+        h.days.push({ date:clean, dayNo:rot.dayNo, unit:rot.unit, total:(r.total!==undefined?r.total:null) });
+        if(r.evaluated && r.total!==undefined){ h.sum+=r.total; h.cnt++; }
+      }
     });
   });
   Object.keys(prof).forEach(function(k){
     var p = prof[k];
     p.avg = p.cnt>0 ? (p.sum/p.cnt) : null;
+    Object.keys(p.hospitals).forEach(function(hk){
+      var h = p.hospitals[hk];
+      h.avg = h.cnt>0 ? (h.sum/h.cnt) : null;
+    });
     p.risk = [];
     if(p.avg!==null && p.avg < RISK_AVG) p.risk.push('متوسط منخفض ('+p.avg.toFixed(2)+'/15)');
     if(p.absent >= RISK_ABSENCES) p.risk.push(p.absent+' غيابات');
@@ -2423,6 +2616,36 @@ function openProgressDetail(encName){
     html += '</div>';
   });
   html += '</div>';
+
+  // ★ Per-hospital rollup (each hospital = up to 4 rotation days averaged)
+  var hkeys = Object.keys(p.hospitals||{});
+  if(hkeys.length){
+    html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">🏥 الأداء حسب المستشفى</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px">';
+    hkeys.forEach(function(hk){
+      var h = p.hospitals[hk];
+      var hAvg = h.avg!==null ? h.avg.toFixed(2) : '—';
+      var hcol = h.avg===null ? '#888' : h.avg>=12 ? '#1e8449' : h.avg>=RISK_AVG ? '#2980b9' : '#c0392b';
+      html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
+      html += '<div style="background:#eef7f4;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">';
+      html += '<span style="font-size:13px;font-weight:700;color:#0f6e56">🏥 '+h.hospital+(h.block?' <span style="font-size:11px;color:var(--muted);font-weight:400">('+h.block+')</span>':'')+'</span>';
+      html += '<span style="font-size:13px;font-weight:800;color:'+hcol+'">المعدل '+hAvg+'/15</span>';
+      html += '</div>';
+      html += '<div style="padding:8px 12px;display:flex;flex-direction:column;gap:5px">';
+      h.days.sort(function(a,b){ return (a.dayNo||'').localeCompare(b.dayNo||''); });
+      h.days.forEach(function(d){
+        var dpct = d.total!==null ? Math.min(100,(d.total/15)*100) : 0;
+        var dcol = d.total===null ? '#ccc' : d.total>=12 ? '#1e8449' : d.total>=RISK_AVG ? '#2980b9' : '#c0392b';
+        html += '<div style="display:flex;align-items:center;gap:8px">';
+        html += '<span style="font-size:11px;color:var(--muted);min-width:110px">'+(d.dayNo?('اليوم '+d.dayNo):d.date)+(d.unit?(' — '+d.unit):'')+'</span>';
+        html += '<div style="flex:1;height:14px;background:#eee;border-radius:7px;overflow:hidden"><div style="height:100%;width:'+dpct+'%;background:'+dcol+'"></div></div>';
+        html += '<span style="font-size:11px;font-weight:700;min-width:42px;text-align:left;color:'+dcol+'">'+(d.total!==null?d.total.toFixed(2):'—')+'</span>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+    html += '</div>';
+  }
 
   // Section averages across sessions
   html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">📊 متوسط كل محور</div>';
@@ -2963,6 +3186,7 @@ function tick(){
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2400);}
 
 document.getElementById('evalM').addEventListener('click',function(e){if(e.target===this)closeMod();});
+document.getElementById('rotModal').addEventListener('click',function(e){if(e.target===this)closeRotModal();});
 document.getElementById('tmModal').addEventListener('click',function(e){if(e.target===this)tmCloseModal();});
 document.getElementById('emailModal').addEventListener('click',function(e){if(e.target===this)closeEmailModal();});
 document.getElementById('grpLoaderM').addEventListener('click',function(e){if(e.target===this)closeGrpLoader();});
@@ -3891,6 +4115,19 @@ function applyGrpLoader(){
   curGroup = targetGroup; // stay on the loaded group
   switchGroup(targetGroup);
   renderList();
+
+  // ★ Auto-stamp rotation context from the roster group (hospital + day 1-4),
+  // but never overwrite a rotation already set for today by the supervisor.
+  var existing = getRotation();
+  if(!existing.hospital && !existing.dayNo){
+    var startDate = '';
+    for(var si=0; si<roster.length; si++){
+      var rr = roster[si];
+      if((rr.hospital||'')===hosp && (rr.group||'')===grpNum && (rr.type||'')===typ){ startDate = rr.startDate||''; break; }
+    }
+    var auto = autoDetectRotation(hosp, startDate);
+    if(auto.hospital || auto.dayNo){ setRotation(auto); renderRotBar(); }
+  }
 
   closeGrpLoader();
   toast('✅ تم تحميل ' + names.length + ' طالب من المجموعة ' + grpNum + ' (' + (typ||'') + ')');
