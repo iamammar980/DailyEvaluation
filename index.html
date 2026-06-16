@@ -556,6 +556,7 @@ window.addEventListener('load', function() {
         <button class="tab-btn" id="tbdb" onclick="showTab('db')">🗄️ قاعدة البيانات</button>
         <button class="tab-btn" id="tbtm" onclick="showTab('teach')">📚 المواد التعليمية</button>
         <button class="tab-btn" id="tbal" onclick="showTab('audit')">📋 سجل التغييرات</button>
+        <button class="tab-btn" id="tbpg" onclick="showTab('prog')">📈 متابعة الطلاب</button>
       </div>
 
       <!-- TAB: ATTENDANCE -->
@@ -690,6 +691,15 @@ window.addEventListener('load', function() {
         </div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:12px">يُسجَّل هنا تلقائياً كل إنشاء أو تعديل لأي تقييم: ماذا تغيّر، متى، وبأي حساب — مرتبط بحسابك على Google.</div>
         <div id="auditList"></div>
+      </div>
+
+      <!-- TAB: STUDENT PROGRESS + AT-RISK -->
+      <div class="tab-panel" id="ppg">
+        <div class="hist-hdr">
+          <h2>📈 متابعة تطور الطلاب</h2>
+          <div style="font-size:12px;color:var(--muted)">المتوسط، الحضور، وتطور الدرجات لكل طالب عبر كل الجلسات — مع تنبيه للطلاب المتعثرين</div>
+        </div>
+        <div id="progContent"></div>
       </div>
 
       <!-- TAB: STUDENT DATABASE -->
@@ -885,6 +895,17 @@ window.addEventListener('load', function() {
       </div>
     </div>
     <div class="dm-body" id="dmBody"></div>
+  </div>
+</div>
+
+<!-- STUDENT PROGRESS DETAIL MODAL -->
+<div class="overlay" id="progDetailM">
+  <div class="dmodal">
+    <div class="dm-hdr">
+      <h2 id="progDetailTitle">متابعة الطالب</h2>
+      <button class="mcl" onclick="closeProgressDetail()">✕</button>
+    </div>
+    <div class="dm-body" id="progDetailBody"></div>
   </div>
 </div>
 
@@ -1651,8 +1672,8 @@ var FIELDS=[
 function showTab(n){
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal'};
-  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal'};
+  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg'};
+  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg'};
   var panel=document.getElementById(panels[n]);
   panel.classList.add('active');
   // restart the entrance animation so every switch feels alive
@@ -1666,6 +1687,7 @@ function showTab(n){
   if(n==='db'){ dbRender(); renderBackupCenter(); }
   if(n==='teach')  tmRender();
   if(n==='audit')  renderAudit();
+  if(n==='prog')   renderProgress();
 }
 
 function switchGroup(g){
@@ -1713,9 +1735,10 @@ function renderList(){
     var rec=day[i]||{}, att=rec.attendance||'none';
     var sc=rec.total!==undefined?rec.total.toFixed(2):null;
     var attTime=rec.attendanceTime?'<span style="font-size:10px;color:var(--muted);margin-right:4px">'+rec.attendanceTime+'</span>':'';
+    var lockIcon=rec.locked?'<span title="معتمد ومقفل" style="font-size:12px;margin-right:4px">🔒</span>':'';
     html+='<div class="srow'+(att==='absent'?' ar':'')+'">';
     html+='<div class="snum">'+shown+'</div>';
-    html+='<div class="sname" onclick="openEval('+i+')" style="display:flex;align-items:center;gap:4px">'+s.name+attTime+'</div>';
+    html+='<div class="sname" onclick="openEval('+i+')" style="display:flex;align-items:center;gap:4px">'+s.name+lockIcon+attTime+'</div>';
         html+='<div class="atg"><button class="ab '+(att==='present'?'abap':'abp')+'" onclick="setAtt(event,'+i+',\'present\')">✓</button><button class="ab '+(att==='absent'?'abaa':'aba')+'" onclick="setAtt(event,'+i+',\'absent\')">✗</button></div>';
     html+='<div class="sbadge'+(sc===null?' empty':'')+'"><span>'+(sc!==null?sc+'/15':'—')+'</span></div>';
     html+='<div class="ecell"><div class="ei '+(rec.evaluated?'done':'pend')+'" onclick="openEval('+i+')">'+(rec.evaluated?'✏️':'📝')+'</div></div>';
@@ -1794,6 +1817,15 @@ function openEval(idx){
   document.getElementById('mSN').textContent=s.name+' — '+curDate;
   var html='';
   var colors=['#1a5276','#117a65','#6c3483','#b7770d','#922b21'];
+  // ★ Sign-off / lock banner
+  if(rec.locked){
+    var lockWhen = rec.lockedAt ? new Date(rec.lockedAt).toLocaleString('ar-SA') : '';
+    html+='<div style="background:#e8f8f0;border:1px solid var(--success);border-radius:8px;padding:10px 12px;margin-bottom:11px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
+    html+='<div><div style="font-size:13px;font-weight:700;color:var(--success)">🔒 تقييم معتمد ومقفل</div>';
+    html+='<div style="font-size:11px;color:var(--muted);margin-top:2px">بواسطة '+(rec.lockedBy||'')+(lockWhen?' — '+lockWhen:'')+'</div></div>';
+    html+='<button class="btn bo" style="font-size:12px" onclick="unlockEval('+idx+')">🔓 فتح للتعديل</button>';
+    html+='</div>';
+  }
   for(var fi=0;fi<FIELDS.length;fi++){
     var f=FIELDS[fi];
     var secTotal=f.items.reduce(function(s,x){return s+x.m},0);
@@ -1853,7 +1885,62 @@ function openEval(idx){
   html+='<div class="narea"><label>ملاحظات:</label><textarea id="eNotes">'+(rec.notes||'')+'</textarea></div>';
   document.getElementById('mBody').innerHTML=html;
   recalc();
+  applyLockState(rec.locked); // ★ disable inputs + footer when locked
   document.getElementById('evalM').classList.add('open');
+}
+
+// ★ Sign-off helpers
+function applyLockState(locked){
+  var body = document.getElementById('mBody');
+  if(body){
+    body.querySelectorAll('input,textarea,button').forEach(function(el){
+      // keep the unlock button itself usable
+      if(el.getAttribute('onclick') && el.getAttribute('onclick').indexOf('unlockEval')>=0) return;
+      el.disabled = !!locked;
+      el.style.opacity = locked ? '0.6' : '';
+    });
+  }
+  var ftr = document.querySelector('#evalM .mftr');
+  if(ftr){
+    var saveBtn = ftr.querySelector('.bp');
+    var lockBtn = document.getElementById('lockBtn');
+    var day = getSession(), rec = day[curSt]||{};
+    if(saveBtn){ saveBtn.style.display = locked ? 'none' : ''; }
+    if(!lockBtn && !locked && rec.evaluated){
+      // add a "lock / sign off" button next to save (only once evaluated)
+      lockBtn = document.createElement('button');
+      lockBtn.id = 'lockBtn';
+      lockBtn.className = 'btn';
+      lockBtn.style.cssText = 'background:#117a65;color:#fff';
+      lockBtn.textContent = '🔒 اعتماد وقفل';
+      lockBtn.onclick = function(){ lockEval(curSt); };
+      ftr.appendChild(lockBtn);
+    } else if(lockBtn){
+      lockBtn.style.display = (locked || !rec.evaluated) ? 'none' : '';
+    }
+  }
+}
+
+function lockEval(idx){
+  var day=getSession(); if(!day[idx]) return;
+  if(!day[idx].evaluated){ toast('احفظ التقييم أولاً قبل الاعتماد'); return; }
+  if(!confirm('اعتماد وقفل هذا التقييم؟ لن يمكن تعديله إلا بفتحه مجدداً.')) return;
+  day[idx].locked = true;
+  day[idx].lockedAt = Date.now();
+  day[idx].lockedBy = currentUser ? (currentUser.email||currentUser.displayName||'') : '';
+  saveDay(sessionKey());
+  openEval(idx); renderList();
+  toast('🔒 تم اعتماد التقييم');
+}
+
+function unlockEval(idx){
+  var day=getSession(); if(!day[idx]) return;
+  if(!confirm('فتح هذا التقييم للتعديل؟')) return;
+  day[idx].locked = false;
+  delete day[idx].lockedAt; delete day[idx].lockedBy;
+  saveDay(sessionKey());
+  openEval(idx); renderList();
+  toast('🔓 تم فتح التقييم للتعديل');
 }
 
 function setEvalPaper(idx,val){
@@ -1930,6 +2017,8 @@ function recalc(){
 
 function saveEval(){
   var day=getSession();
+  // ★ refuse to overwrite a locked (signed-off) evaluation
+  if(day[curSt] && day[curSt].locked){ toast('🔒 التقييم معتمد — افتحه أولاً للتعديل'); return; }
   // ★ snapshot the old record BEFORE editing (deep copy) for the audit log
   var oldRec = day[curSt] ? JSON.parse(JSON.stringify(day[curSt])) : null;
   if(!day[curSt])day[curSt]={};
@@ -2193,6 +2282,217 @@ function dlTemplate(){
   var ws=XLSX.utils.aoa_to_sheet(d); ws['!cols']=[{wch:22},{wch:14},{wch:26},{wch:14},{wch:16},{wch:18}];
   XLSX.utils.book_append_sheet(wb,ws,'جدول الطلاب');
   XLSX.writeFile(wb,'student_roster_template.xlsx'); toast('تم تحميل القالب ✓');
+}
+
+// ═══════════════════════════════════════════════════════════
+// ★ STUDENT PROGRESS + AT-RISK TAB
+//   Aggregates every session for each student across all of
+//   history (both groups) into a longitudinal picture, and
+//   flags students needing attention.
+//   At-risk rule: average < 9/15 OR 2+ absences OR any missing paper.
+// ═══════════════════════════════════════════════════════════
+var RISK_AVG = 9, RISK_ABSENCES = 2;
+
+// Build {name: {sessions:[{date,group,total,att,paper,scores}], avg, present, absent, missingPaper, evals}}
+function buildStudentProfiles(){
+  var prof = {};
+  Object.keys(history).sort().forEach(function(dk){
+    var isM = dk.indexOf('_morning')>=0;
+    var names = (history[dk] && history[dk]['__names__']) ? history[dk]['__names__'] : null;
+    if(!names){
+      // fall back to current live lists if no stored names
+      var live = isM ? studentsMorning : studentsEvening;
+      names = live.map(function(s){ return s.name; });
+    }
+    var day = history[dk] || {};
+    var clean = dk.replace('_morning','').replace('_evening','');
+    names.forEach(function(nm, i){
+      if(!nm) return;
+      var r = day[i] || {};
+      if(!r.attendance && !r.evaluated) return;
+      if(!prof[nm]) prof[nm] = {name:nm, sessions:[], sum:0, cnt:0, present:0, absent:0, missingPaper:0, evals:0};
+      var p = prof[nm];
+      p.sessions.push({ date:clean, group:isM?'صباحي':'مسائي', total:(r.total!==undefined?r.total:null), att:r.attendance||null, paper:r.paperDelivered, scores:r.scores||{} });
+      if(r.attendance==='present') p.present++;
+      if(r.attendance==='absent')  p.absent++;
+      if(r.paperDelivered===false) p.missingPaper++;
+      if(r.evaluated){ p.evals++; if(r.total!==undefined){ p.sum+=r.total; p.cnt++; } }
+    });
+  });
+  Object.keys(prof).forEach(function(k){
+    var p = prof[k];
+    p.avg = p.cnt>0 ? (p.sum/p.cnt) : null;
+    p.risk = [];
+    if(p.avg!==null && p.avg < RISK_AVG) p.risk.push('متوسط منخفض ('+p.avg.toFixed(2)+'/15)');
+    if(p.absent >= RISK_ABSENCES) p.risk.push(p.absent+' غيابات');
+    if(p.missingPaper > 0) p.risk.push(p.missingPaper+' ورقة غير مُسلّمة');
+  });
+  return prof;
+}
+
+var progSelected = null;
+
+function renderProgress(){
+  var prof = buildStudentProfiles();
+  var names = Object.keys(prof).sort(function(a,b){ return a.localeCompare(b,'ar'); });
+  var atRisk = names.filter(function(n){ return prof[n].risk.length>0; });
+  var cont = document.getElementById('progContent');
+  if(!cont) return;
+
+  if(!names.length){
+    cont.innerHTML = '<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">📈</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد بيانات بعد</div><div style="font-size:13px;color:var(--muted)">ستظهر متابعة الطلاب بعد إجراء أول تقييم</div></div>';
+    return;
+  }
+
+  var html = '';
+  // At-risk panel
+  html += '<div style="background:'+(atRisk.length?'#fdf2f2':'#e8f8f0')+';border:1px solid '+(atRisk.length?'var(--danger)':'var(--success)')+';border-radius:12px;padding:14px 16px;margin-bottom:16px">';
+  html += '<div style="font-size:15px;font-weight:700;color:'+(atRisk.length?'var(--danger)':'var(--success)')+';margin-bottom:'+(atRisk.length?'10px':'0')+'">'+(atRisk.length?('⚠️ طلاب بحاجة إلى متابعة ('+atRisk.length+')'):'✓ لا يوجد طلاب بحاجة إلى متابعة')+'</div>';
+  if(atRisk.length){
+    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+    atRisk.forEach(function(n){
+      var p = prof[n];
+      html += '<div style="background:#fff;border:1px solid #f0c9c5;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;cursor:pointer" onclick="openProgressDetail(\''+encodeURIComponent(n)+'\')">';
+      html += '<span style="font-weight:600;font-size:14px">'+n+'</span>';
+      html += '<span style="font-size:12px;color:var(--danger)">'+p.risk.join(' • ')+'</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Search + all students table
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">';
+  html += '<input type="text" class="sbox" id="progSearch" placeholder="🔍 ابحث عن طالب..." oninput="renderProgress()" value="'+(document.getElementById('progSearch')?document.getElementById('progSearch').value:'')+'" style="max-width:280px">';
+  html += '<span style="font-size:13px;color:var(--muted)">'+names.length+' طالب</span>';
+  html += '</div>';
+
+  var q = (document.getElementById('progSearch') && document.getElementById('progSearch').value || '').toLowerCase();
+  var shown = names.filter(function(n){ return !q || n.toLowerCase().indexOf(q)>=0; });
+
+  html += '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:560px">';
+  html += '<thead><tr style="background:var(--primary);color:#fff">';
+  ['اسم الطالب','الجلسات','المتوسط /15','حاضر','غائب','ورقة ناقصة','الحالة'].forEach(function(h){
+    html += '<th style="padding:9px 10px;text-align:right;font-size:12px;white-space:nowrap">'+h+'</th>';
+  });
+  html += '</tr></thead><tbody>';
+  shown.forEach(function(n,i){
+    var p = prof[n];
+    var avgTxt = p.avg!==null ? p.avg.toFixed(2) : '—';
+    var avgCol = p.avg===null ? '#aaa' : p.avg>=12 ? '#1e8449' : p.avg>=RISK_AVG ? '#2980b9' : '#c0392b';
+    html += '<tr style="background:'+(i%2?'#f8fafc':'#fff')+';cursor:pointer" onclick="openProgressDetail(\''+encodeURIComponent(n)+'\')">';
+    html += '<td style="padding:8px 10px;font-weight:600">'+n+(p.risk.length?' <span style="font-size:11px">⚠️</span>':'')+'</td>';
+    html += '<td style="padding:8px 10px;text-align:center">'+p.sessions.length+'</td>';
+    html += '<td style="padding:8px 10px;text-align:center;font-weight:700;color:'+avgCol+'">'+avgTxt+'</td>';
+    html += '<td style="padding:8px 10px;text-align:center;color:#1e8449">'+p.present+'</td>';
+    html += '<td style="padding:8px 10px;text-align:center;color:#c0392b">'+p.absent+'</td>';
+    html += '<td style="padding:8px 10px;text-align:center;color:#b7770d">'+p.missingPaper+'</td>';
+    html += '<td style="padding:8px 10px;text-align:center">'+(p.risk.length?'<span style="color:var(--danger);font-weight:700">متابعة</span>':'<span style="color:var(--success)">جيد</span>')+'</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  cont.innerHTML = html;
+}
+
+// Per-student longitudinal detail (trend of the 5 sections over sessions)
+function openProgressDetail(encName){
+  var name = decodeURIComponent(encName);
+  var prof = buildStudentProfiles();
+  var p = prof[name];
+  if(!p){ toast('لا توجد بيانات لهذا الطالب'); return; }
+  var colors=['#1a5276','#117a65','#6c3483','#b7770d','#922b21'];
+
+  var html = '';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">';
+  html += '<div><div style="font-size:18px;font-weight:700;color:var(--primary)">'+name+'</div>';
+  html += '<div style="font-size:12px;color:var(--muted)">'+p.sessions.length+' جلسة • المتوسط '+(p.avg!==null?p.avg.toFixed(2):'—')+'/15</div></div>';
+  html += '<button class="btn" style="background:#117a65;color:#fff;font-size:12px" onclick="printStudentSummary(\''+encName+'\')">🖨️ تقرير الطالب</button>';
+  html += '</div>';
+
+  if(p.risk.length){
+    html += '<div style="background:#fdf2f2;border:1px solid var(--danger);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--danger);font-weight:600">⚠️ '+p.risk.join(' • ')+'</div>';
+  }
+
+  // Total trend as horizontal bars per session
+  html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">📈 تطور المجموع عبر الجلسات</div>';
+  html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:18px">';
+  p.sessions.forEach(function(s){
+    var pct = s.total!==null ? Math.min(100,(s.total/15)*100) : 0;
+    var bcol = s.total===null ? '#ccc' : s.total>=12 ? '#1e8449' : s.total>=RISK_AVG ? '#2980b9' : '#c0392b';
+    html += '<div style="display:flex;align-items:center;gap:8px">';
+    html += '<span style="font-size:11px;color:var(--muted);min-width:96px">'+s.date+' ('+s.group+')</span>';
+    html += '<div style="flex:1;height:18px;background:#eee;border-radius:9px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+bcol+'"></div></div>';
+    html += '<span style="font-size:12px;font-weight:700;min-width:48px;text-align:left;color:'+bcol+'">'+(s.total!==null?s.total.toFixed(2):'—')+'</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Section averages across sessions
+  html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">📊 متوسط كل محور</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">';
+  FIELDS.forEach(function(f,fi){
+    var secMax = f.items.reduce(function(a,x){return a+x.m},0);
+    var sum=0, cnt=0;
+    p.sessions.forEach(function(s){
+      if(!s.scores) return;
+      var has=false, sv=0;
+      f.items.forEach(function(it){ if(s.scores[it.k]!==undefined){ sv+=parseFloat(s.scores[it.k])||0; has=true; } });
+      if(has){ sum+=sv; cnt++; }
+    });
+    var avg = cnt>0 ? (sum/cnt) : null;
+    var pct = avg!==null ? Math.min(100,(avg/secMax)*100) : 0;
+    html += '<div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:10px">';
+    html += '<div style="font-size:12px;font-weight:700;color:'+colors[fi]+';margin-bottom:4px">'+f.s+'</div>';
+    html += '<div style="font-size:16px;font-weight:800;color:'+colors[fi]+'">'+(avg!==null?avg.toFixed(2):'—')+' <span style="font-size:11px;color:var(--muted);font-weight:400">/ '+secMax.toFixed(2)+'</span></div>';
+    html += '<div style="height:5px;background:#e0e0e0;border-radius:3px;margin-top:5px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+colors[fi]+'"></div></div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  document.getElementById('progDetailTitle').textContent = 'متابعة الطالب: '+name;
+  document.getElementById('progDetailBody').innerHTML = html;
+  document.getElementById('progDetailM').classList.add('open');
+}
+function closeProgressDetail(){ document.getElementById('progDetailM').classList.remove('open'); }
+
+// Feature 4: printable per-student summary (read-only handout)
+function printStudentSummary(encName){
+  var name = decodeURIComponent(encName);
+  var prof = buildStudentProfiles();
+  var p = prof[name];
+  if(!p){ toast('لا توجد بيانات'); return; }
+  var hN = document.getElementById('hName').value || '—';
+  var sup = document.getElementById('supName').value || '—';
+  var colors=['#1a5276','#117a65','#6c3483','#b7770d','#922b21'];
+
+  var rows = p.sessions.map(function(s){
+    var secs = FIELDS.map(function(f,fi){
+      var has=false, sv=0;
+      f.items.forEach(function(it){ if(s.scores && s.scores[it.k]!==undefined){ sv+=parseFloat(s.scores[it.k])||0; has=true; } });
+      return '<td style="text-align:center;padding:5px;font-size:11px;color:'+colors[fi]+';font-weight:700">'+(has?sv.toFixed(2):'—')+'</td>';
+    }).join('');
+    var attTxt = s.att==='present'?'حاضر':s.att==='absent'?'غائب':'—';
+    var pdTxt = s.paper===true?'✓':s.paper===false?'✗':'—';
+    return '<tr><td style="padding:5px 8px;font-size:11px">'+s.date+' ('+s.group+')</td><td style="text-align:center;padding:5px;font-size:11px">'+attTxt+'</td>'+secs+'<td style="text-align:center;padding:5px;font-weight:800;font-size:11px;background:#f0f6fb">'+(s.total!==null?s.total.toFixed(2):'—')+'</td><td style="text-align:center;padding:5px">'+pdTxt+'</td></tr>';
+  }).join('');
+
+  var headCols = FIELDS.map(function(f,fi){ return '<th style="padding:6px 3px;font-size:9.5px;color:'+colors[fi]+'">'+f.s+'</th>'; }).join('');
+
+  var html = '<div style="font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#222">'
+    + pdfHeader('تقرير متابعة الطالب', 'Student Progress Report — '+name, '#117a65')
+    + '<div style="display:flex;gap:8px;margin-bottom:14px">'
+    + '<div style="flex:1;background:#eef7ff;border:1px solid #bcd9f2;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#1a5276">'+p.sessions.length+'</div><div style="font-size:10px;color:#666">الجلسات</div></div>'
+    + '<div style="flex:1;background:#e8f8f0;border:1px solid #a9dfc3;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#1e8449">'+p.present+'</div><div style="font-size:10px;color:#666">حاضر</div></div>'
+    + '<div style="flex:1;background:#fdf2f2;border:1px solid #ecb1ab;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#922b21">'+p.absent+'</div><div style="font-size:10px;color:#666">غائب</div></div>'
+    + '<div style="flex:1;background:#fff8e9;border:1px solid #efd49a;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#b7770d">'+(p.avg!==null?p.avg.toFixed(2):'—')+'</div><div style="font-size:10px;color:#666">المتوسط /15</div></div>'
+    + '</div>'
+    + (p.risk.length?'<div style="background:#fdf2f2;border:1px solid #c0392b;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#922b21;font-weight:700">⚠️ بحاجة إلى متابعة: '+p.risk.join(' • ')+'</div>':'')
+    + '<table style="width:100%;border-collapse:collapse;border:1px solid #dfe5ea">'
+    + '<thead><tr style="background:#f1f5f8"><th style="padding:6px 8px;font-size:10px;text-align:right">التاريخ</th><th style="padding:6px;font-size:10px">الحضور</th>'+headCols+'<th style="padding:6px;font-size:10px">المجموع</th><th style="padding:6px;font-size:10px">الورقة</th></tr></thead>'
+    + '<tbody>'+rows+'</tbody></table>'
+    + pdfSignature() + '</div>';
+
+  pdfDownload(html, 'تقرير_'+name+'_'+today()+'.pdf', true);
 }
 
 // ═══════════════════════════════════════════
@@ -2672,6 +2972,7 @@ document.getElementById('grpLoaderM').addEventListener('click',function(e){if(e.
 document.getElementById('attPdfModal').addEventListener('click',function(e){if(e.target===this)document.getElementById('attPdfModal').classList.remove('open');});
 document.getElementById('calM').addEventListener('click',function(e){if(e.target===this)closeCal();});
 document.getElementById('dayDetailM').addEventListener('click',function(e){if(e.target===this)closeDayDetail();});
+document.getElementById('progDetailM').addEventListener('click',function(e){if(e.target===this)closeProgressDetail();});
 
 // ═══════════════════════════════════════════
 // ATTENDANCE PDF EXPORT — Isolated feature
