@@ -550,6 +550,7 @@ window.addEventListener('load', function() {
     <div class="main">
       <div class="tab-nav">
         <button class="tab-btn active" id="tba" onclick="showTab('att')">👥 الحضور والتقييم</button>
+        <button class="tab-btn" id="tbrot" onclick="showTab('rot')">🔄 الدورة</button>
         <button class="tab-btn" id="tbp" onclick="showTab('paper')">📄 الورقة اليومية</button>
         <button class="tab-btn" id="tbr" onclick="showTab('roster')">🏥 جدول المجموعات</button>
         <button class="tab-btn" id="tbh" onclick="showTab('hist')">📅 السجل التاريخي</button>
@@ -708,6 +709,15 @@ window.addEventListener('load', function() {
           <div style="font-size:12px;color:var(--muted)">المتوسط، الحضور، وتطور الدرجات لكل طالب عبر كل الجلسات — مع تنبيه للطلاب المتعثرين</div>
         </div>
         <div id="progContent"></div>
+      </div>
+
+      <!-- TAB: ROTATION (setup + saved-day review) -->
+      <div class="tab-panel" id="prot">
+        <div class="hist-hdr">
+          <h2>🔄 نظام الدورة</h2>
+          <div style="font-size:12px;color:var(--muted)">حدّد مستشفى ويوم الدورة، وراجع أيام كل مستشفى المحفوظة — وأغلق اليوم عند انتهاء تقييمه</div>
+        </div>
+        <div id="rotTabContent"></div>
       </div>
 
       <!-- TAB: STUDENT DATABASE -->
@@ -1196,10 +1206,164 @@ function saveRotModal(){
   });
   closeRotModal();
   renderRotBar();
+  var ppr=document.getElementById('prot');
+  if(ppr && ppr.classList.contains('active')) renderRotationTab();
   toast('✅ تم حفظ بيانات الدورة');
 }
 
 function closeRotModal(){ document.getElementById('rotModal').classList.remove('open'); }
+
+// ═══════════════════════════════════════════════════════════════════════
+// ★ ROTATION TAB — set up today's rotation AND review every saved day.
+//   Days are grouped Hospital → 2-week block → Day(1-4). Each day is a
+//   card built from the existing history record (no duplicate storage).
+//   "إغلاق اليوم" locks every evaluated student in that day at once.
+// ═══════════════════════════════════════════════════════════════════════
+
+// Lock (finalize) every evaluated student in one session key.
+function closeDay(sessionK){
+  var day = history[sessionK] || {};
+  var idxs = Object.keys(day).filter(function(k){ return /^\d+$/.test(k); });
+  var evaluated = idxs.filter(function(k){ return day[k] && day[k].evaluated; });
+  if(!evaluated.length){ toast('لا توجد تقييمات لإغلاقها في هذا اليوم'); return; }
+  var open = evaluated.filter(function(k){ return !day[k].locked; });
+  if(!open.length){ toast('كل تقييمات هذا اليوم مغلقة بالفعل'); return; }
+  var clean = sessionK.replace('_morning','').replace('_evening','');
+  if(!confirm('إغلاق واعتماد يوم '+clean+'؟\nسيتم قفل '+open.length+' تقييم — لن يمكن تعديلها إلا بفتحها مجدداً.')) return;
+  var who = currentUser ? (currentUser.email||currentUser.displayName||'') : '';
+  open.forEach(function(k){
+    day[k].locked = true;
+    day[k].lockedAt = Date.now();
+    day[k].lockedBy = who;
+  });
+  day['__dayClosed__'] = Date.now();
+  day['__dayClosedBy__'] = who;
+  saveDay(sessionK);
+  renderRotationTab();
+  if(document.getElementById('pa').classList.contains('active')) renderList();
+  toast('🔒 تم إغلاق اليوم واعتماد '+open.length+' تقييم');
+}
+
+function reopenDay(sessionK){
+  var day = history[sessionK] || {};
+  if(!confirm('إعادة فتح هذا اليوم؟ سيتم رفع القفل عن تقييماته للتعديل.')) return;
+  Object.keys(day).filter(function(k){ return /^\d+$/.test(k); }).forEach(function(k){
+    if(day[k] && day[k].locked){ day[k].locked=false; delete day[k].lockedAt; delete day[k].lockedBy; }
+  });
+  delete day['__dayClosed__']; delete day['__dayClosedBy__'];
+  saveDay(sessionK);
+  renderRotationTab();
+  if(document.getElementById('pa').classList.contains('active')) renderList();
+  toast('🔓 تم إعادة فتح اليوم');
+}
+
+// Build {hospitalKey: {hospital, block, days:[{key,date,group,dayNo,unit,present,absent,evaluated,locked,closed,avg}]}}
+function buildRotationGroups(){
+  var groups = {};
+  Object.keys(history).forEach(function(dk){
+    var day = history[dk] || {};
+    var idxs = Object.keys(day).filter(function(k){ return /^\d+$/.test(k); });
+    var hasAny = idxs.some(function(k){ return day[k] && (day[k].attendance || day[k].evaluated); });
+    if(!hasAny) return;
+    var rot = rotationOf(day);
+    var hk = rot.hospital ? (rot.hospital + (rot.block?(' • '+rot.block):'')) : '— بدون مستشفى محدد —';
+    if(!groups[hk]) groups[hk] = { hospital: rot.hospital||'(غير محدد)', block: rot.block||'', days: [] };
+    var present=0,absent=0,evaluated=0,locked=0,sum=0,cnt=0;
+    idxs.forEach(function(k){
+      var r = day[k]||{};
+      if(r.attendance==='present') present++;
+      if(r.attendance==='absent')  absent++;
+      if(r.evaluated){ evaluated++; if(r.total!==undefined){ sum+=r.total; cnt++; } }
+      if(r.locked) locked++;
+    });
+    groups[hk].days.push({
+      key: dk,
+      date: dk.replace('_morning','').replace('_evening',''),
+      group: dk.indexOf('_morning')>=0?'صباحي':'مسائي',
+      dayNo: rot.dayNo, unit: rot.unit,
+      present:present, absent:absent, evaluated:evaluated, locked:locked,
+      closed: !!day['__dayClosed__'],
+      avg: cnt>0 ? (sum/cnt) : null
+    });
+  });
+  Object.keys(groups).forEach(function(hk){
+    groups[hk].days.sort(function(a,b){
+      var dn = (a.dayNo||'').localeCompare(b.dayNo||'');
+      return dn !== 0 ? dn : a.date.localeCompare(b.date);
+    });
+  });
+  return groups;
+}
+
+function renderRotationTab(){
+  var cont = document.getElementById('rotTabContent');
+  if(!cont) return;
+  var cur = getRotation();
+  var html = '';
+
+  // --- Setup panel: today's rotation ---
+  html += '<div style="background:linear-gradient(135deg,#0f6e56,#16a085);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:18px">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">';
+  html += '<div><div style="font-size:15px;font-weight:700">🔄 إعداد دورة اليوم</div>';
+  var setup=[];
+  if(cur.hospital) setup.push('🏥 '+cur.hospital);
+  if(cur.dayNo)    setup.push('📅 اليوم '+cur.dayNo+'/4');
+  if(cur.unit)     setup.push('🩺 '+cur.unit);
+  html += '<div style="font-size:13px;opacity:.95;margin-top:4px">'+(setup.length?setup.join('  •  '):'لم تُحدَّد دورة لليوم الحالي بعد')+'</div></div>';
+  html += '<button class="btn" style="background:rgba(255,255,255,.22);color:#fff" onclick="openRotModal()">✏️ تحديد المستشفى واليوم</button>';
+  html += '</div>';
+  html += '<div style="font-size:12px;opacity:.85;margin-top:8px">المجموعة الحالية: '+(curGroup==='morning'?'صباحية':'مسائية')+' — انتقل لتبويب الحضور لإجراء التقييم، ثم أغلق اليوم من هنا.</div>';
+  html += '</div>';
+
+  // --- Review: hospitals -> days ---
+  var groups = buildRotationGroups();
+  var hkeys = Object.keys(groups).sort();
+  if(!hkeys.length){
+    html += '<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">🔄</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد أيام محفوظة بعد</div><div style="font-size:13px;color:var(--muted)">ستظهر هنا أيام كل مستشفى بمجرد تسجيل الحضور أو التقييم</div></div>';
+    cont.innerHTML = html;
+    return;
+  }
+
+  html += '<div style="font-size:14px;font-weight:700;color:var(--primary);margin-bottom:10px">📚 الأيام المحفوظة حسب المستشفى</div>';
+  hkeys.forEach(function(hk){
+    var g = groups[hk];
+    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden">';
+    html += '<div style="background:#eef7f4;padding:11px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
+    html += '<div style="font-size:15px;font-weight:700;color:#0f6e56">🏥 '+g.hospital+(g.block?' <span style="font-size:12px;color:var(--muted);font-weight:400">— فترة '+g.block+'</span>':'')+'</div>';
+    html += '<span style="font-size:12px;color:var(--muted)">'+g.days.length+' / 4 أيام</span>';
+    html += '</div>';
+    html += '<div style="padding:12px 15px;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">';
+    g.days.forEach(function(d){
+      var allLocked = d.evaluated>0 && d.locked>=d.evaluated;
+      var statusCol = d.closed||allLocked ? 'var(--success)' : '#b7770d';
+      var statusTxt = d.closed||allLocked ? '🔒 مغلق' : '🟡 مفتوح';
+      var avgTxt = d.avg!==null ? d.avg.toFixed(2)+'/15' : '—';
+      html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
+      html += '<div style="background:#f8fafc;padding:9px 11px;border-bottom:1px solid var(--border)">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:14px;font-weight:700;color:var(--primary)">'+(d.dayNo?('اليوم '+d.dayNo):d.date)+'</span><span style="font-size:11px;font-weight:700;color:'+statusCol+'">'+statusTxt+'</span></div>';
+      html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+d.date+' • '+d.group+(d.unit?(' • '+d.unit):'')+'</div>';
+      html += '</div>';
+      html += '<div style="padding:9px 11px;font-size:12px;color:var(--text);display:flex;flex-wrap:wrap;gap:8px">';
+      html += '<span style="color:#1e8449">✓ '+d.present+'</span>';
+      html += '<span style="color:#c0392b">✗ '+d.absent+'</span>';
+      html += '<span style="color:var(--pl)">📝 '+d.evaluated+'</span>';
+      html += '<span style="margin-right:auto;font-weight:700">معدل '+avgTxt+'</span>';
+      html += '</div>';
+      html += '<div style="padding:0 11px 11px;display:flex;gap:6px;flex-wrap:wrap">';
+      html += '<button class="btn bo" style="font-size:11px;padding:5px 9px;flex:1" onclick="openDayDetail(\''+d.key+'\')">👁️ عرض</button>';
+      if(d.closed||allLocked){
+        html += '<button class="btn bo" style="font-size:11px;padding:5px 9px" onclick="reopenDay(\''+d.key+'\')">🔓 فتح</button>';
+      } else {
+        html += '<button class="btn" style="background:#117a65;color:#fff;font-size:11px;padding:5px 9px;flex:1" onclick="closeDay(\''+d.key+'\')">🔒 إغلاق اليوم</button>';
+      }
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+
+  cont.innerHTML = html;
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // ★ DATA GUARD LAYER — zero data loss architecture
@@ -1848,8 +2012,8 @@ var FIELDS=[
 function showTab(n){
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg'};
-  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg'};
+  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',rot:'prot'};
+  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',rot:'tbrot'};
   var panel=document.getElementById(panels[n]);
   panel.classList.add('active');
   // restart the entrance animation so every switch feels alive
@@ -1864,6 +2028,7 @@ function showTab(n){
   if(n==='teach')  tmRender();
   if(n==='audit')  renderAudit();
   if(n==='prog')   renderProgress();
+  if(n==='rot')    renderRotationTab();
 }
 
 function switchGroup(g){
