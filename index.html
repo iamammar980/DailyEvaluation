@@ -4236,6 +4236,56 @@ function dbStudentCycles(name, shift){
     .sort(function(a,b){ return (a.startDate||'').localeCompare(b.startDate||''); });
 }
 
+// Always 3 hospital slots for a student: real cycles first (auto), padded with placeholders.
+function dbStudentSlots(name, shift){
+  var cys = dbStudentCycles(name, shift);
+  var slots = [];
+  for(var i=0;i<3;i++){
+    var cy = cys[i] || null;
+    slots.push({ slotNo:i+1, cy:cy, hospital: cy ? (cy.hospital||'') : '' });
+  }
+  return slots;
+}
+
+// Resolved day-grade for a SLOT: manual override (keyed by slot) wins; else auto from the
+// slot's cycle if one is attached; else null (empty placeholder).
+function dbSlotDayGrade(name, shift, slot, dayNo){
+  var row = dbFindRow(name, shift);
+  var mk = 'slot'+slot.slotNo+':'+dayNo;
+  if(row && row.manualGrades && row.manualGrades[mk]!==undefined && row.manualGrades[mk]!=='' && row.manualGrades[mk]!==null){
+    var mv = parseFloat(row.manualGrades[mk]);
+    if(!isNaN(mv)) return { value:mv, manual:true };
+  }
+  if(slot.cy){
+    var auto = dbAutoDayGrade(name, slot.cy, dayNo);
+    if(auto!==null) return { value:auto, manual:false };
+  }
+  return { value:null, manual:false };
+}
+
+function dbSlotSubtotal(name, shift, slot){
+  var sum=0,cnt=0;
+  for(var d=1;d<=4;d++){ var g=dbSlotDayGrade(name, shift, slot, d); if(g.value!==null){ sum+=g.value; cnt++; } }
+  return cnt>0 ? (sum/cnt) : null;
+}
+
+// Set / clear a manual grade for a SLOT day (works for placeholder rows too).
+function dbSetSlotDayGrade(name, slotNo, dayNo){
+  var idx = dbFindIndex(name, dbShift);
+  if(idx<0) return;
+  var row = studentDb[idx];
+  var mk = 'slot'+slotNo+':'+dayNo;
+  var cur = (row.manualGrades && row.manualGrades[mk]!==undefined) ? row.manualGrades[mk] : '';
+  var v = prompt('درجة هذا اليوم (0–15) — اتركها فارغة للحساب التلقائي من الدورة:', cur);
+  if(v===null) return;
+  if(!row.manualGrades) row.manualGrades = {};
+  if(String(v).trim()===''){ delete row.manualGrades[mk]; }
+  else { var nv=parseFloat(v); if(isNaN(nv)){ toast('قيمة غير صالحة'); return; } row.manualGrades[mk]=Math.min(15,Math.max(0,nv)); }
+  dbSave();
+  dbRender();
+  toast('تم تحديث درجة اليوم ✓');
+}
+
 // Auto day-grade from history: find the student's total for one cycle-day, or null.
 function dbAutoDayGrade(name, cy, dayNo){
   var days = (typeof cycleDays==='function') ? cycleDays(cy) : [];
@@ -4277,17 +4327,17 @@ function dbHospitalSubtotal(name, shift, cy){
   return cnt>0 ? (sum/cnt) : null;
 }
 
-// Final mark: manual override on the row wins; else average of hospital sub-totals.
+// Final mark: manual override on the row wins; else average of the 3 slot sub-totals.
 function dbFinalMark(name, shift){
   var row = dbFindRow(name, shift);
   if(row && row.manualFinal!==undefined && row.manualFinal!=='' && row.manualFinal!==null){
     var mv = parseFloat(row.manualFinal);
     if(!isNaN(mv)) return { value:mv, manual:true };
   }
-  var cys = dbStudentCycles(name, shift);
+  var slots = dbStudentSlots(name, shift);
   var sum=0,cnt=0;
-  cys.forEach(function(cy){
-    var st = dbHospitalSubtotal(name, shift, cy);
+  slots.forEach(function(slot){
+    var st = dbSlotSubtotal(name, shift, slot);
     if(st!==null){ sum+=st; cnt++; }
   });
   if(cnt>0) return { value:sum/cnt, manual:false };
@@ -4364,32 +4414,23 @@ function dbExportExcel(){
   ['صباحي','مسائي'].forEach(function(sh){
     var list = studentDb.filter(function(r){ return (r.type||'')===sh; });
     if(!list.length) return;
-    // Column plan: union of hospitals per group, each hospital → 4 day cols + subtotal.
-    // Build the widest hospital set across the shift so all rows align.
-    var hospOrder = [];
-    list.forEach(function(r){
-      dbStudentCycles(r.name, sh).forEach(function(cy){
-        if(hospOrder.indexOf(cy.hospital||'(مستشفى)')<0) hospOrder.push(cy.hospital||'(مستشفى)');
-      });
-    });
+    // Fixed 3 hospital slots × (4 days + subtotal), matching the on-screen grid.
     var headers = ['اسم الطالب','المجموعة','البريد'];
-    hospOrder.forEach(function(hn){
-      headers.push(hn+' ي1', hn+' ي2', hn+' ي3', hn+' ي4', hn+' معدل');
-    });
+    for(var s=1;s<=3;s++){
+      headers.push('مستشفى'+s, 'م'+s+' ي1','م'+s+' ي2','م'+s+' ي3','م'+s+' ي4','م'+s+' معدل');
+    }
     headers.push('الدرجة النهائية','يدوي؟');
     var aoa = [headers];
     list.forEach(function(r){
       var row = [r.name, r.group||'', r.email||''];
-      var cysByHosp = {};
-      dbStudentCycles(r.name, sh).forEach(function(cy){ cysByHosp[cy.hospital||'(مستشفى)'] = cy; });
-      hospOrder.forEach(function(hn){
-        var cy = cysByHosp[hn];
-        if(!cy){ row.push('','','','',''); return; }
+      var slots = dbStudentSlots(r.name, sh);
+      slots.forEach(function(slot){
+        row.push(slot.hospital || ('مستشفى '+slot.slotNo));
         for(var d=1;d<=4;d++){
-          var gd = dbDayGrade(r.name, sh, cy, d);
+          var gd = dbSlotDayGrade(r.name, sh, slot, d);
           row.push(gd.value!==null ? Number(gd.value.toFixed(2)) : '');
         }
-        var st = dbHospitalSubtotal(r.name, sh, cy);
+        var st = dbSlotSubtotal(r.name, sh, slot);
         row.push(st!==null ? Number(st.toFixed(2)) : '');
       });
       var fin = dbFinalMark(r.name, sh);
@@ -4398,7 +4439,7 @@ function dbExportExcel(){
       aoa.push(row);
     });
     var ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = headers.map(function(h,i){ return {wch: i===0?24:11}; });
+    ws['!cols'] = headers.map(function(h,i){ return {wch: i===0?22:11}; });
     ws['!rtl'] = true;
     XLSX.utils.book_append_sheet(wb, ws, sh);
   });
@@ -4602,7 +4643,6 @@ function dbRenderStudents(cont){
 
     members.forEach(function(r){
       var nameEsc = esc(r.name);
-      var cys = dbStudentCycles(r.name, dbShift);
       var fin = dbFinalMark(r.name, dbShift);
       var finTxt = fin.value===null ? '—' : fin.value.toFixed(2)+(fin.manual?' ✏️':'');
       var finCol = fin.value===null ? 'var(--muted)' : cellColor(fin.value);
@@ -4620,40 +4660,40 @@ function dbRenderStudents(cont){
       html += '<button onclick="dbDeleteStudent(\''+nameEsc+'\')" title="حذف" style="background:none;border:none;cursor:pointer;font-size:13px">🗑️</button>';
       html += '</div></div>';
 
-      // grade grid: one row per hospital, 4 day-cells + subtotal
+      // grade grid: ALWAYS 3 hospital rows (real cycle where it exists, else placeholder)
       html += '<div style="padding:8px 12px">';
-      if(!cys.length){
-        html += '<div style="font-size:12px;color:var(--muted);padding:6px 0">لا توجد دورات لهذه المجموعة بعد — أضِف دورات من تبويب «المستشفيات والدورات».</div>';
-      } else {
-        html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:420px">';
-        html += '<thead><tr style="color:var(--muted)">'
-          +'<th style="padding:4px 6px;text-align:right;font-weight:600">المستشفى</th>'
-          +'<th style="padding:4px;text-align:center;font-weight:600">ي1</th>'
-          +'<th style="padding:4px;text-align:center;font-weight:600">ي2</th>'
-          +'<th style="padding:4px;text-align:center;font-weight:600">ي3</th>'
-          +'<th style="padding:4px;text-align:center;font-weight:600">ي4</th>'
-          +'<th style="padding:4px 6px;text-align:center;font-weight:700;color:#0c2740">المعدل</th>'
-          +'</tr></thead><tbody>';
-        cys.forEach(function(cy){
-          html += '<tr style="border-top:1px solid var(--border)">';
-          html += '<td style="padding:5px 6px;font-weight:600;white-space:nowrap">🏥 '+(cy.hospital||'(مستشفى)')+'</td>';
-          for(var d=1;d<=4;d++){
-            var gd = dbDayGrade(r.name, dbShift, cy, d);
-            var txt, col, bg;
-            if(gd.value===null){ txt='+'; col='var(--muted)'; bg='transparent'; }
-            else { txt = gd.value.toFixed(1)+(gd.manual?'*':''); col=cellColor(gd.value); bg=cellBg(gd.value); }
-            html += '<td style="padding:3px;text-align:center">'
-              + '<span onclick="dbSetDayGrade(\''+nameEsc+'\',\''+cy.id+'\','+d+')" title="انقر للتعديل اليدوي" '
-              + 'style="display:inline-block;min-width:34px;cursor:pointer;border-radius:6px;padding:4px 2px;font-weight:700;color:'+col+';background:'+bg+';border:1px solid '+(gd.value===null?'var(--border)':'transparent')+'">'+txt+'</span></td>';
-          }
-          var st = dbHospitalSubtotal(r.name, dbShift, cy);
-          var stTxt = st===null?'—':st.toFixed(2);
-          var stCol = st===null?'var(--muted)':cellColor(st);
-          html += '<td style="padding:5px 6px;text-align:center;font-weight:800;color:'+stCol+'">'+stTxt+'</td>';
-          html += '</tr>';
-        });
-        html += '</tbody></table></div>';
-      }
+      var slots = dbStudentSlots(r.name, dbShift); // length 3: {slotNo, cy|null, hospital}
+      html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:420px">';
+      html += '<thead><tr style="color:var(--muted)">'
+        +'<th style="padding:4px 6px;text-align:right;font-weight:600">المستشفى</th>'
+        +'<th style="padding:4px;text-align:center;font-weight:600">ي1</th>'
+        +'<th style="padding:4px;text-align:center;font-weight:600">ي2</th>'
+        +'<th style="padding:4px;text-align:center;font-weight:600">ي3</th>'
+        +'<th style="padding:4px;text-align:center;font-weight:600">ي4</th>'
+        +'<th style="padding:4px 6px;text-align:center;font-weight:700;color:#0c2740">المعدل</th>'
+        +'</tr></thead><tbody>';
+      slots.forEach(function(slot){
+        var auto = !!slot.cy;  // auto-updates from a real cycle's evaluations
+        var hospName = slot.hospital || ('مستشفى '+slot.slotNo);
+        html += '<tr style="border-top:1px solid var(--border)">';
+        html += '<td style="padding:5px 6px;font-weight:600;white-space:nowrap">🏥 '+hospName
+          + (auto?' <span title="يُحدَّث تلقائياً من الدورة" style="font-size:10px;color:#1e8449">⟳</span>':'')+'</td>';
+        for(var d=1;d<=4;d++){
+          var gd = dbSlotDayGrade(r.name, dbShift, slot, d);
+          var txt, col, bg;
+          if(gd.value===null){ txt='+'; col='var(--muted)'; bg='transparent'; }
+          else { txt = gd.value.toFixed(1)+(gd.manual?'*':''); col=cellColor(gd.value); bg=cellBg(gd.value); }
+          html += '<td style="padding:3px;text-align:center">'
+            + '<span onclick="dbSetSlotDayGrade(\''+nameEsc+'\','+slot.slotNo+','+d+')" title="انقر للإدخال اليدوي" '
+            + 'style="display:inline-block;min-width:34px;cursor:pointer;border-radius:6px;padding:4px 2px;font-weight:700;color:'+col+';background:'+bg+';border:1px solid '+(gd.value===null?'var(--border)':'transparent')+'">'+txt+'</span></td>';
+        }
+        var st = dbSlotSubtotal(r.name, dbShift, slot);
+        var stTxt = st===null?'—':st.toFixed(2);
+        var stCol = st===null?'var(--muted)':cellColor(st);
+        html += '<td style="padding:5px 6px;text-align:center;font-weight:800;color:'+stCol+'">'+stTxt+'</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
       html += '</div>';
       html += '</div>';
     });
