@@ -4228,22 +4228,87 @@ function dbLoad(){
 
 // Final mark for a student in a shift: manual override if set, else the
 // live average of all their evaluation totals across history (all hospitals).
+// The student's cycles for a shift = the hospitals they actually rotate through.
+function dbStudentCycles(name, shift){
+  var row = dbFindRow(name, shift);
+  var grp = row ? (row.group||'') : '';
+  return cycles.filter(function(c){ return (c.type||'')===shift && (c.group||'')===grp; })
+    .sort(function(a,b){ return (a.startDate||'').localeCompare(b.startDate||''); });
+}
+
+// Auto day-grade from history: find the student's total for one cycle-day, or null.
+function dbAutoDayGrade(name, cy, dayNo){
+  var days = (typeof cycleDays==='function') ? cycleDays(cy) : [];
+  var slot = days[dayNo-1];
+  if(!slot || !slot.key) return null;
+  var rec = history[slot.key];
+  if(!rec) return null;
+  var names = rec['__names__'] || null;
+  if(!names) return null;
+  for(var i=0;i<names.length;i++){
+    if(names[i] && names[i].trim()===name.trim()){
+      var r = rec[String(i)];
+      if(r && r.evaluated && r.total!==undefined) return r.total;
+      return null;
+    }
+  }
+  return null;
+}
+
+// Resolved day-grade: manual override wins, else auto. Returns {value, manual}.
+function dbDayGrade(name, shift, cy, dayNo){
+  var row = dbFindRow(name, shift);
+  var mk = cy.id + ':' + dayNo;
+  if(row && row.manualGrades && row.manualGrades[mk]!==undefined && row.manualGrades[mk]!=='' && row.manualGrades[mk]!==null){
+    var mv = parseFloat(row.manualGrades[mk]);
+    if(!isNaN(mv)) return { value:mv, manual:true };
+  }
+  var auto = dbAutoDayGrade(name, cy, dayNo);
+  return { value: auto, manual:false };
+}
+
+// Hospital sub-total for a student = average of that cycle's present day-grades.
+function dbHospitalSubtotal(name, shift, cy){
+  var sum=0,cnt=0;
+  for(var d=1;d<=4;d++){
+    var g = dbDayGrade(name, shift, cy, d);
+    if(g.value!==null){ sum+=g.value; cnt++; }
+  }
+  return cnt>0 ? (sum/cnt) : null;
+}
+
+// Final mark: manual override on the row wins; else average of hospital sub-totals.
 function dbFinalMark(name, shift){
   var row = dbFindRow(name, shift);
   if(row && row.manualFinal!==undefined && row.manualFinal!=='' && row.manualFinal!==null){
     var mv = parseFloat(row.manualFinal);
     if(!isNaN(mv)) return { value:mv, manual:true };
   }
-  var prof = buildStudentProfiles()[name];
-  if(prof){
-    // only count sessions of this shift — never fall back across shifts
-    var sum=0,cnt=0;
-    prof.sessions.forEach(function(s){
-      if(s.group===shift && s.total!==null){ sum+=s.total; cnt++; }
-    });
-    if(cnt>0) return { value:sum/cnt, manual:false };
-  }
+  var cys = dbStudentCycles(name, shift);
+  var sum=0,cnt=0;
+  cys.forEach(function(cy){
+    var st = dbHospitalSubtotal(name, shift, cy);
+    if(st!==null){ sum+=st; cnt++; }
+  });
+  if(cnt>0) return { value:sum/cnt, manual:false };
   return { value:null, manual:false };
+}
+
+// Set / clear a manual day-grade override.
+function dbSetDayGrade(name, cycleId, dayNo){
+  var idx = dbFindIndex(name, dbShift);
+  if(idx<0) return;
+  var row = studentDb[idx];
+  var mk = cycleId + ':' + dayNo;
+  var cur = (row.manualGrades && row.manualGrades[mk]!==undefined) ? row.manualGrades[mk] : '';
+  var v = prompt('درجة هذا اليوم (0–15) — اتركها فارغة للحساب التلقائي من التقييم:', cur);
+  if(v===null) return;
+  if(!row.manualGrades) row.manualGrades = {};
+  if(String(v).trim()===''){ delete row.manualGrades[mk]; }
+  else { var nv=parseFloat(v); if(isNaN(nv)){ toast('قيمة غير صالحة'); return; } row.manualGrades[mk]=Math.min(15,Math.max(0,nv)); }
+  dbSave();
+  dbRender();
+  toast('تم تحديث درجة اليوم ✓');
 }
 
 // Per-hospital rollup for a student+shift: {hospitalKey:{hospital,block,avg,cnt}}
@@ -4299,30 +4364,41 @@ function dbExportExcel(){
   ['صباحي','مسائي'].forEach(function(sh){
     var list = studentDb.filter(function(r){ return (r.type||'')===sh; });
     if(!list.length) return;
-    // collect hospital column names across this shift
-    var hospCols = {};
+    // Column plan: union of hospitals per group, each hospital → 4 day cols + subtotal.
+    // Build the widest hospital set across the shift so all rows align.
+    var hospOrder = [];
     list.forEach(function(r){
-      var roll = dbHospitalRollup(r.name, sh);
-      Object.keys(roll).forEach(function(hk){ hospCols[roll[hk].hospital] = 1; });
+      dbStudentCycles(r.name, sh).forEach(function(cy){
+        if(hospOrder.indexOf(cy.hospital||'(مستشفى)')<0) hospOrder.push(cy.hospital||'(مستشفى)');
+      });
     });
-    var hospNames = Object.keys(hospCols).sort();
-    var headers = ['اسم الطالب','المجموعة','البريد'].concat(hospNames).concat(['الدرجة النهائية','يدوي؟']);
+    var headers = ['اسم الطالب','المجموعة','البريد'];
+    hospOrder.forEach(function(hn){
+      headers.push(hn+' ي1', hn+' ي2', hn+' ي3', hn+' ي4', hn+' معدل');
+    });
+    headers.push('الدرجة النهائية','يدوي؟');
     var aoa = [headers];
     list.forEach(function(r){
-      var roll = dbHospitalRollup(r.name, sh);
-      var byHosp = {};
-      Object.keys(roll).forEach(function(hk){
-        var h=roll[hk]; if(h.avg!==null){ byHosp[h.hospital] = (byHosp[h.hospital]!==undefined? (byHosp[h.hospital]+h.avg)/2 : h.avg); }
+      var row = [r.name, r.group||'', r.email||''];
+      var cysByHosp = {};
+      dbStudentCycles(r.name, sh).forEach(function(cy){ cysByHosp[cy.hospital||'(مستشفى)'] = cy; });
+      hospOrder.forEach(function(hn){
+        var cy = cysByHosp[hn];
+        if(!cy){ row.push('','','','',''); return; }
+        for(var d=1;d<=4;d++){
+          var gd = dbDayGrade(r.name, sh, cy, d);
+          row.push(gd.value!==null ? Number(gd.value.toFixed(2)) : '');
+        }
+        var st = dbHospitalSubtotal(r.name, sh, cy);
+        row.push(st!==null ? Number(st.toFixed(2)) : '');
       });
       var fin = dbFinalMark(r.name, sh);
-      var row = [r.name, r.group||'', r.email||''];
-      hospNames.forEach(function(hn){ row.push(byHosp[hn]!==undefined ? Number(byHosp[hn].toFixed(2)) : ''); });
       row.push(fin.value!==null ? Number(fin.value.toFixed(2)) : '');
       row.push(fin.manual ? 'نعم' : '');
       aoa.push(row);
     });
     var ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = headers.map(function(h,i){ return {wch: i===0?24:14}; });
+    ws['!cols'] = headers.map(function(h,i){ return {wch: i===0?24:11}; });
     ws['!rtl'] = true;
     XLSX.utils.book_append_sheet(wb, ws, sh);
   });
@@ -4496,7 +4572,6 @@ function dbRenderStudents(cont){
   var gkeys = Object.keys(groups).sort();
 
   var html = '';
-  // toolbar
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">';
   html += '<button onclick="dbAddStudent()" style="background:#1e8449;color:#fff;border:none;border-radius:8px;padding:8px 15px;font-size:13px;font-weight:700;cursor:pointer">➕ إضافة طالب</button>';
   html += '<button onclick="dbApply()" style="background:#185fa5;color:#fff;border:none;border-radius:8px;padding:8px 15px;font-size:13px;font-weight:700;cursor:pointer">✅ تطبيق على الحضور</button>';
@@ -4513,46 +4588,94 @@ function dbRenderStudents(cont){
     return;
   }
 
+  function esc(s){ return String(s).replace(/'/g,"\\'"); }
+  function cellColor(v){ return v>=12?'#1e8449':v>=9?'#185fa5':'#c0392b'; }
+  function cellBg(v){ return v>=12?'#f3faf6':v>=9?'#eaf1fb':'#fdecea'; }
+
   gkeys.forEach(function(g){
     var members = groups[g];
     html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden">';
     html += '<div style="background:#eaf1fb;padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">';
     html += '<div style="font-size:14px;font-weight:700;color:#0c2740">👥 مجموعة '+g+' <span style="font-size:12px;color:var(--muted);font-weight:400">— '+members.length+' طالب</span></div>';
     html += '</div>';
-    html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:560px">';
-    html += '<thead><tr style="background:#f4f7fb;color:#0c2740">'
-      +'<th style="padding:8px 6px;text-align:center;width:30px">#</th>'
-      +'<th style="padding:8px 8px;text-align:right">الاسم</th>'
-      +'<th style="padding:8px 8px;text-align:right">البريد</th>'
-      +'<th style="padding:8px 6px;text-align:center;width:90px">الدرجة النهائية</th>'
-      +'<th style="padding:8px 6px;text-align:center;width:120px">إجراءات</th>'
-      +'</tr></thead><tbody>';
-    members.forEach(function(r, i){
+    html += '<div style="padding:10px 12px;display:flex;flex-direction:column;gap:10px">';
+
+    members.forEach(function(r){
+      var nameEsc = esc(r.name);
+      var cys = dbStudentCycles(r.name, dbShift);
       var fin = dbFinalMark(r.name, dbShift);
-      var bg = i%2 ? '#fafbfc' : '#fff';
-      var finTxt, finCol, finBg;
-      if(fin.value===null){ finTxt='—'; finCol='var(--muted)'; finBg='transparent'; }
-      else {
-        finTxt = fin.value.toFixed(2)+(fin.manual?' ✏️':'');
-        finCol = fin.value>=12?'#1e8449':fin.value>=9?'#185fa5':'#c0392b';
-        finBg = fin.value>=12?'#f3faf6':fin.value>=9?'#eaf1fb':'#fdecea';
+      var finTxt = fin.value===null ? '—' : fin.value.toFixed(2)+(fin.manual?' ✏️':'');
+      var finCol = fin.value===null ? 'var(--muted)' : cellColor(fin.value);
+
+      html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
+      // student header row
+      html += '<div style="background:#f8fafc;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--border)">';
+      html += '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:700">'+r.name+'</span>';
+      if(r.email) html += '<span style="font-size:11px;color:var(--pl)">'+r.email+'</span>';
+      html += '</div>';
+      html += '<div style="display:flex;align-items:center;gap:8px">';
+      html += '<span style="font-size:12px;color:var(--muted)">النهائي</span><span onclick="dbEditFinal(\''+nameEsc+'\')" title="تعديل النهائي يدوياً" style="cursor:pointer;font-size:15px;font-weight:800;color:'+finCol+'">'+finTxt+'</span>';
+      html += '<button onclick="dbEditStudent(\''+nameEsc+'\')" title="تعديل البيانات" style="background:none;border:none;cursor:pointer;font-size:13px">⚙️</button>';
+      html += '<button onclick="dbMoveStudent(\''+nameEsc+'\')" title="نقل" style="background:none;border:none;cursor:pointer;font-size:13px">↔️</button>';
+      html += '<button onclick="dbDeleteStudent(\''+nameEsc+'\')" title="حذف" style="background:none;border:none;cursor:pointer;font-size:13px">🗑️</button>';
+      html += '</div></div>';
+
+      // grade grid: one row per hospital, 4 day-cells + subtotal
+      html += '<div style="padding:8px 12px">';
+      if(!cys.length){
+        html += '<div style="font-size:12px;color:var(--muted);padding:6px 0">لا توجد دورات لهذه المجموعة بعد — أضِف دورات من تبويب «المستشفيات والدورات».</div>';
+      } else {
+        html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:420px">';
+        html += '<thead><tr style="color:var(--muted)">'
+          +'<th style="padding:4px 6px;text-align:right;font-weight:600">المستشفى</th>'
+          +'<th style="padding:4px;text-align:center;font-weight:600">ي1</th>'
+          +'<th style="padding:4px;text-align:center;font-weight:600">ي2</th>'
+          +'<th style="padding:4px;text-align:center;font-weight:600">ي3</th>'
+          +'<th style="padding:4px;text-align:center;font-weight:600">ي4</th>'
+          +'<th style="padding:4px 6px;text-align:center;font-weight:700;color:#0c2740">المعدل</th>'
+          +'</tr></thead><tbody>';
+        cys.forEach(function(cy){
+          html += '<tr style="border-top:1px solid var(--border)">';
+          html += '<td style="padding:5px 6px;font-weight:600;white-space:nowrap">🏥 '+(cy.hospital||'(مستشفى)')+'</td>';
+          for(var d=1;d<=4;d++){
+            var gd = dbDayGrade(r.name, dbShift, cy, d);
+            var txt, col, bg;
+            if(gd.value===null){ txt='+'; col='var(--muted)'; bg='transparent'; }
+            else { txt = gd.value.toFixed(1)+(gd.manual?'*':''); col=cellColor(gd.value); bg=cellBg(gd.value); }
+            html += '<td style="padding:3px;text-align:center">'
+              + '<span onclick="dbSetDayGrade(\''+nameEsc+'\',\''+cy.id+'\','+d+')" title="انقر للتعديل اليدوي" '
+              + 'style="display:inline-block;min-width:34px;cursor:pointer;border-radius:6px;padding:4px 2px;font-weight:700;color:'+col+';background:'+bg+';border:1px solid '+(gd.value===null?'var(--border)':'transparent')+'">'+txt+'</span></td>';
+          }
+          var st = dbHospitalSubtotal(r.name, dbShift, cy);
+          var stTxt = st===null?'—':st.toFixed(2);
+          var stCol = st===null?'var(--muted)':cellColor(st);
+          html += '<td style="padding:5px 6px;text-align:center;font-weight:800;color:'+stCol+'">'+stTxt+'</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
       }
-      html += '<tr style="background:'+bg+';border-top:1px solid var(--border)">';
-      html += '<td style="text-align:center;color:var(--muted)">'+(i+1)+'</td>';
-      html += '<td style="padding:7px 8px;font-weight:600">'+r.name+'</td>';
-      html += '<td style="padding:7px 8px;font-size:12px;color:var(--pl)">'+(r.email?'<a href="mailto:'+r.email+'" style="color:var(--pl)">'+r.email+'</a>':'—')+'</td>';
-      html += '<td style="text-align:center;font-weight:700;color:'+finCol+';background:'+finBg+'">'+finTxt+'</td>';
-      html += '<td style="text-align:center;white-space:nowrap">'
-        +'<button onclick="dbEditStudent(\''+r.name.replace(/'/g,"\\'")+'\')" title="تعديل" style="background:none;border:none;cursor:pointer;font-size:14px">✏️</button>'
-        +'<button onclick="dbMoveStudent(\''+r.name.replace(/'/g,"\\'")+'\')" title="نقل لمجموعة" style="background:none;border:none;cursor:pointer;font-size:14px">↔️</button>'
-        +'<button onclick="dbDeleteStudent(\''+r.name.replace(/'/g,"\\'")+'\')" title="حذف" style="background:none;border:none;cursor:pointer;font-size:14px">🗑️</button>'
-        +'</td>';
-      html += '</tr>';
+      html += '</div>';
+      html += '</div>';
     });
-    html += '</tbody></table></div></div>';
+
+    html += '</div></div>';
   });
-  html += '<div style="font-size:11px;color:var(--muted);margin-top:4px">الدرجة النهائية = متوسط كل أيام التقييم عبر المستشفيات (تلقائي) — ✏️ تعني قيمة يدوية. التعديل يُحدِّث جدول المجموعات تلقائياً.</div>';
+  html += '<div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.7">كل خلية = درجة يوم (٠–١٥). تُملأ تلقائياً من التقييم، وانقرها لإدخال قيمة يدوية (تظهر بنجمة *). معدل المستشفى = متوسط أيامه، والنهائي = متوسط المستشفيات الثلاثة — انقر رقم «النهائي» لتجاوزه يدوياً (✏️). «+» = خلية فارغة.</div>';
   cont.innerHTML = html;
+}
+
+// Manual override for the overall final mark (kept separate from per-day cells).
+function dbEditFinal(name){
+  var idx = dbFindIndex(name, dbShift);
+  if(idx<0) return;
+  var r = studentDb[idx];
+  var cur = (r.manualFinal!==undefined && r.manualFinal!==null) ? r.manualFinal : '';
+  var v = prompt('الدرجة النهائية اليدوية لـ «'+name+'» (0–15) — اتركها فارغة للحساب التلقائي:', cur);
+  if(v===null) return;
+  if(String(v).trim()===''){ r.manualFinal=''; }
+  else { var nv=parseFloat(v); if(isNaN(nv)){ toast('قيمة غير صالحة'); return; } r.manualFinal=Math.min(15,Math.max(0,nv)); }
+  dbSave(); dbRender();
+  toast('تم تحديث الدرجة النهائية ✓');
 }
 
 function dbRenderHosp(cont){
