@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <!-- Firebase loads dynamically in JS only when online mode is chosen -->
 <style>
-:root{--bg:#f5f6fa;--surface:#fff;--border:#e2e6ea;--primary:#1a5276;--pl:#2980b9;--accent:#16a085;--danger:#c0392b;--warn:#e67e22;--success:#27ae60;--text:#2c3e50;--muted:#7f8c8d;--r:10px}
+:root{--bg:#f4f7fb;--surface:#fff;--border:#dde6f0;--primary:#0c2740;--pl:#185fa5;--accent:#0f6e56;--danger:#c0392b;--warn:#b7770d;--success:#1e8449;--text:#1f2d3d;--muted:#73839a;--r:10px;--side:#0c2740;--side-active:#185fa5;--side-text:#b5d4f4;--side-label:#85b7eb}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;direction:rtl}
 
@@ -55,15 +55,16 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 
 /* MAIN */
 .app-body{display:none}
-.main{max-width:980px;margin:0 auto;padding:16px 14px}
+.main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;align-items:flex-start;gap:16px}
+.tab-content-wrap{flex:1;min-width:0}
 
-/* TABS */
-.tab-nav{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
-.tab-btn{flex:1;padding:10px 5px;font-size:13px;font-weight:600;border:none;border-left:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+/* TABS — sidebar rail */
+.tab-nav{display:flex;flex-direction:column;background:var(--side);border-radius:var(--r);overflow:hidden;margin-bottom:0;width:172px;flex:0 0 172px;padding:8px 0;align-self:stretch}
+.tab-btn{display:flex;align-items:center;gap:7px;text-align:right;width:100%;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;background:transparent;color:var(--side-text);cursor:pointer;transition:all .15s;border-radius:0}
 .tab-btn:last-child{border-left:none}
-.tab-div{flex:0 0 auto;width:0;align-self:stretch;border-left:2px solid var(--primary);opacity:.35;margin:0 2px}
-.tab-btn.active{background:var(--primary);color:#fff}
-.tab-btn:not(.active):hover{background:var(--bg);color:var(--text)}
+.tab-div{flex:0 0 auto;width:auto;align-self:auto;border:none;opacity:1;margin:0;padding:10px 16px 3px;font-size:10px;font-weight:700;color:var(--side-label);letter-spacing:.3px}
+.tab-btn.active{background:var(--side-active);color:#fff}
+.tab-btn:not(.active):hover{background:rgba(255,255,255,.07);color:#fff}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
 
@@ -342,14 +343,22 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .fullscreen-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:999;display:none;align-items:center;justify-content:center;flex-direction:column}
 .fullscreen-overlay.open{display:flex}
 .fullscreen-overlay img{max-width:95vw;max-height:85vh;object-fit:contain;border-radius:8px}
+@media(max-width:900px){
+  .tab-nav{width:148px;flex:0 0 148px}
+  .tab-btn{font-size:11.5px;padding:8px 12px}
+}
+@media(max-width:640px){
+  .main{flex-direction:column;gap:12px}
+  .tab-nav{flex-direction:row;width:100%;flex:0 0 auto;align-self:stretch;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:6px;gap:2px}
+  .tab-btn{flex:0 0 auto;width:auto;white-space:nowrap;border-radius:8px;padding:8px 12px;font-size:12px}
+  .tab-btn::after{display:none}
+  .tab-div{flex:0 0 auto;align-self:center;padding:0 4px;width:auto;border-left:2px solid rgba(255,255,255,.25);font-size:0;overflow:hidden}
+}
 @media(max-width:600px){
   .stats-bar{grid-template-columns:repeat(2,1fr)}
   .lhdr,.srow{grid-template-columns:24px 1fr 88px 55px}
   .ecell{display:none}
   .hdr-top h1{font-size:13px}
-  .tab-nav{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .tab-btn{font-size:11px;padding:9px 8px;white-space:nowrap;flex:0 0 auto}
-  .tab-div{margin:0 1px}
   .user-name{display:none}
 }
 
@@ -384,8 +393,8 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .btn:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(0,0,0,.14);filter:brightness(1.04)}
 .btn:active{transform:scale(.96);box-shadow:none}
 .tab-btn{position:relative;transition:color .22s,background .25s}
-.tab-btn::after{content:'';position:absolute;bottom:0;right:14%;left:14%;height:3px;border-radius:3px 3px 0 0;background:var(--accent);transform:scaleX(0);transition:transform .3s cubic-bezier(.22,1,.36,1)}
-.tab-btn.active::after{transform:scaleX(1)}
+.tab-btn::after{content:'';position:absolute;top:0;bottom:0;right:0;width:3px;border-radius:0;background:var(--accent);transform:scaleY(0);transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.tab-btn.active::after{transform:scaleY(1)}
 .overlay{display:flex;opacity:0;pointer-events:none;visibility:hidden;transition:opacity .26s ease,visibility .26s}
 .overlay.open{opacity:1;pointer-events:auto;visibility:visible}
 .overlay>div{transform:translateY(22px) scale(.965);opacity:0;transition:transform .34s cubic-bezier(.22,1,.36,1),opacity .3s}
@@ -552,18 +561,20 @@ window.addEventListener('load', function() {
   <div class="app-body" id="appBody">
     <div class="main">
       <div class="tab-nav">
+        <div class="tab-div" aria-hidden="true">اليومي</div>
         <button class="tab-btn active" id="tba" onclick="showTab('att')">👥 الحضور والتقييم</button>
         <button class="tab-btn" id="tbrot" onclick="showTab('rot')">🔄 الدورة</button>
         <button class="tab-btn" id="tbp" onclick="showTab('paper')">📄 الورقة اليومية</button>
-        <div class="tab-div" aria-hidden="true"></div>
+        <div class="tab-div" aria-hidden="true">المراجعة</div>
         <button class="tab-btn" id="tbh" onclick="showTab('hist')">📅 السجل التاريخي</button>
         <button class="tab-btn" id="tbpg" onclick="showTab('prog')">📈 متابعة الطلاب</button>
         <button class="tab-btn" id="tbal" onclick="showTab('audit')">📋 سجل التغييرات</button>
-        <div class="tab-div" aria-hidden="true"></div>
+        <div class="tab-div" aria-hidden="true">الإعداد</div>
         <button class="tab-btn" id="tbr" onclick="showTab('roster')">🏥 جدول المجموعات</button>
         <button class="tab-btn" id="tbdb" onclick="showTab('db')">🗄️ قاعدة البيانات</button>
         <button class="tab-btn" id="tbtm" onclick="showTab('teach')">📚 المواد التعليمية</button>
       </div>
+      <div class="tab-content-wrap">
 
       <!-- TAB: ATTENDANCE -->
       <div class="tab-panel active" id="pa">
@@ -783,6 +794,7 @@ window.addEventListener('load', function() {
         </div>
       </div>
 
+    </div><!-- /tab-content-wrap -->
     </div><!-- /main -->
   </div><!-- /appBody -->
 </div><!-- /appRoot -->
@@ -1065,6 +1077,7 @@ var studentsMorning = [];
 var studentsEvening = [];
 var history  = {};   // keyed by "YYYY-MM-DD_morning" or "YYYY-MM-DD_evening"
 var roster   = [];
+var cycles   = [];  // rotation cycles: each {id,hospital,group,type,startDate,unit,note}
 var studentDb = [];  // master DB — isolated from daily workflow
 var curDate  = today();
 var curGroup = 'morning';  // 'morning' | 'evening'
@@ -1108,6 +1121,179 @@ function setRotation(rot){
   if(rot.unit)     d['__unit__']=rot.unit;          else delete d['__unit__'];
   saveDay(sessionKey());
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// ★ ROTATION CYCLES — a cycle is one hospital stay (2 weeks = 4 eval days)
+//   for one group. Each cycle pre-computes its 4 working days from a start
+//   date (getSched), and each day-slot can import the group with one click.
+//   Moving to the next hospital = "+ add cycle". Cycles persist under
+//   users/{uid}/cycles; the per-day evaluations stay in history as before.
+// ═══════════════════════════════════════════════════════════════════════
+function cyKey(){ return 'hsp_cycles_' + (currentUser ? currentUser.uid : 'anon'); }
+function saveCycles(){
+  try{ localStorage.setItem(cyKey(), JSON.stringify(cycles)); }catch(e){}
+  if(isOfflineMode || !currentUser || !db){ if(typeof cacheLocally==='function') cacheLocally(); }
+  else { guardedSet('cycles', cycles); }
+}
+function newCycleId(){ return 'cy_' + Date.now() + '_' + Math.floor(Math.random()*1000); }
+
+// The 4 preset day-slots for a cycle: date + the matching history record (if any).
+function cycleDays(cy){
+  var sched = getSched(cy.startDate);            // up to 4 working days, skips Fri/Sat
+  var grp   = (cy.type==='مسائي') ? 'evening' : 'morning';
+  var out = [];
+  for(var i=0;i<4;i++){
+    var date = sched[i] || '';
+    var key  = date ? (date+'_'+grp) : '';
+    var rec  = key ? (history[key]||null) : null;
+    var present=0,absent=0,evaluated=0,locked=0,sum=0,cnt=0;
+    if(rec){
+      Object.keys(rec).filter(function(k){return /^\d+$/.test(k);}).forEach(function(k){
+        var r=rec[k]||{};
+        if(r.attendance==='present')present++;
+        if(r.attendance==='absent')absent++;
+        if(r.evaluated){evaluated++; if(r.total!==undefined){sum+=r.total;cnt++;}}
+        if(r.locked)locked++;
+      });
+    }
+    out.push({
+      dayNo:i+1, date:date, key:key, group:grp,
+      hasRecord: !!(rec && (present||absent||evaluated)),
+      present:present, absent:absent, evaluated:evaluated, locked:locked,
+      closed: !!(rec && rec['__dayClosed__']),
+      unit: (rec && rec['__unit__']) || (cy.units && cy.units[i]) || '',
+      avg: cnt>0 ? (sum/cnt) : null
+    });
+  }
+  return out;
+}
+
+// Import a cycle's group into one specific day-slot.
+//  • If the slot is TODAY: load the group live into attendance, ready to grade now.
+//  • If the slot is NOT today: seed that day's record (names + hospital/day/unit)
+//    so it's prepared and reviewable; it becomes gradable when its date arrives,
+//    since the attendance tab only ever grades the current day by design.
+function importCycleDay(cycleId, dayNo){
+  var cy = null;
+  for(var i=0;i<cycles.length;i++){ if(cycles[i].id===cycleId){ cy=cycles[i]; break; } }
+  if(!cy){ toast('الدورة غير موجودة'); return; }
+
+  // Gather this group's students from the roster.
+  var names = [];
+  for(var j=0;j<roster.length;j++){
+    var r=roster[j];
+    if((r.hospital||'')===(cy.hospital||'') && (r.group||'')===(cy.group||'') && (r.type||'')===(cy.type||'')){
+      if(r.name) names.push({name:r.name});
+    }
+  }
+  if(!names.length){ toast('لا يوجد طلاب في هذه المجموعة ضمن الجدول — تحقق من جدول المجموعات'); return; }
+
+  var days = cycleDays(cy);
+  var slot = days[dayNo-1];
+  if(!slot || !slot.date){ toast('لا يمكن حساب تاريخ هذا اليوم — تحقق من تاريخ البداية'); return; }
+
+  var isToday = (slot.date === today());
+
+  if(isToday){
+    // Live path: load into the live group and open attendance for grading now.
+    curGroup = slot.group;
+    setStudents(names);
+    if(typeof saveStudents==='function') saveStudents();
+    switchGroup(curGroup);
+    // setRotation works on the current session (today + curGroup) → correct here.
+    setRotation({ hospital:cy.hospital, block:cy.startDate, dayNo:String(dayNo), unit:slot.unit||'' });
+    renderRotBar();
+    showTab('att');
+    renderList();
+    toast('✅ تم تحميل '+names.length+' طالب لليوم '+dayNo+' (اليوم) — جاهز للتقييم');
+    return;
+  }
+
+  // Seed path: write directly into the slot's history record (not the live session).
+  var key = slot.key;                 // "YYYY-MM-DD_morning|evening"
+  var rec = history[key] || (history[key] = {});
+  // Create attendance placeholders only if the day has no records yet.
+  var hasNumeric = Object.keys(rec).some(function(k){ return /^\d+$/.test(k); });
+  if(!hasNumeric){
+    for(var n=0;n<names.length;n++){ if(!rec[String(n)]) rec[String(n)] = {}; }
+  }
+  rec['__names__']    = names.map(function(s){ return s.name; });
+  rec['__hospital__'] = cy.hospital || '';
+  rec['__block__']    = cy.startDate || '';
+  rec['__dayNo__']    = String(dayNo);
+  if(slot.unit) rec['__unit__'] = slot.unit;
+  rec['__savedAt__']  = Date.now();
+  // Persist directly (not via saveDay) so live group state can't overwrite __names__.
+  if(isOfflineMode || !currentUser || !db){
+    if(typeof cacheLocally==='function') cacheLocally();
+  } else {
+    var dbKey = key.replace(/^(\d{4})-(\d{2})-(\d{2})_/, '$1_$2_$3_');
+    guardedSet('history/' + dbKey, rec);
+  }
+
+  // Refresh the rotation tab so the slot now shows as prepared.
+  renderRotationTab();
+  var when = slot.date < today() ? 'يوم سابق' : 'يوم قادم';
+  toast('📥 تم تجهيز اليوم '+dayNo+' ('+slot.date+' — '+when+') بـ '+names.length+' طالب. يصبح قابلاً للتقييم في تاريخه.');
+}
+
+function addCycleFromForm(){
+  var hosp = (document.getElementById('cyHospital').value||'').trim();
+  var grp  = (document.getElementById('cyGroup').value||'').trim();
+  var typ  = document.getElementById('cyType').value||'صباحي';
+  var sd   = document.getElementById('cyStart').value||'';
+  if(!hosp){ toast('أدخل اسم المستشفى'); return; }
+  if(!sd){ toast('حدّد تاريخ بداية الدورة'); return; }
+  cycles.push({ id:newCycleId(), hospital:hosp, group:grp, type:typ, startDate:sd, units:['','','',''], note:'' });
+  saveCycles();
+  document.getElementById('cyHospital').value='';
+  document.getElementById('cyGroup').value='';
+  document.getElementById('cyStart').value='';
+  var f=document.getElementById('cyAddForm'); if(f) f.style.display='none';
+  renderRotationTab();
+  toast('🔄 تمت إضافة دورة جديدة — '+hosp);
+}
+
+function deleteCycle(cycleId){
+  if(!confirm('حذف هذه الدورة؟ (لن تُحذف التقييمات المحفوظة — فقط بطاقة الدورة)')) return;
+  cycles = cycles.filter(function(c){ return c.id!==cycleId; });
+  saveCycles();
+  renderRotationTab();
+  toast('🗑️ تم حذف الدورة');
+}
+
+function toggleCycleForm(){
+  var f=document.getElementById('cyAddForm'); if(!f) return;
+  f.style.display = f.style.display==='none' ? '' : 'none';
+  if(f.style.display===''){
+    var h=document.getElementById('cyHospital');
+    if(h && !h.value){ h.value=document.getElementById('hName').value||''; }
+  }
+}
+
+// Suggest cycles from the roster groups that don't have a cycle yet.
+function suggestCyclesFromRoster(){
+  if(!roster || !roster.length){ toast('لا يوجد جدول مجموعات لاستيراده'); return; }
+  var seen={}; cycles.forEach(function(c){ seen[(c.hospital||'')+'|'+(c.group||'')+'|'+(c.type||'')]=1; });
+  var added=0;
+  var grpKeys={};
+  roster.forEach(function(r){
+    var k=(r.hospital||'')+'|'+(r.group||'')+'|'+(r.type||'');
+    if(!grpKeys[k]) grpKeys[k]={hospital:r.hospital||'',group:r.group||'',type:r.type||'صباحي',startDate:r.startDate||''};
+  });
+  Object.keys(grpKeys).forEach(function(k){
+    if(seen[k]) return;
+    var g=grpKeys[k];
+    if(!g.hospital || !g.startDate) return;
+    cycles.push({ id:newCycleId(), hospital:g.hospital, group:g.group, type:g.type, startDate:g.startDate, units:['','','',''], note:'' });
+    added++;
+  });
+  if(!added){ toast('كل مجموعات الجدول لها دورات بالفعل'); return; }
+  saveCycles();
+  renderRotationTab();
+  toast('🔄 تم إنشاء '+added+' دورة من الجدول');
+}
+
 // Given a roster group (hospital + start date) auto-detect which day (1-4)
 // today is within its 2-week / 4-working-day schedule.
 function autoDetectRotation(hospital, startDate){
@@ -1303,69 +1489,124 @@ function buildRotationGroups(){
 function renderRotationTab(){
   var cont = document.getElementById('rotTabContent');
   if(!cont) return;
-  var cur = getRotation();
   var html = '';
 
-  // --- Setup panel: today's rotation ---
-  html += '<div style="background:linear-gradient(135deg,#0f6e56,#16a085);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:18px">';
+  // --- Header: actions ---
+  html += '<div style="background:linear-gradient(135deg,#0c2740,#185fa5);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:16px">';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">';
-  html += '<div><div style="font-size:15px;font-weight:700">🔄 إعداد دورة اليوم</div>';
-  var setup=[];
-  if(cur.hospital) setup.push('🏥 '+cur.hospital);
-  if(cur.dayNo)    setup.push('📅 اليوم '+cur.dayNo+'/4');
-  if(cur.unit)     setup.push('🩺 '+cur.unit);
-  html += '<div style="font-size:13px;opacity:.95;margin-top:4px">'+(setup.length?setup.join('  •  '):'لم تُحدَّد دورة لليوم الحالي بعد')+'</div></div>';
-  html += '<button class="btn" style="background:rgba(255,255,255,.22);color:#fff" onclick="openRotModal()">✏️ تحديد المستشفى واليوم</button>';
+  html += '<div><div style="font-size:15px;font-weight:700">🔄 دورات التدريب</div>';
+  html += '<div style="font-size:12px;opacity:.9;margin-top:3px">كل دورة = مستشفى واحد لمدة أسبوعين (٤ أيام تقييم). استورد المجموعة لكل يوم بضغطة واحدة.</div></div>';
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  html += '<button class="btn" style="background:rgba(255,255,255,.22);color:#fff" onclick="suggestCyclesFromRoster()">📋 من الجدول</button>';
+  html += '<button class="btn" style="background:#fff;color:#0c2740;font-weight:700" onclick="toggleCycleForm()">➕ إضافة دورة</button>';
+  html += '</div></div></div>';
+
+  // --- Add-cycle form (hidden until toggled) ---
+  html += '<div id="cyAddForm" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">';
+  html += '<div style="font-size:14px;font-weight:700;color:var(--primary);margin-bottom:12px">➕ دورة جديدة (مستشفى جديد)</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">';
+  html += '<div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">اسم المستشفى</label><input id="cyHospital" class="hinput" style="width:100%" placeholder="مثال: مستشفى الكندي"></div>';
+  html += '<div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">رقم المجموعة</label><input id="cyGroup" class="hinput" style="width:100%" placeholder="مثال: 1"></div>';
+  html += '<div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">النوع</label><select id="cyType" class="hinput" style="width:100%"><option value="صباحي">صباحي</option><option value="مسائي">مسائي</option></select></div>';
+  html += '<div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">تاريخ بداية الدورة</label><input id="cyStart" type="date" class="hinput" style="width:100%"></div>';
   html += '</div>';
-  html += '<div style="font-size:12px;opacity:.85;margin-top:8px">المجموعة الحالية: '+(curGroup==='morning'?'صباحية':'مسائية')+' — انتقل لتبويب الحضور لإجراء التقييم، ثم أغلق اليوم من هنا.</div>';
+  html += '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn bp" onclick="addCycleFromForm()">✅ حفظ الدورة</button><button class="btn bo" onclick="toggleCycleForm()">إلغاء</button></div>';
+  html += '<div style="font-size:11px;color:var(--muted);margin-top:8px">سيتم حساب الأيام الأربعة تلقائياً من تاريخ البداية (يومان كل أسبوع، مع تخطّي الجمعة والسبت).</div>';
   html += '</div>';
 
-  // --- Review: hospitals -> days ---
-  var groups = buildRotationGroups();
-  var hkeys = Object.keys(groups).sort();
-  if(!hkeys.length){
-    html += '<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">🔄</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد أيام محفوظة بعد</div><div style="font-size:13px;color:var(--muted)">ستظهر هنا أيام كل مستشفى بمجرد تسجيل الحضور أو التقييم</div></div>';
+  // --- Cycle mother-cards ---
+  if(!cycles.length){
+    html += '<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">🔄</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد دورات بعد</div><div style="font-size:13px;color:var(--muted)">اضغط «➕ إضافة دورة» لإنشاء أول دورة، أو «📋 من الجدول» لإنشائها تلقائياً من جدول المجموعات</div></div>';
     cont.innerHTML = html;
     return;
   }
 
-  html += '<div style="font-size:14px;font-weight:700;color:var(--primary);margin-bottom:10px">📚 الأيام المحفوظة حسب المستشفى</div>';
-  hkeys.forEach(function(hk){
-    var g = groups[hk];
-    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden">';
-    html += '<div style="background:#eef7f4;padding:11px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
-    html += '<div style="font-size:15px;font-weight:700;color:#0f6e56">🏥 '+g.hospital+(g.block?' <span style="font-size:12px;color:var(--muted);font-weight:400">— فترة '+g.block+'</span>':'')+'</div>';
-    html += '<span style="font-size:12px;color:var(--muted)">'+g.days.length+' / 4 أيام</span>';
+  var ordered = cycles.slice().sort(function(a,b){ return (a.startDate||'').localeCompare(b.startDate||''); });
+  ordered.forEach(function(cy, ci){
+    var days = cycleDays(cy);
+    var doneCount = days.filter(function(d){ return d.hasRecord; }).length;
+    var typeLabel = cy.type==='مسائي'?'مسائي':'صباحي';
+    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden">';
+    // Cycle header (the "mother")
+    html += '<div style="background:#eaf1fb;padding:13px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
+    html += '<div><div style="font-size:16px;font-weight:700;color:#0c2740">🏥 '+(cy.hospital||'(مستشفى)')+'<span style="font-size:12px;color:var(--muted);font-weight:400">  — دورة '+(ci+1)+'</span></div>';
+    var meta=[];
+    if(cy.group) meta.push('مجموعة '+cy.group);
+    meta.push(typeLabel);
+    if(cy.startDate) meta.push('تبدأ '+cy.startDate);
+    html += '<div style="font-size:12px;color:var(--muted);margin-top:3px">'+meta.join('  •  ')+'</div></div>';
+    html += '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:12px;font-weight:700;color:'+(doneCount>=4?'var(--success)':'var(--pl)')+'">'+doneCount+' / 4 أيام</span>';
+    html += '<button class="btn bo" style="font-size:11px;padding:4px 9px" onclick="deleteCycle(\''+cy.id+'\')">🗑️</button></div>';
     html += '</div>';
-    html += '<div style="padding:12px 15px;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">';
-    g.days.forEach(function(d){
+    // The 4 preset day-slots
+    html += '<div style="padding:14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:11px">';
+    days.forEach(function(d){
       var allLocked = d.evaluated>0 && d.locked>=d.evaluated;
-      var statusCol = d.closed||allLocked ? 'var(--success)' : '#b7770d';
-      var statusTxt = d.closed||allLocked ? '🔒 مغلق' : '🟡 مفتوح';
+      var closed = d.closed||allLocked;
       var avgTxt = d.avg!==null ? d.avg.toFixed(2)+'/15' : '—';
-      html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
-      html += '<div style="background:#f8fafc;padding:9px 11px;border-bottom:1px solid var(--border)">';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:14px;font-weight:700;color:var(--primary)">'+(d.dayNo?('اليوم '+d.dayNo):d.date)+'</span><span style="font-size:11px;font-weight:700;color:'+statusCol+'">'+statusTxt+'</span></div>';
-      html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+d.date+' • '+d.group+(d.unit?(' • '+d.unit):'')+'</div>';
+      var accent = closed ? 'var(--success)' : (d.hasRecord ? 'var(--pl)' : 'var(--border)');
+      html += '<div style="border:1px solid var(--border);border-top:3px solid '+accent+';border-radius:10px;overflow:hidden">';
+      // slot header
+      html += '<div style="padding:9px 11px;border-bottom:1px solid var(--border)">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between">';
+      html += '<span style="font-size:14px;font-weight:700;color:var(--primary)">اليوم '+d.dayNo+'</span>';
+      var badge = closed ? '<span style="font-size:10px;font-weight:700;color:var(--success)">🔒 مغلق</span>'
+                : d.hasRecord ? '<span style="font-size:10px;font-weight:700;color:var(--pl)">🟡 جارٍ</span>'
+                : '<span style="font-size:10px;font-weight:700;color:var(--muted)">○ فارغ</span>';
+      html += badge+'</div>';
+      html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+(d.date||'— تاريخ غير محسوب')+(d.unit?(' • 🩺 '+d.unit):'')+'</div>';
       html += '</div>';
-      html += '<div style="padding:9px 11px;font-size:12px;color:var(--text);display:flex;flex-wrap:wrap;gap:8px">';
-      html += '<span style="color:#1e8449">✓ '+d.present+'</span>';
-      html += '<span style="color:#c0392b">✗ '+d.absent+'</span>';
-      html += '<span style="color:var(--pl)">📝 '+d.evaluated+'</span>';
-      html += '<span style="margin-right:auto;font-weight:700">معدل '+avgTxt+'</span>';
-      html += '</div>';
-      html += '<div style="padding:0 11px 11px;display:flex;gap:6px;flex-wrap:wrap">';
-      html += '<button class="btn bo" style="font-size:11px;padding:5px 9px;flex:1" onclick="openDayDetail(\''+d.key+'\')">👁️ عرض</button>';
-      if(d.closed||allLocked){
-        html += '<button class="btn bo" style="font-size:11px;padding:5px 9px" onclick="reopenDay(\''+d.key+'\')">🔓 فتح</button>';
-      } else {
-        html += '<button class="btn" style="background:#117a65;color:#fff;font-size:11px;padding:5px 9px;flex:1" onclick="closeDay(\''+d.key+'\')">🔒 إغلاق اليوم</button>';
+      // slot stats (only if there's a record)
+      if(d.hasRecord){
+        html += '<div style="padding:8px 11px;font-size:12px;display:flex;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--border)">';
+        html += '<span style="color:#1e8449">✓ '+d.present+'</span>';
+        html += '<span style="color:#c0392b">✗ '+d.absent+'</span>';
+        html += '<span style="color:var(--pl)">📝 '+d.evaluated+'</span>';
+        html += '<span style="margin-right:auto;font-weight:700">معدل '+avgTxt+'</span>';
+        html += '</div>';
+      }
+      // slot actions
+      html += '<div style="padding:9px 11px;display:flex;gap:6px;flex-wrap:wrap">';
+      html += '<button class="btn bp" style="font-size:11px;padding:6px 9px;flex:1" onclick="importCycleDay(\''+cy.id+'\','+d.dayNo+')">'+(d.hasRecord?'↻ متابعة':'📥 استيراد المجموعة')+'</button>';
+      if(d.hasRecord){
+        html += '<button class="btn bo" style="font-size:11px;padding:6px 8px" onclick="openDayDetail(\''+d.key+'\')">👁️</button>';
+        if(closed){
+          html += '<button class="btn bo" style="font-size:11px;padding:6px 8px" onclick="reopenDay(\''+d.key+'\')">🔓</button>';
+        } else {
+          html += '<button class="btn" style="background:#117a65;color:#fff;font-size:11px;padding:6px 8px" onclick="closeDay(\''+d.key+'\')">🔒</button>';
+        }
       }
       html += '</div>';
       html += '</div>';
     });
     html += '</div></div>';
   });
+
+  // --- Secondary: any saved days that don't belong to a defined cycle ---
+  var groups = buildRotationGroups();
+  var orphan = [];
+  Object.keys(groups).forEach(function(hk){
+    groups[hk].days.forEach(function(d){
+      var inCycle = ordered.some(function(cy){ return cycleDays(cy).some(function(cd){ return cd.key===d.key; }); });
+      if(!inCycle) orphan.push(d);
+    });
+  });
+  if(orphan.length){
+    html += '<div style="font-size:13px;font-weight:700;color:var(--muted);margin:18px 0 10px">📅 أيام محفوظة خارج الدورات المعرّفة</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">';
+    orphan.forEach(function(d){
+      var allLocked = d.evaluated>0 && d.locked>=d.evaluated;
+      var closed=d.closed||allLocked;
+      var avgTxt = d.avg!==null ? d.avg.toFixed(2)+'/15' : '—';
+      html += '<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px">';
+      html += '<div style="display:flex;justify-content:space-between"><span style="font-size:13px;font-weight:700;color:var(--primary)">'+(d.dayNo?('اليوم '+d.dayNo):d.date)+'</span><span style="font-size:11px;font-weight:700;color:'+(closed?'var(--success)':'#b7770d')+'">'+(closed?'🔒':'🟡')+'</span></div>';
+      html += '<div style="font-size:11px;color:var(--muted);margin:2px 0 6px">'+d.date+' • '+d.group+'</div>';
+      html += '<div style="font-size:12px;margin-bottom:7px"><span style="color:#1e8449">✓'+d.present+'</span> <span style="color:#c0392b">✗'+d.absent+'</span> <span style="color:var(--pl)">📝'+d.evaluated+'</span> <span style="font-weight:700">'+avgTxt+'</span></div>';
+      html += '<button class="btn bo" style="font-size:11px;padding:5px 9px;width:100%" onclick="openDayDetail(\''+d.key+'\')">👁️ عرض</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
 
   cont.innerHTML = html;
 }
@@ -1630,7 +1871,7 @@ function attachAuthListener() {
       if (isNewUser) {
         stopListeners();
         dataLoaded = false;
-        studentsMorning = []; studentsEvening = []; history = {}; roster = [];
+        studentsMorning = []; studentsEvening = []; history = {}; roster = []; cycles = [];
       }
 
       currentUser = user;
@@ -1668,7 +1909,7 @@ function attachAuthListener() {
       lastUid = null;
       dataLoaded = false;
       currentUser = null;
-      studentsMorning = []; studentsEvening = []; history = {}; roster = [];
+      studentsMorning = []; studentsEvening = []; history = {}; roster = []; cycles = [];
       document.getElementById('sList').innerHTML = '';
       document.getElementById('hName').value = '';
       document.getElementById('hNo').value = '';
@@ -1701,7 +1942,7 @@ function handleUserClick() {
 function exitToLogin() {
   isOfflineMode = false;
   currentUser   = null;
-  studentsMorning = []; studentsEvening = []; history = {}; roster = [];
+  studentsMorning = []; studentsEvening = []; history = {}; roster = []; cycles = [];
   document.getElementById('sList').innerHTML = '';
   document.getElementById('hName').value = '';
   document.getElementById('hNo').value   = '';
@@ -1738,6 +1979,7 @@ function loadFromCache(uid) {
     studentsEvening = sameDay ? (c.se || []) : [];
     history         = c.h   || {};
     roster          = c.r   || [];
+    cycles          = c.cy  || [];
     if (c.sdb && c.sdb.length) studentDb = c.sdb;
     if (c.hn) document.getElementById('hName').value   = c.hn;
     if (c.ho) document.getElementById('hNo').value     = c.ho;
@@ -1842,6 +2084,18 @@ function startListeners() {
     if (dataLoaded) { renderRosterIfActive(); cacheLocally(); } else checkAllLoaded();
   });
   dbListeners.push({ ref: rRef, event: 'value' });
+
+  // ★ Rotation cycles (each = hospital + group + 4 preset day-slots)
+  var cyRef = dbRef('cycles');
+  cyRef.on('value', function(snap) {
+    if (!isStillMe()) return;
+    var val = snap.val();
+    cycles = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
+    try{ localStorage.setItem(cyKey(), JSON.stringify(cycles)); }catch(e){}
+    var pr = document.getElementById('prot');
+    if (pr && pr.classList.contains('active')) renderRotationTab();
+  });
+  dbListeners.push({ ref: cyRef, event: 'value' });
 
   var stRef = dbRef('settings');
   stRef.on('value', function(snap) {
@@ -1970,6 +2224,7 @@ function cacheLocally() {
       sm: studentsMorning,         // ★ today's students now cached — reload-safe
       se: studentsEvening,
       h: history, r: roster,
+      cy: cycles,
       sdb: studentDb,
       hn: document.getElementById('hName').value,
       ho: document.getElementById('hNo').value,
@@ -3725,6 +3980,7 @@ function backupDownload(){
     app: 'hospital-daily-evaluation', version: 2, exportedAt: new Date().toISOString(),
     account: currentUser ? (currentUser.email || currentUser.uid) : 'offline',
     history: history, roster: roster, studentDb: studentDb,
+    cycles: cycles,
     studentsMorning: studentsMorning, studentsEvening: studentsEvening,
     settings: {
       hospitalName: document.getElementById('hName').value,
@@ -3762,6 +4018,7 @@ function applyBackup(d){
   var bh = d.history || d.h || {};
   Object.keys(bh).forEach(function(k){ history[k] = bh[k]; });
   if ((d.roster||d.r||[]).length) roster = d.roster || d.r;
+  if ((d.cycles||d.cy||[]).length) cycles = d.cycles || d.cy;
   if ((d.studentDb||d.sdb||[]).length) studentDb = d.studentDb || d.sdb;
   if (d.settings){
     if(d.settings.hospitalName)  document.getElementById('hName').value   = d.settings.hospitalName;
@@ -3780,6 +4037,7 @@ function applyBackup(d){
       queueWrite('history/'+dbKey, history[k]);
     });
     queueWrite('roster', roster);
+    queueWrite('cycles', cycles);
     queueWrite('settings', {
       hospitalName: document.getElementById('hName').value,
       hospitalNo: document.getElementById('hNo').value,
