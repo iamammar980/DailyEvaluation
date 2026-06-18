@@ -571,6 +571,18 @@ window.addEventListener('load', function() {
 
       <!-- TAB: ATTENDANCE -->
       <div class="tab-panel active" id="pa">
+        <!-- ★ MODE TOGGLE: classic day-view (default) vs 4-day cycle assessment -->
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <button id="paModeClassicBtn" class="btn bp" onclick="paSetMode('classic')" style="font-size:13px">📆 العرض اليومي</button>
+          <button id="paModeCycleBtn" class="btn bo" onclick="paSetMode('cycle')" style="font-size:13px">📋 دورة ٤ أيام</button>
+          <span id="paModeHint" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+
+        <!-- CYCLE MODE container (hidden unless active) -->
+        <div id="paCycleWrap" style="display:none"></div>
+
+        <!-- CLASSIC day-view (everything original lives inside here) -->
+        <div id="paClassicWrap">
         <div class="stats-bar">
           <div class="sc"><div class="num" id="stT">0</div><div class="lbl">إجمالي الطلاب</div></div>
           <div class="sc present"><div class="num" id="stP">0</div><div class="lbl">حاضر</div></div>
@@ -632,6 +644,7 @@ window.addEventListener('load', function() {
             <textarea id="dayNotes" rows="5" placeholder="اكتب أي ملاحظات تخص هذا اليوم (سلوك الطلاب، أحداث مهمة، تعليمات للمشرف القادم...)" style="width:100%;resize:vertical;min-height:90px;font-family:Tahoma,Arial,sans-serif;font-size:14px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);direction:rtl" oninput="onNotesInput()"></textarea>
           </div>
         </div>
+        </div><!-- /paClassicWrap -->
       </div>
 
       <!-- TAB: PAPER -->
@@ -2060,7 +2073,7 @@ function showTab(n){
   panel.style.animation='none'; void panel.offsetWidth; panel.style.animation='';
   document.getElementById(btns[n]).classList.add('active');
   // Attendance tab always shows TODAY — never shows historical data
-  if(n==='att'){ curDate=today(); renderList(); }
+  if(n==='att'){ if(paMode==='cycle'){ paRenderCycleMode(); } else { curDate=today(); renderList(); } }
   if(n==='paper')  renderPaper();
   if(n==='roster') renderRoster();
   if(n==='hist')   renderHist();
@@ -4612,6 +4625,161 @@ function cycExportGroup(groupNum){
   var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'مجموعة '+groupNum);
   XLSX.writeFile(wb,'درجات_مجموعة_'+groupNum+'.xlsx');
   toast('تم تصدير المجموعة '+groupNum+' ✓','success');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ★ 4-DAY CYCLE ASSESSMENT MODE (additive layer over the daily-eval tab)
+//   Reuses the existing engine: loads the cycle group's students into the
+//   active list, and uses a distinct curDate per day so each of the 4 days
+//   is its own history session (attendance + evaluation + paper save as
+//   normal via saveDay/openEval/renderPaper). Classic day-view untouched.
+// ═══════════════════════════════════════════════════════════════════════
+var paMode='classic';          // 'classic' | 'cycle'
+var paCycDay=1;                // active day 1..4 in cycle mode
+var paCycGroup=null;           // {group,type,hospital,names:[]}
+var __savedClassicDate=null;
+
+function paDetectCycleGroup(){
+  // pick the group with the most students present in the gradebook
+  if(!cycleStore || !cycleStore.length) return null;
+  var byGroup={};
+  cycleStore.forEach(function(s){
+    var g=String(s.group||''); if(!g) return;
+    if(!byGroup[g]) byGroup[g]={group:g,type:s.type||'',names:[]};
+    byGroup[g].names.push(s.name);
+  });
+  var keys=Object.keys(byGroup); if(!keys.length) return null;
+  keys.sort(function(a,b){ return byGroup[b].names.length-byGroup[a].names.length; });
+  var g=byGroup[keys[0]];
+  // hospital name (first non-empty column among that group's students)
+  var hosp='';
+  cycleStore.filter(function(s){return String(s.group)===g.group;}).some(function(s){
+    return s.hospitals.some(function(h){ if(h.name){ hosp=h.name; return true; } return false; });
+  });
+  g.hospital=hosp; return g;
+}
+
+function paSetMode(m){
+  var cls=document.getElementById('paClassicWrap');
+  var cyc=document.getElementById('paCycleWrap');
+  var bC=document.getElementById('paModeClassicBtn');
+  var bY=document.getElementById('paModeCycleBtn');
+  var hint=document.getElementById('paModeHint');
+  if(m==='cycle'){
+    var g=paDetectCycleGroup();
+    if(!g){ toast('لا توجد مجموعة في الدورة التقييمية بعد — استورد مجموعة أولاً'); return; }
+    paMode='cycle'; paCycGroup=g; paCycDay=1;
+    if(__savedClassicDate===null) __savedClassicDate=curDate;
+    cls.style.display='none'; cyc.style.display='';
+    bC.className='btn bo'; bY.className='btn bp';
+    if(hint) hint.textContent='مجموعة '+g.group+' · '+(g.type||'')+(g.hospital?(' · '+g.hospital):'');
+    paLoadCycleDay(1);
+  } else {
+    paMode='classic';
+    cyc.style.display='none'; cls.style.display='';
+    bC.className='btn bp'; bY.className='btn bo';
+    if(hint) hint.textContent='';
+    if(__savedClassicDate!==null){ curDate=__savedClassicDate; __savedClassicDate=null; }
+    curGroup='morning'; curDate=today(); renderList();
+  }
+}
+
+// load the cycle group's names into the active list, bound to a day session
+function paLoadCycleDay(day){
+  if(!paCycGroup) return;
+  paCycDay=day;
+  // distinct session per day so the 4 days never collide in history
+  curGroup='morning';
+  curDate='cyc_'+paCycGroup.group+'_'+(paCycGroup.type||'')+'_d'+day;
+  // ensure the active student array matches the group (names only; eval data lives in history keyed by curDate)
+  var names=paCycGroup.names||[];
+  // only (re)seed names if this day session has no student list yet
+  studentsMorning = names.map(function(n){ return {name:n}; });
+  paRenderCycleMode();
+}
+
+function paRenderCycleMode(){
+  var wrap=document.getElementById('paCycleWrap'); if(!wrap) return;
+  var g=paCycGroup;
+  var html='';
+  // header + manual re-import
+  html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
+  html+='<div><div style="font-size:15px;font-weight:700;color:var(--primary)">دورة المجموعة '+g.group+' · '+(g.type||'')+'</div>';
+  html+='<div style="font-size:12px;color:var(--muted)">'+(g.hospital||'')+' · '+(g.names?g.names.length:0)+' طالب · يُحفظ كل يوم بشكل منفصل</div></div>';
+  html+='<button class="btn bo" style="font-size:12px" onclick="paReimportCycle()">🔄 إعادة استيراد المجموعة</button>';
+  html+='</div>';
+  // 4 day sub-tabs
+  html+='<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">';
+  for(var d=1;d<=4;d++){
+    var on=(paCycDay===d);
+    html+='<button onclick="paLoadCycleDay('+d+')" style="border:1px solid '+(on?'#0E7C86':'var(--border)')+';background:'+(on?'#0E7C86':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">اليوم '+d+'</button>';
+  }
+  html+='</div>';
+  // mini stats for this day
+  var day=getSession(), sts=getStudents(), p=0,a=0,ev=0;
+  for(var i=0;i<sts.length;i++){var r=day[i]||{};if(r.attendance==='present')p++;if(r.attendance==='absent')a++;if(r.evaluated)ev++;}
+  html+='<div class="stats-bar" style="margin-bottom:10px">';
+  html+='<div class="sc"><div class="num">'+sts.length+'</div><div class="lbl">الطلاب</div></div>';
+  html+='<div class="sc present"><div class="num">'+p+'</div><div class="lbl">حاضر</div></div>';
+  html+='<div class="sc absent"><div class="num">'+a+'</div><div class="lbl">غائب</div></div>';
+  html+='<div class="sc eval"><div class="num">'+ev+'</div><div class="lbl">تم التقييم</div></div>';
+  html+='</div>';
+  // search + student list (reuses openEval/setAtt engine)
+  html+='<input class="sbox" type="text" id="paCycSearch" placeholder="🔍 ابحث عن طالب..." oninput="paRenderCycleList()" style="margin-bottom:8px;width:100%;max-width:280px">';
+  html+='<div class="slist" id="paCycList"></div>';
+  // daily paper (تسليم) integrated per day
+  html+='<div style="margin-top:14px"><div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">📄 تسليم الورقة — اليوم '+paCycDay+'</div>';
+  html+='<div class="slist" id="paCycPaper"></div></div>';
+  wrap.innerHTML=html;
+  paRenderCycleList();
+  paRenderCyclePaper();
+}
+
+function paRenderCycleList(){
+  var box=document.getElementById('paCycList'); if(!box) return;
+  var q=(document.getElementById('paCycSearch')&&document.getElementById('paCycSearch').value||'').toLowerCase();
+  var sts=getStudents(), day=getSession(), html='', shown=0;
+  for(var i=0;i<sts.length;i++){
+    var s=sts[i]; if(q && s.name.toLowerCase().indexOf(q)<0) continue; shown++;
+    var rec=day[i]||{}, att=rec.attendance||'none';
+    var sc=rec.total!==undefined?rec.total.toFixed(2):null;
+    html+='<div class="srow'+(att==='absent'?' ar':'')+'">';
+    html+='<div class="snum">'+shown+'</div>';
+    html+='<div class="sname" onclick="openEval('+i+');setTimeout(paAfterEval,50)" style="display:flex;align-items:center;gap:4px">'+s.name+'</div>';
+    html+='<div class="atg"><button class="ab '+(att==='present'?'abap':'abp')+'" onclick="setAtt(event,'+i+',\'present\');setTimeout(paRenderCycleMode,30)">✓</button><button class="ab '+(att==='absent'?'abaa':'aba')+'" onclick="setAtt(event,'+i+',\'absent\');setTimeout(paRenderCycleMode,30)">✗</button></div>';
+    html+='<div class="sbadge'+(sc===null?' empty':'')+'"><span>'+(sc!==null?sc+'/15':'—')+'</span></div>';
+    html+='<div class="ecell"><div class="ei '+(rec.evaluated?'done':'pend')+'" onclick="openEval('+i+');setTimeout(paAfterEval,50)">'+(rec.evaluated?'✏️':'📝')+'</div></div>';
+    html+='</div>';
+  }
+  if(shown===0) html='<div style="padding:18px;text-align:center;color:var(--muted)">لا يوجد طلاب.</div>';
+  box.innerHTML=html;
+}
+function paAfterEval(){ if(paMode==='cycle') paRenderCycleMode(); }
+
+function paRenderCyclePaper(){
+  var box=document.getElementById('paCycPaper'); if(!box) return;
+  var sts=getStudents(), day=getSession(), html='';
+  for(var i=0;i<sts.length;i++){
+    var rec=day[i]||{}, delivered=!!rec.paperDelivered;
+    html+='<div class="srow"><div class="snum">'+(i+1)+'</div>';
+    html+='<div class="sname">'+sts[i].name+'</div>';
+    html+='<div class="atg"><button class="ab '+(delivered?'abap':'abp')+'" onclick="paTogglePaper('+i+')">'+(delivered?'✓ سلّم':'تسليم')+'</button></div>';
+    html+='</div>';
+  }
+  if(!sts.length) html='<div style="padding:14px;text-align:center;color:var(--muted)">لا يوجد طلاب.</div>';
+  box.innerHTML=html;
+}
+function paTogglePaper(i){
+  var day=getSession(); if(!day[i]) day[i]={};
+  day[i].paperDelivered=!day[i].paperDelivered;
+  saveDay(sessionKey());
+  paRenderCyclePaper();
+}
+function paReimportCycle(){
+  var g=paDetectCycleGroup();
+  if(!g){ toast('لا توجد مجموعة في الدورة'); return; }
+  paCycGroup=g; paLoadCycleDay(paCycDay);
+  toast('أُعيد استيراد المجموعة '+g.group+' ✓','success');
 }
 
 // ── guided tour (Driver.js) ──────────────────────────────────────────
