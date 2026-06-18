@@ -6,6 +6,13 @@
 <title>تقييم الممارسة اليومية في المستشفى</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<!-- UX enhancement libraries (MIT/Apache, CDN, no build) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css">
+<script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+<script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
 <!-- Firebase loads dynamically in JS only when online mode is chosen -->
 <style>
 :root{--bg:#f5f6fa;--surface:#fff;--border:#e2e6ea;--primary:#1a5276;--pl:#2980b9;--accent:#16a085;--danger:#c0392b;--warn:#e67e22;--success:#27ae60;--text:#2c3e50;--muted:#7f8c8d;--r:10px}
@@ -521,6 +528,7 @@ window.addEventListener('load', function() {
           <div class="datedisp" id="datedisp">--</div>
         </div>
         <button class="btn bo" onclick="showTab('hist');setTimeout(openCal,100)" style="color:#fff;border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.1)">📅 سجل الأيام</button>
+        <button class="btn bo" onclick="startTour()" style="color:#fff;border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.1)">❓ جولة إرشادية</button>
         <div class="user-info" onclick="handleUserClick()">
           <img class="user-avatar" id="userAvatar" src="" alt="">
           <span class="user-name" id="userName"></span>
@@ -550,6 +558,7 @@ window.addEventListener('load', function() {
     <div class="main">
       <div class="tab-nav">
         <button class="tab-btn active" id="tba" onclick="showTab('att')">👥 الحضور والتقييم</button>
+        <button class="tab-btn" id="tbrot" onclick="showTab('rot')">🔄 الدورة</button>
         <button class="tab-btn" id="tbp" onclick="showTab('paper')">📄 الورقة اليومية</button>
         <button class="tab-btn" id="tbr" onclick="showTab('roster')">🏥 جدول المجموعات</button>
         <button class="tab-btn" id="tbh" onclick="showTab('hist')">📅 السجل التاريخي</button>
@@ -557,7 +566,7 @@ window.addEventListener('load', function() {
         <button class="tab-btn" id="tbtm" onclick="showTab('teach')">📚 المواد التعليمية</button>
         <button class="tab-btn" id="tbal" onclick="showTab('audit')">📋 سجل التغييرات</button>
         <button class="tab-btn" id="tbpg" onclick="showTab('prog')">📈 متابعة الطلاب</button>
-        <button class="tab-btn" id="tbgb" onclick="showTab('grades')">📒 سجل الدرجات الفصلي</button>
+        <button class="tab-btn" id="tbcyc" onclick="showTab('cycle')">🎯 الدورة التقييمية</button>
       </div>
 
       <!-- TAB: ATTENDANCE -->
@@ -711,20 +720,27 @@ window.addEventListener('load', function() {
         <div id="progContent"></div>
       </div>
 
-      <!-- TAB: SEMESTER GRADEBOOK (separate, persistent) -->
-      <div class="tab-panel" id="pgb">
+      <!-- TAB: EVALUATION CYCLE (new separate workflow — per-instructor, 4-day cycles) -->
+      <div class="tab-panel" id="pcyc">
         <div class="hist-hdr">
-          <h2>📒 سجل الدرجات الفصلي</h2>
-          <div style="font-size:12px;color:var(--muted)">سجل مستقل لدرجات كل طالب: 3 مستشفيات × 4 أيام + الدرجة النهائية اليدوية — محفوظ طوال الفصل ولا يُفقد أبداً</div>
+          <h2>🎯 الدورة التقييمية</h2>
+          <div style="font-size:12px;color:var(--muted)">استورد مجموعة → ٤ أيام منفصلة → لكل يوم (مجموع التقييم + درجة الورقة بالبيت) → تُحفظ تلقائياً في حسابك · كل دورة محفوظة وقابلة للتعديل</div>
         </div>
         <div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap">
-          <button class="btn bp" onclick="gbDownloadTemplate()">📥 تنزيل قالب Excel</button>
-          <button class="btn bo" onclick="document.getElementById('gbFileInput').click()">📂 استيراد من Excel</button>
-          <input type="file" id="gbFileInput" accept=".xlsx,.xls" style="display:none" onchange="gbImportFile(event)">
-          <button class="btn ba" onclick="gbExportExcel()">📊 تصدير الدرجات</button>
-          <button class="btn bo" onclick="gbSeedFromDb()">👥 جلب الطلاب من قاعدة البيانات</button>
+          <button class="btn bp" onclick="cycImportPrompt()">📥 استيراد مجموعة (بدء دورة)</button>
+          <button class="btn bo" onclick="cycRenderList()">📋 الدورات المحفوظة</button>
+          <input type="text" id="cycSearch" class="sbox" placeholder="🔍 ابحث عن طالب..." oninput="cycSearchRender()" style="max-width:240px">
         </div>
-        <div id="gbContent"></div>
+        <div id="cycContent"></div>
+      </div>
+
+      <!-- TAB: ROTATION (setup + saved-day review) -->
+      <div class="tab-panel" id="prot">
+        <div class="hist-hdr">
+          <h2>🔄 نظام الدورة</h2>
+          <div style="font-size:12px;color:var(--muted)">حدّد مستشفى ويوم الدورة، وراجع أيام كل مستشفى المحفوظة — وأغلق اليوم عند انتهاء تقييمه</div>
+        </div>
+        <div id="rotTabContent"></div>
       </div>
 
       <!-- TAB: STUDENT DATABASE -->
@@ -1068,7 +1084,7 @@ var studentsEvening = [];
 var history  = {};   // keyed by "YYYY-MM-DD_morning" or "YYYY-MM-DD_evening"
 var roster   = [];
 var studentDb = [];  // master DB — isolated from daily workflow
-var gradebook = [];  // ★ semester gradebook — separate, persistent, never reset
+var cycleStore = []; // ★ per-instructor evaluation cycles — auto-saved to account, editable
 var curDate  = today();
 var curGroup = 'morning';  // 'morning' | 'evening'
 var curSt    = null;
@@ -1214,10 +1230,164 @@ function saveRotModal(){
   });
   closeRotModal();
   renderRotBar();
+  var ppr=document.getElementById('prot');
+  if(ppr && ppr.classList.contains('active')) renderRotationTab();
   toast('✅ تم حفظ بيانات الدورة');
 }
 
 function closeRotModal(){ document.getElementById('rotModal').classList.remove('open'); }
+
+// ═══════════════════════════════════════════════════════════════════════
+// ★ ROTATION TAB — set up today's rotation AND review every saved day.
+//   Days are grouped Hospital → 2-week block → Day(1-4). Each day is a
+//   card built from the existing history record (no duplicate storage).
+//   "إغلاق اليوم" locks every evaluated student in that day at once.
+// ═══════════════════════════════════════════════════════════════════════
+
+// Lock (finalize) every evaluated student in one session key.
+function closeDay(sessionK){
+  var day = history[sessionK] || {};
+  var idxs = Object.keys(day).filter(function(k){ return /^\d+$/.test(k); });
+  var evaluated = idxs.filter(function(k){ return day[k] && day[k].evaluated; });
+  if(!evaluated.length){ toast('لا توجد تقييمات لإغلاقها في هذا اليوم'); return; }
+  var open = evaluated.filter(function(k){ return !day[k].locked; });
+  if(!open.length){ toast('كل تقييمات هذا اليوم مغلقة بالفعل'); return; }
+  var clean = sessionK.replace('_morning','').replace('_evening','');
+  if(!confirm('إغلاق واعتماد يوم '+clean+'؟\nسيتم قفل '+open.length+' تقييم — لن يمكن تعديلها إلا بفتحها مجدداً.')) return;
+  var who = currentUser ? (currentUser.email||currentUser.displayName||'') : '';
+  open.forEach(function(k){
+    day[k].locked = true;
+    day[k].lockedAt = Date.now();
+    day[k].lockedBy = who;
+  });
+  day['__dayClosed__'] = Date.now();
+  day['__dayClosedBy__'] = who;
+  saveDay(sessionK);
+  renderRotationTab();
+  if(document.getElementById('pa').classList.contains('active')) renderList();
+  toast('🔒 تم إغلاق اليوم واعتماد '+open.length+' تقييم');
+}
+
+function reopenDay(sessionK){
+  var day = history[sessionK] || {};
+  if(!confirm('إعادة فتح هذا اليوم؟ سيتم رفع القفل عن تقييماته للتعديل.')) return;
+  Object.keys(day).filter(function(k){ return /^\d+$/.test(k); }).forEach(function(k){
+    if(day[k] && day[k].locked){ day[k].locked=false; delete day[k].lockedAt; delete day[k].lockedBy; }
+  });
+  delete day['__dayClosed__']; delete day['__dayClosedBy__'];
+  saveDay(sessionK);
+  renderRotationTab();
+  if(document.getElementById('pa').classList.contains('active')) renderList();
+  toast('🔓 تم إعادة فتح اليوم');
+}
+
+// Build {hospitalKey: {hospital, block, days:[{key,date,group,dayNo,unit,present,absent,evaluated,locked,closed,avg}]}}
+function buildRotationGroups(){
+  var groups = {};
+  Object.keys(history).forEach(function(dk){
+    var day = history[dk] || {};
+    var idxs = Object.keys(day).filter(function(k){ return /^\d+$/.test(k); });
+    var hasAny = idxs.some(function(k){ return day[k] && (day[k].attendance || day[k].evaluated); });
+    if(!hasAny) return;
+    var rot = rotationOf(day);
+    var hk = rot.hospital ? (rot.hospital + (rot.block?(' • '+rot.block):'')) : '— بدون مستشفى محدد —';
+    if(!groups[hk]) groups[hk] = { hospital: rot.hospital||'(غير محدد)', block: rot.block||'', days: [] };
+    var present=0,absent=0,evaluated=0,locked=0,sum=0,cnt=0;
+    idxs.forEach(function(k){
+      var r = day[k]||{};
+      if(r.attendance==='present') present++;
+      if(r.attendance==='absent')  absent++;
+      if(r.evaluated){ evaluated++; if(r.total!==undefined){ sum+=r.total; cnt++; } }
+      if(r.locked) locked++;
+    });
+    groups[hk].days.push({
+      key: dk,
+      date: dk.replace('_morning','').replace('_evening',''),
+      group: dk.indexOf('_morning')>=0?'صباحي':'مسائي',
+      dayNo: rot.dayNo, unit: rot.unit,
+      present:present, absent:absent, evaluated:evaluated, locked:locked,
+      closed: !!day['__dayClosed__'],
+      avg: cnt>0 ? (sum/cnt) : null
+    });
+  });
+  Object.keys(groups).forEach(function(hk){
+    groups[hk].days.sort(function(a,b){
+      var dn = (a.dayNo||'').localeCompare(b.dayNo||'');
+      return dn !== 0 ? dn : a.date.localeCompare(b.date);
+    });
+  });
+  return groups;
+}
+
+function renderRotationTab(){
+  var cont = document.getElementById('rotTabContent');
+  if(!cont) return;
+  var cur = getRotation();
+  var html = '';
+
+  // --- Setup panel: today's rotation ---
+  html += '<div style="background:linear-gradient(135deg,#0f6e56,#16a085);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:18px">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">';
+  html += '<div><div style="font-size:15px;font-weight:700">🔄 إعداد دورة اليوم</div>';
+  var setup=[];
+  if(cur.hospital) setup.push('🏥 '+cur.hospital);
+  if(cur.dayNo)    setup.push('📅 اليوم '+cur.dayNo+'/4');
+  if(cur.unit)     setup.push('🩺 '+cur.unit);
+  html += '<div style="font-size:13px;opacity:.95;margin-top:4px">'+(setup.length?setup.join('  •  '):'لم تُحدَّد دورة لليوم الحالي بعد')+'</div></div>';
+  html += '<button class="btn" style="background:rgba(255,255,255,.22);color:#fff" onclick="openRotModal()">✏️ تحديد المستشفى واليوم</button>';
+  html += '</div>';
+  html += '<div style="font-size:12px;opacity:.85;margin-top:8px">المجموعة الحالية: '+(curGroup==='morning'?'صباحية':'مسائية')+' — انتقل لتبويب الحضور لإجراء التقييم، ثم أغلق اليوم من هنا.</div>';
+  html += '</div>';
+
+  // --- Review: hospitals -> days ---
+  var groups = buildRotationGroups();
+  var hkeys = Object.keys(groups).sort();
+  if(!hkeys.length){
+    html += '<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">🔄</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد أيام محفوظة بعد</div><div style="font-size:13px;color:var(--muted)">ستظهر هنا أيام كل مستشفى بمجرد تسجيل الحضور أو التقييم</div></div>';
+    cont.innerHTML = html;
+    return;
+  }
+
+  html += '<div style="font-size:14px;font-weight:700;color:var(--primary);margin-bottom:10px">📚 الأيام المحفوظة حسب المستشفى</div>';
+  hkeys.forEach(function(hk){
+    var g = groups[hk];
+    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden">';
+    html += '<div style="background:#eef7f4;padding:11px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
+    html += '<div style="font-size:15px;font-weight:700;color:#0f6e56">🏥 '+g.hospital+(g.block?' <span style="font-size:12px;color:var(--muted);font-weight:400">— فترة '+g.block+'</span>':'')+'</div>';
+    html += '<span style="font-size:12px;color:var(--muted)">'+g.days.length+' / 4 أيام</span>';
+    html += '</div>';
+    html += '<div style="padding:12px 15px;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">';
+    g.days.forEach(function(d){
+      var allLocked = d.evaluated>0 && d.locked>=d.evaluated;
+      var statusCol = d.closed||allLocked ? 'var(--success)' : '#b7770d';
+      var statusTxt = d.closed||allLocked ? '🔒 مغلق' : '🟡 مفتوح';
+      var avgTxt = d.avg!==null ? d.avg.toFixed(2)+'/15' : '—';
+      html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
+      html += '<div style="background:#f8fafc;padding:9px 11px;border-bottom:1px solid var(--border)">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:14px;font-weight:700;color:var(--primary)">'+(d.dayNo?('اليوم '+d.dayNo):d.date)+'</span><span style="font-size:11px;font-weight:700;color:'+statusCol+'">'+statusTxt+'</span></div>';
+      html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+d.date+' • '+d.group+(d.unit?(' • '+d.unit):'')+'</div>';
+      html += '</div>';
+      html += '<div style="padding:9px 11px;font-size:12px;color:var(--text);display:flex;flex-wrap:wrap;gap:8px">';
+      html += '<span style="color:#1e8449">✓ '+d.present+'</span>';
+      html += '<span style="color:#c0392b">✗ '+d.absent+'</span>';
+      html += '<span style="color:var(--pl)">📝 '+d.evaluated+'</span>';
+      html += '<span style="margin-right:auto;font-weight:700">معدل '+avgTxt+'</span>';
+      html += '</div>';
+      html += '<div style="padding:0 11px 11px;display:flex;gap:6px;flex-wrap:wrap">';
+      html += '<button class="btn bo" style="font-size:11px;padding:5px 9px;flex:1" onclick="openDayDetail(\''+d.key+'\')">👁️ عرض</button>';
+      if(d.closed||allLocked){
+        html += '<button class="btn bo" style="font-size:11px;padding:5px 9px" onclick="reopenDay(\''+d.key+'\')">🔓 فتح</button>';
+      } else {
+        html += '<button class="btn" style="background:#117a65;color:#fff;font-size:11px;padding:5px 9px;flex:1" onclick="closeDay(\''+d.key+'\')">🔒 إغلاق اليوم</button>';
+      }
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+
+  cont.innerHTML = html;
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // ★ DATA GUARD LAYER — zero data loss architecture
@@ -1305,7 +1475,7 @@ function takeSnapshot(){
   try{
     var key = 'hsp_snap_' + currentUser.uid + '_' + today();
     localStorage.setItem(key, JSON.stringify({
-      ts: Date.now(), h: history, r: roster, sdb: studentDb,
+      ts: Date.now(), h: history, r: roster, sdb: studentDb, cyc: cycleStore,
       sm: studentsMorning, se: studentsEvening,
       hn: document.getElementById('hName').value,
       ho: document.getElementById('hNo').value,
@@ -1588,7 +1758,7 @@ function loadFromCache(uid) {
     history         = c.h   || {};
     roster          = c.r   || [];
     if (c.sdb && c.sdb.length) studentDb = c.sdb;
-    if (c.gb && c.gb.length) gradebook = c.gb;
+    if (c.cyc && c.cyc.length) cycleStore = c.cyc;
     if (c.hn) document.getElementById('hName').value   = c.hn;
     if (c.ho) document.getElementById('hNo').value     = c.ho;
     if (c.sn) document.getElementById('supName').value = c.sn;
@@ -1682,19 +1852,19 @@ function startListeners() {
   });
   dbListeners.push({ ref: sdbRef, event: 'value' });
 
-  // ★ Semester gradebook — synced to the Google account, persistent
-  var gbRef = dbRef('gradebook');
-  gbRef.on('value', function(snap) {
+  // ★ Evaluation cycles — synced to the instructor's account, editable
+  var cycRef = dbRef('cycleStore');
+  cycRef.on('value', function(snap) {
     if (!isStillMe()) return;
     var val = snap.val();
     if (val) {
-      gradebook = Array.isArray(val) ? val : Object.values(val);
-      try{ localStorage.setItem('hsp_gb', JSON.stringify(gradebook)); }catch(e){}
-      var pgb = document.getElementById('pgb');
-      if (pgb && pgb.classList.contains('active')) gbRender();
+      cycleStore = Array.isArray(val) ? val : Object.values(val);
+      try{ localStorage.setItem('hsp_cyc', JSON.stringify(cycleStore)); }catch(e){}
+      var pcyc = document.getElementById('pcyc');
+      if (pcyc && pcyc.classList.contains('active')) cycRender();
     }
   });
-  dbListeners.push({ ref: gbRef, event: 'value' });
+  dbListeners.push({ ref: cycRef, event: 'value' });
 
   var rRef = dbRef('roster');
   rRef.on('value', function(snap) {
@@ -1835,7 +2005,7 @@ function cacheLocally() {
       se: studentsEvening,
       h: history, r: roster,
       sdb: studentDb,
-      gb: gradebook,
+      cyc: cycleStore,
       hn: document.getElementById('hName').value,
       ho: document.getElementById('hNo').value,
       sn: document.getElementById('supName').value
@@ -1882,8 +2052,8 @@ var FIELDS=[
 function showTab(n){
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',grades:'pgb'};
-  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',grades:'tbgb'};
+  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',rot:'prot',cycle:'pcyc'};
+  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',rot:'tbrot',cycle:'tbcyc'};
   var panel=document.getElementById(panels[n]);
   panel.classList.add('active');
   // restart the entrance animation so every switch feels alive
@@ -1898,7 +2068,8 @@ function showTab(n){
   if(n==='teach')  tmRender();
   if(n==='audit')  renderAudit();
   if(n==='prog')   renderProgress();
-  if(n==='grades') gbRender();
+  if(n==='rot')    renderRotationTab();
+  if(n==='cycle')  cycRender();
 }
 
 function switchGroup(g){
@@ -3218,7 +3389,26 @@ function tick(){
   var months=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
   document.getElementById('datedisp').textContent=days[now.getDay()]+'، '+now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear();
 }
-function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2400);}
+function toast(msg, type){
+  // ★ Upgraded to Notyf when available; falls back to original toast (offline-safe)
+  try{
+    if(typeof Notyf !== 'undefined'){
+      if(!window.__notyf){
+        window.__notyf = new Notyf({ duration:2600, ripple:true, position:{x:'center',y:'top'},
+          types:[
+            {type:'success',background:'#0E7C86'},
+            {type:'error',background:'#c0392b'},
+            {type:'info',background:'#2980b9'}
+          ]});
+      }
+      var t = type || (/خطأ|فشل|تعذّر|لا يمكن/.test(msg) ? 'error' : 'success');
+      window.__notyf.open({ type:t, message: msg });
+      return;
+    }
+  }catch(e){}
+  var el=document.getElementById('toast'); if(!el) return;
+  el.textContent=msg; el.classList.add('show'); setTimeout(function(){el.classList.remove('show');},2400);
+}
 
 document.getElementById('evalM').addEventListener('click',function(e){if(e.target===this)closeMod();});
 document.getElementById('rotModal').addEventListener('click',function(e){if(e.target===this)closeRotModal();});
@@ -4169,213 +4359,244 @@ function applyGrpLoader(){
 }
 
 
-tick(); setInterval(tick, 1000);
-curDate = today(); // Always start on today
-dbLoad();
-gbLocalLoad();
-
 // ═══════════════════════════════════════════════════════════════════════
-// ★ SEMESTER GRADEBOOK — separate, persistent store (never reset)
-//   Record per student: {name, group, type, email, final, hospitals:[
-//     {name, days:[{att:'present'|'absent'|'', score:''}, x4]} x3 ]}
-//   Stored at users/{uid}/gradebook (cloud) + hsp_gb (local).
+// ★ EVALUATION CYCLE SYSTEM (new, separate, per-instructor)
+//   cycleStore = [ { id, status:'active'|'done', group, type, hospital,
+//                    startDate, finishedDate, students:[ { name, slots:[
+//                      {day, subtotal, paper, final, date}, x4 ] } ] } ]
+//   Auto-saved to users/{uid}/cycleStore. Each cycle editable anytime.
 // ═══════════════════════════════════════════════════════════════════════
-function gbBlankHospitals(){
-  var hs=[]; for(var i=0;i<3;i++){ var d=[]; for(var j=0;j<4;j++) d.push({att:'',score:''}); hs.push({name:'',days:d}); } return hs;
-}
-function gbNormalize(rec){
-  rec = rec||{};
-  var hs = Array.isArray(rec.hospitals)?rec.hospitals:[];
-  while(hs.length<3) hs.push({name:'',days:[]});
-  hs = hs.slice(0,3).map(function(h){
-    h=h||{}; var d=Array.isArray(h.days)?h.days:[];
-    while(d.length<4) d.push({att:'',score:''});
-    d=d.slice(0,4).map(function(x){ x=x||{}; return {att:x.att||'',score:(x.score!==undefined&&x.score!==null)?String(x.score):''}; });
-    return {name:h.name||'',days:d};
+var CYC_DAYS = 4;
+function cycBlankSlots(){ var s=[]; for(var i=1;i<=CYC_DAYS;i++) s.push({day:i,subtotal:'',paper:'',final:'',date:''}); return s; }
+function cycNormalize(c){
+  c=c||{};
+  var st=Array.isArray(c.students)?c.students:[];
+  st=st.map(function(s){ s=s||{}; var sl=Array.isArray(s.slots)?s.slots:[];
+    while(sl.length<CYC_DAYS) sl.push({day:sl.length+1,subtotal:'',paper:'',final:'',date:''});
+    sl=sl.slice(0,CYC_DAYS).map(function(x,i){ x=x||{}; return {day:i+1,
+      subtotal:(x.subtotal!==undefined&&x.subtotal!==null)?String(x.subtotal):'',
+      paper:(x.paper!==undefined&&x.paper!==null)?String(x.paper):'',
+      final:(x.final!==undefined&&x.final!==null)?String(x.final):'',
+      date:x.date||''}; });
+    return {name:s.name||'',slots:sl};
   });
-  return {name:rec.name||'',group:(rec.group!==undefined?String(rec.group):''),type:rec.type||'',email:rec.email||'',final:(rec.final!==undefined&&rec.final!==null)?String(rec.final):'',hospitals:hs};
+  return {id:c.id||('cyc_'+Date.now()+'_'+Math.floor(Math.random()*9999)),
+    status:c.status==='done'?'done':'active', group:c.group!==undefined?String(c.group):'',
+    type:c.type||'', hospital:c.hospital||'', startDate:c.startDate||today(),
+    finishedDate:c.finishedDate||'', students:st};
 }
-function gbLocalLoad(){
-  try{ var raw=localStorage.getItem('hsp_gb'); if(raw){ var d=JSON.parse(raw); if(Array.isArray(d)){ gradebook=d.map(gbNormalize); } } }catch(e){}
-}
-function gbSave(){
-  gradebook = gradebook.map(gbNormalize);
-  try{ localStorage.setItem('hsp_gb', JSON.stringify(gradebook)); }catch(e){}
-  if (!isOfflineMode && currentUser && db) guardedSet('gradebook', gradebook);
+function cycLocalLoad(){ try{var r=localStorage.getItem('hsp_cyc'); if(r){var d=JSON.parse(r); if(Array.isArray(d)) cycleStore=d.map(cycNormalize);}}catch(e){} }
+function cycSave(){
+  cycleStore=cycleStore.map(cycNormalize);
+  try{ localStorage.setItem('hsp_cyc', JSON.stringify(cycleStore)); }catch(e){}
+  if (!isOfflineMode && currentUser && db) guardedSet('cycleStore', cycleStore);
   else cacheLocally();
 }
+var cycSaveTimer=null;
+function cycSaveDebounced(){ clearTimeout(cycSaveTimer); cycSaveTimer=setTimeout(cycSave,600); }
 
-// ── RENDER ────────────────────────────────────────────────────────────
-var gbOpenStudent = {};   // remembers expanded students across re-render
-var gbOpenGroup = {};
-function gbRender(){
-  var cont=document.getElementById('gbContent'); if(!cont) return;
-  if(!gradebook.length){
-    cont.innerHTML='<div style="border:2px dashed var(--primary);border-radius:12px;padding:30px;text-align:center;background:#f1f6f7">'
-      +'<div style="font-size:40px;margin-bottom:10px">📒</div>'
-      +'<div style="font-size:16px;font-weight:700;color:var(--primary);margin-bottom:8px">سجل الدرجات فارغ</div>'
-      +'<div style="font-size:13px;color:var(--muted);line-height:1.9">حمّل القالب وعبّئه ثم استورده،<br>أو اضغط «جلب الطلاب من قاعدة البيانات» لإنشاء السجل تلقائياً.</div></div>';
+// ── detect groups available in the student database ──────────────────
+function cycGroupsInDb(){
+  var map={};
+  (studentDb||[]).forEach(function(r){
+    var g=(r.group!==undefined?String(r.group).trim():''); if(!g) return;
+    var key=g+'||'+(r.type||'')+'||'+(r.hospital||'');
+    if(!map[key]) map[key]={group:g,type:r.type||'',hospital:r.hospital||'',count:0};
+    map[key].count++;
+  });
+  return Object.keys(map).map(function(k){return map[k];})
+    .sort(function(a,b){ return (parseInt(a.group)||999)-(parseInt(b.group)||999) || (a.type||'').localeCompare(b.type||'','ar'); });
+}
+
+// ── import a group → start a new cycle (warns if one is active) ──────
+function cycImportPrompt(){
+  if(!studentDb || !studentDb.length){
+    if(typeof Swal!=='undefined'){ Swal.fire({icon:'info',title:'قاعدة البيانات فارغة',text:'استورد ملف الطلاب في تبويب قاعدة البيانات أولاً',confirmButtonColor:'#0E7C86'}); }
+    else toast('قاعدة البيانات فارغة'); return;
+  }
+  var groups=cycGroupsInDb();
+  if(!groups.length){ toast('لا توجد مجموعات في قاعدة البيانات'); return; }
+  var active=cycleStore.filter(function(c){return c.status==='active';});
+  function doPick(){
+    var opts={};
+    groups.forEach(function(g,i){ opts[i]='مجموعة '+g.group+' · '+(g.type||'')+(g.hospital?(' · '+g.hospital):'')+' ('+g.count+' طالب)'; });
+    if(typeof Swal!=='undefined'){
+      Swal.fire({title:'اختر المجموعة لبدء دورة',input:'select',inputOptions:opts,inputPlaceholder:'اختر مجموعة',
+        showCancelButton:true,confirmButtonText:'بدء الدورة',cancelButtonText:'إلغاء',confirmButtonColor:'#0E7C86'
+      }).then(function(res){ if(res.isConfirmed && res.value!==''){ cycStartCycle(groups[parseInt(res.value)]); } });
+    } else {
+      var idx=prompt('اكتب رقم المجموعة:\n'+groups.map(function(g,i){return i+': مجموعة '+g.group+' '+(g.type||'');}).join('\n'));
+      if(idx!==null && groups[parseInt(idx)]) cycStartCycle(groups[parseInt(idx)]);
+    }
+  }
+  if(active.length && typeof Swal!=='undefined'){
+    Swal.fire({icon:'warning',title:'لديك دورة نشطة غير منتهية',
+      text:'يمكنك بدء دورة جديدة (ستبقى الدورة الحالية محفوظة)، أو إنهاؤها أولاً.',
+      showCancelButton:true,confirmButtonText:'بدء دورة جديدة على أي حال',cancelButtonText:'تراجع',confirmButtonColor:'#0E7C86'
+    }).then(function(r){ if(r.isConfirmed) doPick(); });
+  } else { doPick(); }
+}
+function cycStartCycle(g){
+  var students=(studentDb||[]).filter(function(r){
+    return String(r.group).trim()===g.group && (r.type||'')===(g.type||'') && (r.hospital||'')===(g.hospital||'');
+  }).map(function(r){ return {name:r.name||'', slots:cycBlankSlots()}; });
+  var cyc=cycNormalize({status:'active',group:g.group,type:g.type,hospital:g.hospital,startDate:today(),students:students});
+  cycleStore.push(cyc);
+  cycSave();
+  cycActiveId=cyc.id; cycActiveDay=1;
+  cycRender();
+  toast('بدأت دورة المجموعة '+g.group+' ('+students.length+' طالب) ✓','success');
+}
+
+// ── view state ──────────────────────────────────────────────────────
+var cycActiveId=null, cycActiveDay=1, cycViewMode='active';
+function cycFind(id){ for(var i=0;i<cycleStore.length;i++) if(cycleStore[i].id===id) return cycleStore[i]; return null; }
+
+function cycRender(){
+  var cont=document.getElementById('cycContent'); if(!cont) return;
+  // default to the active cycle if none selected
+  if(!cycActiveId){ var a=cycleStore.filter(function(c){return c.status==='active';}); if(a.length) cycActiveId=a[a.length-1].id; }
+  var cyc=cycFind(cycActiveId);
+  if(!cyc){
+    if(cycleStore.length){ cycRenderList(); return; }
+    cont.innerHTML='<div style="border:2px dashed var(--primary);border-radius:12px;padding:30px;text-align:center;background:#eef7f6">'
+      +'<div style="font-size:40px;margin-bottom:10px">🎯</div>'
+      +'<div style="font-size:16px;font-weight:700;color:var(--primary);margin-bottom:8px">لا توجد دورات بعد</div>'
+      +'<div style="font-size:13px;color:var(--muted);line-height:1.9">اضغط «استيراد مجموعة (بدء دورة)» لإنشاء أول دورة تقييمية.</div></div>';
     return;
   }
-  // group by group number
-  var groups={};
-  gradebook.forEach(function(s,idx){ var g=s.group||'بدون مجموعة'; if(!groups[g])groups[g]=[]; groups[g].push(idx); });
-  var gkeys=Object.keys(groups).sort(function(a,b){ return (parseInt(a)||999)-(parseInt(b)||999) || a.localeCompare(b,'ar'); });
   var html='';
-  gkeys.forEach(function(g){
-    var open = gbOpenGroup[g]!==false; // default open
-    html+='<div style="margin-bottom:14px;border:0.5px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)">';
-    html+='<div style="background:var(--primary);color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-size:14px;font-weight:600" onclick="gbToggleGroup(\''+encodeURIComponent(g)+'\')">';
-    html+='<span>👥 المجموعة '+g+' — '+groups[g].length+' طالب</span><span>'+(open?'▾':'▸')+'</span></div>';
-    html+='<div style="padding:6px;display:'+(open?'block':'none')+'">';
-    groups[g].forEach(function(idx){
-      var s=gradebook[idx]; var sopen=!!gbOpenStudent[idx];
-      html+='<div style="border:0.5px solid #e8eeee;border-radius:8px;margin:6px 0">';
-      html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;gap:8px;flex-wrap:wrap">';
-      html+='<span style="font-weight:600;font-size:14px;cursor:pointer" onclick="gbToggleStudent('+idx+')">'+(sopen?'▾ ':'▸ ')+s.name+'</span>';
-      html+='<span style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">الدرجة النهائية <input value="'+(s.final||'')+'" placeholder="—" oninput="gbSetFinal('+idx+',this.value)" style="width:60px;text-align:center;border:1px solid #cfe0de;border-radius:6px;padding:4px;font-size:13px;font-weight:700;color:var(--pdark,#0A6068)"></span>';
-      html+='</div>';
-      html+='<div style="display:'+(sopen?'block':'none')+';padding:4px 12px 12px;border-top:0.5px solid #eef3f3">';
-      s.hospitals.forEach(function(hp,hi){
-        html+='<div style="margin-top:10px">';
-        html+='<input value="'+(hp.name||'').replace(/"/g,'&quot;')+'" placeholder="اسم المستشفى '+(hi+1)+'" oninput="gbSetHosp('+idx+','+hi+',this.value)" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:13px;margin-bottom:6px;background:#f1f6f7;color:var(--text)">';
-        html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">';
-        hp.days.forEach(function(d,di){
-          var p=d.att==='present', a=d.att==='absent';
-          html+='<div style="border:0.5px solid #e1eaea;border-radius:7px;padding:7px;text-align:center;background:#fbfdfd">';
-          html+='<div style="font-size:11px;color:var(--muted);margin-bottom:5px">اليوم '+(di+1)+'</div>';
-          html+='<div style="display:flex;gap:3px;justify-content:center;margin-bottom:5px">';
-          html+='<button onclick="gbSetAtt('+idx+','+hi+','+di+',\'present\')" style="border:1px solid '+(p?'#27500A':'#dde8e8')+';background:'+(p?'#27500A':'#fff')+';color:'+(p?'#fff':'#6b8585')+';border-radius:5px;width:26px;height:26px;font-size:12px;cursor:pointer">✓</button>';
-          html+='<button onclick="gbSetAtt('+idx+','+hi+','+di+',\'absent\')" style="border:1px solid '+(a?'#A32D2D':'#dde8e8')+';background:'+(a?'#A32D2D':'#fff')+';color:'+(a?'#fff':'#6b8585')+';border-radius:5px;width:26px;height:26px;font-size:12px;cursor:pointer">✗</button>';
-          html+='</div>';
-          html+='<input value="'+(d.score||'')+'" placeholder="—" oninput="gbSetScore('+idx+','+hi+','+di+',this.value)" style="width:48px;text-align:center;border:1px solid #cfe0de;border-radius:5px;padding:3px;font-size:12px">';
-          html+='</div>';
-        });
-        html+='</div></div>';
-      });
-      html+='</div></div>';
-    });
+  // header card
+  html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
+  html+='<div><div style="font-size:15px;font-weight:700;color:var(--primary)">دورة المجموعة '+cyc.group+' · '+(cyc.type||'')+'</div>';
+  html+='<div style="font-size:12px;color:var(--muted)">'+(cyc.hospital||'بدون مستشفى')+' · بدأت '+cyc.startDate+' · '+cyc.students.length+' طالب · '+(cyc.status==='done'?'<span style="color:#27ae60">منتهية</span>':'<span style="color:#e67e22">نشطة</span>')+'</div></div>';
+  html+='<div style="display:flex;gap:6px">';
+  if(cyc.status==='active') html+='<button class="btn bp" style="font-size:12px" onclick="cycFinish(\''+cyc.id+'\')">🏁 إنهاء الدورة</button>';
+  else html+='<button class="btn bo" style="font-size:12px" onclick="cycReopen(\''+cyc.id+'\')">↩️ إعادة فتح</button>';
+  html+='<button class="btn bo" style="font-size:12px" onclick="cycRenderList()">📋 كل الدورات</button>';
+  html+='</div></div>';
+  // day tabs (4 separate)
+  html+='<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">';
+  for(var d=1;d<=CYC_DAYS;d++){
+    var on=(cycActiveDay===d);
+    html+='<button onclick="cycSetDay('+d+')" style="border:1px solid '+(on?'#0E7C86':'var(--border)')+';background:'+(on?'#0E7C86':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">اليوم '+d+'</button>';
+  }
+  html+='</div>';
+  // student rows for the active day
+  var q=(document.getElementById('cycSearch')&&document.getElementById('cycSearch').value||'').trim();
+  var students=cyc.students;
+  if(q && typeof Fuse!=='undefined'){
+    var fuse=new Fuse(cyc.students,{keys:['name'],threshold:0.4}); students=fuse.search(q).map(function(r){return r.item;});
+  } else if(q){ students=cyc.students.filter(function(s){return (s.name||'').indexOf(q)>=0;}); }
+  html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">';
+  html+='<div style="display:grid;grid-template-columns:1fr 90px 90px 80px;gap:8px;padding:10px 14px;background:#eef7f6;font-size:12px;color:var(--primary);font-weight:700;border-bottom:1px solid var(--border)">'
+    +'<div>الطالب</div><div style="text-align:center">مجموع التقييم</div><div style="text-align:center">الورقة (بالبيت)</div><div style="text-align:center">النهائي</div></div>';
+  students.forEach(function(s){
+    var realIdx=cyc.students.indexOf(s);
+    var slot=s.slots[cycActiveDay-1];
+    var fin = cycCalcFinal(slot);
+    html+='<div style="display:grid;grid-template-columns:1fr 90px 90px 80px;gap:8px;padding:9px 14px;align-items:center;border-bottom:1px solid #f0f4f4">';
+    html+='<div style="font-weight:600;font-size:13px">'+s.name+(slot.date?(' <span style="font-size:10px;color:var(--muted)">('+slot.date+')</span>'):'')+'</div>';
+    html+='<div style="text-align:center"><input value="'+(slot.subtotal||'')+'" placeholder="—" inputmode="decimal" oninput="cycSetField('+realIdx+',\'subtotal\',this.value)" style="width:64px;text-align:center;border:1px solid #cfe0de;border-radius:6px;padding:4px;font-size:13px"></div>';
+    html+='<div style="text-align:center"><input value="'+(slot.paper||'')+'" placeholder="—" inputmode="decimal" oninput="cycSetField('+realIdx+',\'paper\',this.value)" style="width:64px;text-align:center;border:1px solid #cfe0de;border-radius:6px;padding:4px;font-size:13px"></div>';
+    html+='<div style="text-align:center;font-weight:700;color:'+(fin!==''?'#0E7C86':'#bbb')+'">'+(fin!==''?fin:'—')+'</div>';
+    html+='</div>';
+  });
+  html+='</div>';
+  // per-student 4-day summary
+  html+='<div style="margin-top:14px;font-size:13px;font-weight:700;color:var(--text)">📊 ملخص الأيام الأربعة (الدرجات النهائية لكل طالب)</div>';
+  html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow-x:auto;margin-top:6px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:480px">';
+  html+='<thead><tr style="background:var(--primary);color:#fff"><th style="padding:8px;text-align:right">الطالب</th><th style="padding:8px">يوم ١</th><th style="padding:8px">يوم ٢</th><th style="padding:8px">يوم ٣</th><th style="padding:8px">يوم ٤</th></tr></thead><tbody>';
+  cyc.students.forEach(function(s,i){
+    html+='<tr style="background:'+(i%2?'#f8fafc':'#fff')+'"><td style="padding:7px 10px;font-weight:600">'+s.name+'</td>';
+    s.slots.forEach(function(sl){ var f=cycCalcFinal(sl); html+='<td style="padding:7px;text-align:center;font-weight:700;color:'+(f!==''?'#0E7C86':'#ccc')+'">'+(f!==''?f:'—')+'</td>'; });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  cont.innerHTML=html;
+}
+function cycCalcFinal(slot){
+  var a=parseFloat(slot.subtotal), b=parseFloat(slot.paper);
+  var hasA=!isNaN(a), hasB=!isNaN(b);
+  if(!hasA && !hasB) return '';
+  var v=(hasA?a:0)+(hasB?b:0);
+  return Math.round(v*100)/100;
+}
+function cycSetDay(d){ cycActiveDay=d; cycRender(); }
+function cycSetField(idx,field,val){
+  var cyc=cycFind(cycActiveId); if(!cyc) return;
+  // clamp numeric 0–15 softly (allow empty + decimals while typing)
+  if(val!==''){ var n=parseFloat(val); if(!isNaN(n)){ if(n<0)n=0; if(n>15)n=15; } }
+  var slot=cyc.students[idx].slots[cycActiveDay-1];
+  slot[field]=val;
+  slot.final=String(cycCalcFinal(slot));
+  if((field==='paper'||field==='subtotal') && val!=='' && !slot.date) slot.date=today();
+  cycSaveDebounced();
+  // light refresh of just the final column would need re-render; debounce a full render
+  clearTimeout(window.__cycRR); window.__cycRR=setTimeout(cycRender,400);
+}
+function cycSetDayDate(){ /* date auto-set on first entry */ }
+function cycFinish(id){
+  var doF=function(){ var c=cycFind(id); if(!c) return; c.status='done'; c.finishedDate=today(); cycSave(); cycRender(); toast('تم إنهاء الدورة ✓ (تبقى قابلة للتعديل)','success'); };
+  if(typeof Swal!=='undefined'){
+    Swal.fire({icon:'question',title:'إنهاء الدورة؟',text:'ستُعلَّم كمنتهية لكنها تبقى محفوظة وقابلة للتعديل وإعادة التقييم لاحقاً.',
+      showCancelButton:true,confirmButtonText:'نعم، إنهاء',cancelButtonText:'إلغاء',confirmButtonColor:'#0E7C86'
+    }).then(function(r){ if(r.isConfirmed) doF(); });
+  } else if(confirm('إنهاء الدورة؟ تبقى قابلة للتعديل لاحقاً.')) doF();
+}
+function cycReopen(id){ var c=cycFind(id); if(!c) return; c.status='active'; c.finishedDate=''; cycSave(); cycRender(); toast('أُعيد فتح الدورة','info'); }
+function cycSearchRender(){ if(document.getElementById('pcyc').classList.contains('active')) cycRender(); }
+
+// ── saved cycles list ────────────────────────────────────────────────
+function cycRenderList(){
+  var cont=document.getElementById('cycContent'); if(!cont) return;
+  if(!cycleStore.length){ cycActiveId=null; cycRender(); return; }
+  var html='<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px">📋 كل الدورات المحفوظة ('+cycleStore.length+')</div>';
+  var sorted=cycleStore.slice().sort(function(a,b){ return (a.status==='active'?0:1)-(b.status==='active'?0:1); });
+  sorted.forEach(function(c){
+    var done=c.students.reduce(function(acc,s){ return acc + (s.slots.filter(function(sl){return cycCalcFinal(sl)!=='';}).length); },0);
+    var total=c.students.length*CYC_DAYS;
+    html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;cursor:pointer" onclick="cycOpen(\''+c.id+'\')">';
+    html+='<div><div style="font-weight:700;font-size:14px">'+(c.status==='active'?'🟢 ':'✓ ')+'مجموعة '+c.group+' · '+(c.type||'')+'</div>';
+    html+='<div style="font-size:12px;color:var(--muted)">'+(c.hospital||'—')+' · '+c.students.length+' طالب · '+done+'/'+total+' درجة مُدخلة'+(c.finishedDate?(' · انتهت '+c.finishedDate):'')+'</div></div>';
+    html+='<div style="display:flex;gap:6px" onclick="event.stopPropagation()">';
+    html+='<button class="btn bo" style="font-size:12px" onclick="cycOpen(\''+c.id+'\')">فتح / تعديل</button>';
+    html+='<button class="btn" style="font-size:12px;background:#fdecea;color:#c0392b;border-color:#f5b7b1" onclick="cycDelete(\''+c.id+'\')">🗑️</button>';
     html+='</div></div>';
   });
   cont.innerHTML=html;
 }
-function gbToggleGroup(eg){ var g=decodeURIComponent(eg); gbOpenGroup[g]=(gbOpenGroup[g]===false); gbRender(); }
-function gbToggleStudent(idx){ gbOpenStudent[idx]=!gbOpenStudent[idx]; gbRender(); }
-function gbSetFinal(idx,v){ gradebook[idx].final=v; gbSaveDebounced(); }
-function gbSetHosp(idx,hi,v){ gradebook[idx].hospitals[hi].name=v; gbSaveDebounced(); }
-function gbSetScore(idx,hi,di,v){ gradebook[idx].hospitals[hi].days[di].score=v; gbSaveDebounced(); }
-function gbSetAtt(idx,hi,di,v){ var d=gradebook[idx].hospitals[hi].days[di]; d.att=(d.att===v?'':v); gbSave(); gbRender(); }
-var gbSaveTimer=null;
-function gbSaveDebounced(){ clearTimeout(gbSaveTimer); gbSaveTimer=setTimeout(gbSave,600); }
-
-// ── SEED FROM STUDENT DATABASE ────────────────────────────────────────
-function gbSeedFromDb(){
-  if(!studentDb||!studentDb.length){ toast('قاعدة البيانات فارغة — استورد الطلاب أولاً'); return; }
-  if(gradebook.length && !confirm('سيتم إضافة الطلاب من قاعدة البيانات إلى سجل الدرجات (دون مسح الموجود). متابعة؟')) return;
-  var existing={}; gradebook.forEach(function(s){ existing[(s.name||'').trim()]=true; });
-  var added=0;
-  studentDb.forEach(function(r){
-    var nm=(r.name||'').trim(); if(!nm||existing[nm]) return;
-    gradebook.push(gbNormalize({name:nm,group:r.group||'',type:r.type||'',email:r.email||'',hospitals:gbBlankHospitals()}));
-    existing[nm]=true; added++;
-  });
-  gbSave(); gbRender();
-  toast(added?('تمت إضافة '+added+' طالب ✓'):'لا يوجد طلاب جدد لإضافتهم');
+function cycOpen(id){ cycActiveId=id; cycActiveDay=1; cycRender(); }
+function cycDelete(id){
+  var doD=function(){ cycleStore=cycleStore.filter(function(c){return c.id!==id;}); if(cycActiveId===id) cycActiveId=null; cycSave(); cycRenderList(); toast('تم حذف الدورة','info'); };
+  if(typeof Swal!=='undefined'){
+    Swal.fire({icon:'warning',title:'حذف هذه الدورة نهائياً؟',text:'لا يمكن التراجع — ستُفقد كل درجات هذه الدورة.',
+      showCancelButton:true,confirmButtonText:'نعم، احذف',cancelButtonText:'إلغاء',confirmButtonColor:'#c0392b',cancelButtonColor:'#7f8c8d'
+    }).then(function(r){ if(r.isConfirmed) doD(); });
+  } else if(confirm('حذف هذه الدورة نهائياً؟')) doD();
 }
 
-// ── EXCEL TEMPLATE DOWNLOAD ───────────────────────────────────────────
-function gbDownloadTemplate(){
-  var wb=XLSX.utils.book_new();
-  var top=['م','المجموعة','اسم الطالب','نوع الدراسة','البريد الإلكتروني'];
-  var sub=['','','','',''];
-  for(var hi=1;hi<=3;hi++){
-    top.push('المستشفى '+hi); for(var k=0;k<8;k++) top.push('');
-    sub.push('اسم المستشفى');
-    for(var d=1;d<=4;d++){ sub.push('ي'+d+' ح/غ'); sub.push('ي'+d+' الدرجة'); }
-  }
-  top.push('الدرجة النهائية'); sub.push('');
-  var rows=[top,sub,
-    [1,'1','أحمد محمد علي','صباحي','ahmed@college.edu.iq','مستشفى الكندي','حاضر',13,'حاضر',12.5,'غائب','','حاضر',14,'','','','','','','','','','','','','','','','',''],
-    [2,'1','سارة خالد حسن','صباحي','sara@college.edu.iq'],
-    [3,'2','نور أحمد سعيد','مسائي','noor@college.edu.iq']
-  ];
-  var ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[{wch:4},{wch:9},{wch:22},{wch:11},{wch:24}].concat(Array(28).fill({wch:10}));
-  XLSX.utils.book_append_sheet(wb,ws,'سجل الدرجات الفصلي');
-  XLSX.writeFile(wb,'gradebook_template.xlsx');
-  toast('تم تحميل القالب ✓');
+// ── guided tour (Driver.js) ──────────────────────────────────────────
+function startTour(){
+  if(typeof window.driver==='undefined' || !window.driver.js){ toast('جولة الإرشاد غير متاحة الآن'); return; }
+  var d=window.driver.js.driver;
+  var tour=d({ showProgress:true, nextBtnText:'التالي', prevBtnText:'السابق', doneBtnText:'تم',
+    steps:[
+      {element:'#tba', popover:{title:'الحضور والتقييم',description:'تبويب التقييم اليومي المعتاد — تسجيل الحضور وإدخال الدرجات.'}},
+      {element:'#tbcyc', popover:{title:'الدورة التقييمية',description:'النظام الجديد: استورد مجموعة، قيّمها على ٤ أيام منفصلة، وأضف درجة الورقة بالبيت.'}},
+      {element:'#tbr', popover:{title:'جدول المجموعات',description:'يكشف المجموعات تلقائياً ويقسّمها حسب النوع والمستشفى.'}},
+      {element:'#tbdb', popover:{title:'قاعدة البيانات',description:'استورد ملف الطلاب مرة واحدة في بداية الفصل من هنا.'}},
+      {element:'#tbpg', popover:{title:'متابعة الطلاب',description:'تحليل أداء كل طالب عبر الجلسات مع تنبيه المتعثرين.'}}
+    ]});
+  tour.drive();
 }
+try{ localStorage.getItem('hsp_tour_done'); }catch(e){}
 
-// ── IMPORT (merge by student name — never wipes typed grades) ─────────
-function gbImportFile(event){
-  var file=event.target.files[0]; if(!file) return;
-  toast('جاري قراءة الملف...');
-  var reader=new FileReader();
-  reader.onload=function(e){
-    try{
-      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
-      var ws=wb.Sheets[wb.SheetNames[0]];
-      var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      if(rows.length<3){ toast('الملف لا يحتوي بيانات كافية'); event.target.value=''; return; }
-      // header is 2 rows; data starts at row index 2
-      function val(r,c){ return r[c]!==undefined?String(r[c]).trim():''; }
-      function attNorm(s){ s=(s||'').trim(); if(s==='حاضر'||s==='ح'||s.toLowerCase()==='present')return 'present'; if(s==='غائب'||s==='غ'||s.toLowerCase()==='absent')return 'absent'; return ''; }
-      var imported=[];
-      for(var i=2;i<rows.length;i++){
-        var r=rows[i]; var name=val(r,2); if(!name) continue;
-        var rec={name:name,group:val(r,1),type:val(r,3),email:val(r,4),hospitals:[],final:''};
-        var c=5;
-        for(var hi=0;hi<3;hi++){
-          var hname=val(r,c); var days=[];
-          for(var d=0;d<4;d++){ days.push({att:attNorm(val(r,c+1+d*2)),score:val(r,c+2+d*2)}); }
-          rec.hospitals.push({name:hname,days:days});
-          c+=9;
-        }
-        rec.final=val(r,c); // final grade column
-        imported.push(gbNormalize(rec));
-      }
-      if(!imported.length){ toast('لا توجد صفوف طلاب في الملف'); event.target.value=''; return; }
-      // MERGE by name: update existing, add new, keep untouched students
-      var byName={}; gradebook.forEach(function(s,ix){ byName[(s.name||'').trim()]=ix; });
-      var updated=0,addedNew=0;
-      imported.forEach(function(rec){
-        var key=(rec.name||'').trim();
-        if(byName[key]!==undefined){ gradebook[byName[key]]=rec; updated++; }
-        else { gradebook.push(rec); addedNew++; }
-      });
-      gbSave(); gbRender();
-      toast('تم الاستيراد ✓ (محدّث: '+updated+' · جديد: '+addedNew+')');
-    }catch(err){ toast('خطأ في قراءة الملف: '+err.message); console.error(err); }
-    event.target.value='';
-  };
-  reader.readAsArrayBuffer(file);
-}
+tick(); setInterval(tick, 1000);
+curDate = today(); // Always start on today
+dbLoad();
+cycLocalLoad();
 
-// ── EXPORT (current gradebook back to the same template layout) ───────
-function gbExportExcel(){
-  if(!gradebook.length){ toast('لا توجد بيانات للتصدير'); return; }
-  var wb=XLSX.utils.book_new();
-  var top=['م','المجموعة','اسم الطالب','نوع الدراسة','البريد الإلكتروني'];
-  var sub=['','','','',''];
-  for(var hi=1;hi<=3;hi++){ top.push('المستشفى '+hi); for(var k=0;k<8;k++) top.push(''); sub.push('اسم المستشفى'); for(var d=1;d<=4;d++){ sub.push('ي'+d+' ح/غ'); sub.push('ي'+d+' الدرجة'); } }
-  top.push('الدرجة النهائية'); sub.push('');
-  var rows=[top,sub];
-  var sorted=gradebook.slice().sort(function(a,b){ return (parseInt(a.group)||999)-(parseInt(b.group)||999); });
-  sorted.forEach(function(s,i){
-    var row=[i+1,s.group||'',s.name||'',s.type||'',s.email||''];
-    s.hospitals.forEach(function(hp){
-      row.push(hp.name||'');
-      hp.days.forEach(function(d){ row.push(d.att==='present'?'حاضر':d.att==='absent'?'غائب':''); row.push(d.score||''); });
-    });
-    row.push(s.final||'');
-    rows.push(row);
-  });
-  var ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[{wch:4},{wch:9},{wch:22},{wch:11},{wch:24}].concat(Array(28).fill({wch:10}));
-  XLSX.utils.book_append_sheet(wb,ws,'سجل الدرجات الفصلي');
-  XLSX.writeFile(wb,'سجل_الدرجات_الفصلي.xlsx');
-  toast('تم تصدير الدرجات ✓');
-}
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -4400,7 +4621,7 @@ function optimisticRestore(sess){
       history = c.h || {};
       roster  = c.r || [];
       if (c.sdb && c.sdb.length) studentDb = c.sdb;
-      if (c.gb && c.gb.length) gradebook = c.gb;
+      if (c.cyc && c.cyc.length) cycleStore = c.cyc;
       if (c.hn) document.getElementById('hName').value   = c.hn;
       if (c.ho) document.getElementById('hNo').value     = c.ho;
       if (c.sn) document.getElementById('supName').value = c.sn;
