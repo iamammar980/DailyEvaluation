@@ -4531,8 +4531,10 @@ function cycRender(jumpToHospitalName){
   });
   html+='</tbody></table></div>';
 
-  html+='<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">';
-  html+='<button class="btn ba" onclick="cycExportExcel()">📊 تصدير السجل (Excel)</button>';
+  html+='<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">';
+  html+='<button class="btn ba" onclick="cycExportExcel()">📊 تصدير السجل الكامل</button>';
+  var gp=cycGroupsPresent();
+  if(gp.length){ html+='<span style="font-size:12px;color:var(--muted)">تصدير مجموعة:</span>'; gp.forEach(function(g){ html+='<button class="btn bo" style="font-size:12px" onclick="cycExportGroup(\''+g+'\')">📥 مجموعة '+g+'</button>'; }); }
   html+='<button class="btn" style="background:#fdecea;color:#c0392b;border-color:#f5b7b1" onclick="cycResetAll()">🗑️ مسح كل السجل</button>';
   html+='</div>';
 
@@ -4582,6 +4584,34 @@ function cycExportExcel(){
   var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'سجل الدرجات');
   XLSX.writeFile(wb,'سجل_درجات_الطلاب.xlsx');
   toast('تم تصدير السجل ✓','success');
+}
+
+// groups currently present in the gradebook
+function cycGroupsPresent(){
+  var gs=[]; cycleStore.forEach(function(s){ var g=String(s.group||''); if(g && gs.indexOf(g)<0) gs.push(g); });
+  return gs.sort(function(a,b){ return (parseInt(a)||999)-(parseInt(b)||999); });
+}
+// export ONE group's students (their full 12-cell record)
+function cycExportGroup(groupNum){
+  if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
+  var members=cycleStore.filter(function(s){ return String(s.group)===String(groupNum); });
+  if(!members.length){ toast('لا يوجد طلاب في هذه المجموعة'); return; }
+  var hnames=cycHospitalNames();
+  var top=['اسم الطالب','المجموعة','نوع الدراسة'];
+  var sub=['','',''];
+  for(var h=0;h<CYC_HOSPITALS;h++){ top.push(hnames[h]||('مستشفى '+(h+1))); for(var k=0;k<3;k++) top.push(''); for(var d=1;d<=CYC_DAYS;d++) sub.push('ي'+d); }
+  top.push('المجموع'); sub.push('');
+  var rows=[top,sub];
+  members.forEach(function(s){
+    var row=[s.name,s.group||'',s.type||''], tot=0, any=false;
+    s.hospitals.forEach(function(h){ h.days.forEach(function(g){ var n=parseFloat(g); if(!isNaN(n)){tot+=n;any=true;} row.push(g||''); }); });
+    row.push(any?Math.round(tot*100)/100:''); rows.push(row);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:24},{wch:9},{wch:11}].concat(Array(CYC_HOSPITALS*CYC_DAYS).fill({wch:6})).concat([{wch:9}]);
+  var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'مجموعة '+groupNum);
+  XLSX.writeFile(wb,'درجات_مجموعة_'+groupNum+'.xlsx');
+  toast('تم تصدير المجموعة '+groupNum+' ✓','success');
 }
 
 // ── guided tour (Driver.js) ──────────────────────────────────────────
