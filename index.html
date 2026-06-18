@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <!-- Firebase loads dynamically in JS only when online mode is chosen -->
 <style>
-:root{--bg:#f1f6f7;--surface:#fff;--border:#dde8e8;--primary:#0E7C86;--pdark:#0A6068;--pl:#1D9E8C;--accent:#16a085;--danger:#c0392b;--warn:#e67e22;--success:#27ae60;--text:#1f3a3a;--muted:#6b8585;--r:10px}
+:root{--bg:#f5f6fa;--surface:#fff;--border:#e2e6ea;--primary:#1a5276;--pl:#2980b9;--accent:#16a085;--danger:#c0392b;--warn:#e67e22;--success:#27ae60;--text:#2c3e50;--muted:#7f8c8d;--r:10px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;direction:rtl}
 
@@ -65,49 +65,6 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .tab-btn:not(.active):hover{background:var(--bg);color:var(--text)}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
-
-/* ── STYLE-10 TWO-LEVEL DESKTOP NAV ───────────────────────────── */
-.navwrap{margin-bottom:16px;border-radius:var(--r);overflow:hidden;box-shadow:0 1px 3px rgba(15,110,134,.08)}
-.nav-groups{display:flex;gap:2px;background:var(--primary);padding:0 6px}
-.navgrp{border:none;background:transparent;color:#bfe5df;font-size:14px;font-weight:600;padding:12px 18px;cursor:pointer;transition:color .25s}
-.navgrp.active{color:#fff;background:var(--pdark);border-radius:8px 8px 0 0;margin-top:5px;font-weight:700}
-.nav-subs{position:relative;display:flex;gap:6px;background:var(--pdark);padding:8px 12px;flex-wrap:wrap}
-.subpill{position:absolute;top:8px;height:32px;background:#fff;border-radius:7px;z-index:0;transition:right .42s cubic-bezier(.22,1,.36,1),width .42s cubic-bezier(.22,1,.36,1)}
-.navsub{position:relative;z-index:1;border:none;background:transparent;color:#fff;font-size:13px;padding:7px 14px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:color .3s}
-.navsub.active{color:var(--pdark);font-weight:700}
-
-/* ── GENIE TRANSITION (content unfurls from lower-left corner) ─── */
-.tab-panel{transform-origin:0% 100%}
-.tab-panel.genie{animation:genieUnfurl .82s cubic-bezier(.34,1.15,.32,1)}
-@keyframes genieUnfurl{
-  0%{opacity:0;transform:scale(.03,.06) skewX(30deg);clip-path:polygon(0% 100%,9% 100%,2% 0%,0% 0%);border-bottom-left-radius:34px}
-  18%{opacity:.85;transform:scale(.12,.46) skewX(24deg);clip-path:polygon(0% 100%,28% 100%,11% 0%,0% 0%)}
-  44%{opacity:1;transform:scale(.48,.88) skewX(14deg);clip-path:polygon(0% 100%,64% 100%,36% 0%,0% 0%)}
-  70%{transform:scale(.85,1.02) skewX(6deg);clip-path:polygon(0% 100%,94% 100%,80% 0%,0% 0%);border-bottom-left-radius:8px}
-  86%{transform:scale(1.02,.99) skewX(2deg);clip-path:polygon(0% 100%,100% 100%,100% 0%,0% 0%)}
-  100%{opacity:1;transform:scale(1,1) skewX(0deg);clip-path:polygon(0% 100%,100% 100%,100% 0%,0% 0%);border-bottom-left-radius:0}
-}
-@media (prefers-reduced-motion: reduce){ .tab-panel.genie{animation:genieFade .2s ease} @keyframes genieFade{from{opacity:0}to{opacity:1}} }
-
-/* ── MOBILE BOTTOM BAR (Nav 6) ────────────────────────────────── */
-.bottombar{display:none}
-.more-overlay{display:none}
-@media (max-width:700px){
-  .navwrap{display:none}
-  .bottombar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:60;background:var(--surface);border-top:1px solid var(--border);padding:6px 4px env(safe-area-inset-bottom,6px);justify-content:space-around;box-shadow:0 -2px 12px rgba(0,0,0,.06)}
-  .bb-item{flex:1;border:none;background:transparent;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted);font-size:10px;cursor:pointer;padding:4px 0;transition:color .25s}
-  .bb-item .bb-ic{font-size:20px;font-style:normal;transition:transform .3s cubic-bezier(.34,1.56,.64,1);display:block}
-  .bb-item.active{color:var(--primary)}
-  .bb-item.active .bb-ic{transform:translateY(-3px)}
-  .main{padding-bottom:72px}
-  .more-overlay.open{display:flex;position:fixed;inset:0;z-index:70;background:rgba(15,40,40,.45);align-items:flex-end}
-  .more-sheet{background:var(--surface);width:100%;border-radius:18px 18px 0 0;padding:10px 16px 24px;animation:sheetUp .3s cubic-bezier(.22,1,.36,1)}
-  @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-  .more-grab{width:40px;height:4px;border-radius:2px;background:var(--border);margin:6px auto 14px}
-  .more-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-  .more-cell{border:1px solid var(--border);border-radius:12px;padding:14px 8px;text-align:center;font-size:12px;color:var(--text);cursor:pointer;background:var(--surface)}
-  .more-cell .mc-ic{font-size:22px;display:block;margin-bottom:5px}
-}
 
 /* BUTTONS */
 .btn{cursor:pointer;border:none;border-radius:var(--r);padding:7px 12px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
@@ -591,37 +548,16 @@ window.addEventListener('load', function() {
 
   <div class="app-body" id="appBody">
     <div class="main">
-      <div class="navwrap" id="navWrap">
-        <div class="nav-groups" id="navGroups">
-          <button class="navgrp active" data-g="daily" onclick="selectGroup('daily')">العمل اليومي</button>
-          <button class="navgrp" data-g="records" onclick="selectGroup('records')">السجلات</button>
-          <button class="navgrp" data-g="admin" onclick="selectGroup('admin')">الإدارة</button>
-        </div>
-        <div class="nav-subs" id="navSubs"></div>
-      </div>
-      <div class="bottombar" id="bottomBar">
-        <button class="bb-item active" data-t="att" onclick="showTab('att')"><i class="bb-ic">👥</i><span>الحضور</span></button>
-        <button class="bb-item" data-t="rot" onclick="showTab('rot')"><i class="bb-ic">🔄</i><span>الدورة</span></button>
-        <button class="bb-item" data-t="hist" onclick="showTab('hist')"><i class="bb-ic">📅</i><span>السجل</span></button>
-        <button class="bb-item" data-t="prog" onclick="showTab('prog')"><i class="bb-ic">📈</i><span>المتابعة</span></button>
-        <button class="bb-item" data-t="__more" onclick="openMoreSheet()"><i class="bb-ic">⋯</i><span>المزيد</span></button>
-      </div>
-      <div class="more-overlay" id="moreOverlay" onclick="if(event.target===this)closeMoreSheet()">
-        <div class="more-sheet" id="moreSheet">
-          <div class="more-grab"></div>
-          <div class="more-grid" id="moreGrid"></div>
-        </div>
-      </div>
-      <div style="display:none">
-        <button id="tba" onclick="showTab('att')"></button>
-        <button id="tbrot" onclick="showTab('rot')"></button>
-        <button id="tbp" onclick="showTab('paper')"></button>
-        <button id="tbr" onclick="showTab('roster')"></button>
-        <button id="tbh" onclick="showTab('hist')"></button>
-        <button id="tbdb" onclick="showTab('db')"></button>
-        <button id="tbtm" onclick="showTab('teach')"></button>
-        <button id="tbal" onclick="showTab('audit')"></button>
-        <button id="tbpg" onclick="showTab('prog')"></button>
+      <div class="tab-nav">
+        <button class="tab-btn active" id="tba" onclick="showTab('att')">👥 الحضور والتقييم</button>
+        <button class="tab-btn" id="tbp" onclick="showTab('paper')">📄 الورقة اليومية</button>
+        <button class="tab-btn" id="tbr" onclick="showTab('roster')">🏥 جدول المجموعات</button>
+        <button class="tab-btn" id="tbh" onclick="showTab('hist')">📅 السجل التاريخي</button>
+        <button class="tab-btn" id="tbdb" onclick="showTab('db')">🗄️ قاعدة البيانات</button>
+        <button class="tab-btn" id="tbtm" onclick="showTab('teach')">📚 المواد التعليمية</button>
+        <button class="tab-btn" id="tbal" onclick="showTab('audit')">📋 سجل التغييرات</button>
+        <button class="tab-btn" id="tbpg" onclick="showTab('prog')">📈 متابعة الطلاب</button>
+        <button class="tab-btn" id="tbgb" onclick="showTab('grades')">📒 سجل الدرجات الفصلي</button>
       </div>
 
       <!-- TAB: ATTENDANCE -->
@@ -775,13 +711,20 @@ window.addEventListener('load', function() {
         <div id="progContent"></div>
       </div>
 
-      <!-- TAB: ROTATION (setup + saved-day review) -->
-      <div class="tab-panel" id="prot">
+      <!-- TAB: SEMESTER GRADEBOOK (separate, persistent) -->
+      <div class="tab-panel" id="pgb">
         <div class="hist-hdr">
-          <h2>🔄 نظام الدورة</h2>
-          <div style="font-size:12px;color:var(--muted)">حدّد مستشفى ويوم الدورة، وراجع أيام كل مستشفى المحفوظة — وأغلق اليوم عند انتهاء تقييمه</div>
+          <h2>📒 سجل الدرجات الفصلي</h2>
+          <div style="font-size:12px;color:var(--muted)">سجل مستقل لدرجات كل طالب: 3 مستشفيات × 4 أيام + الدرجة النهائية اليدوية — محفوظ طوال الفصل ولا يُفقد أبداً</div>
         </div>
-        <div id="rotTabContent"></div>
+        <div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap">
+          <button class="btn bp" onclick="gbDownloadTemplate()">📥 تنزيل قالب Excel</button>
+          <button class="btn bo" onclick="document.getElementById('gbFileInput').click()">📂 استيراد من Excel</button>
+          <input type="file" id="gbFileInput" accept=".xlsx,.xls" style="display:none" onchange="gbImportFile(event)">
+          <button class="btn ba" onclick="gbExportExcel()">📊 تصدير الدرجات</button>
+          <button class="btn bo" onclick="gbSeedFromDb()">👥 جلب الطلاب من قاعدة البيانات</button>
+        </div>
+        <div id="gbContent"></div>
       </div>
 
       <!-- TAB: STUDENT DATABASE -->
@@ -1125,6 +1068,7 @@ var studentsEvening = [];
 var history  = {};   // keyed by "YYYY-MM-DD_morning" or "YYYY-MM-DD_evening"
 var roster   = [];
 var studentDb = [];  // master DB — isolated from daily workflow
+var gradebook = [];  // ★ semester gradebook — separate, persistent, never reset
 var curDate  = today();
 var curGroup = 'morning';  // 'morning' | 'evening'
 var curSt    = null;
@@ -1270,164 +1214,10 @@ function saveRotModal(){
   });
   closeRotModal();
   renderRotBar();
-  var ppr=document.getElementById('prot');
-  if(ppr && ppr.classList.contains('active')) renderRotationTab();
   toast('✅ تم حفظ بيانات الدورة');
 }
 
 function closeRotModal(){ document.getElementById('rotModal').classList.remove('open'); }
-
-// ═══════════════════════════════════════════════════════════════════════
-// ★ ROTATION TAB — set up today's rotation AND review every saved day.
-//   Days are grouped Hospital → 2-week block → Day(1-4). Each day is a
-//   card built from the existing history record (no duplicate storage).
-//   "إغلاق اليوم" locks every evaluated student in that day at once.
-// ═══════════════════════════════════════════════════════════════════════
-
-// Lock (finalize) every evaluated student in one session key.
-function closeDay(sessionK){
-  var day = history[sessionK] || {};
-  var idxs = Object.keys(day).filter(function(k){ return /^\d+$/.test(k); });
-  var evaluated = idxs.filter(function(k){ return day[k] && day[k].evaluated; });
-  if(!evaluated.length){ toast('لا توجد تقييمات لإغلاقها في هذا اليوم'); return; }
-  var open = evaluated.filter(function(k){ return !day[k].locked; });
-  if(!open.length){ toast('كل تقييمات هذا اليوم مغلقة بالفعل'); return; }
-  var clean = sessionK.replace('_morning','').replace('_evening','');
-  if(!confirm('إغلاق واعتماد يوم '+clean+'؟\nسيتم قفل '+open.length+' تقييم — لن يمكن تعديلها إلا بفتحها مجدداً.')) return;
-  var who = currentUser ? (currentUser.email||currentUser.displayName||'') : '';
-  open.forEach(function(k){
-    day[k].locked = true;
-    day[k].lockedAt = Date.now();
-    day[k].lockedBy = who;
-  });
-  day['__dayClosed__'] = Date.now();
-  day['__dayClosedBy__'] = who;
-  saveDay(sessionK);
-  renderRotationTab();
-  if(document.getElementById('pa').classList.contains('active')) renderList();
-  toast('🔒 تم إغلاق اليوم واعتماد '+open.length+' تقييم');
-}
-
-function reopenDay(sessionK){
-  var day = history[sessionK] || {};
-  if(!confirm('إعادة فتح هذا اليوم؟ سيتم رفع القفل عن تقييماته للتعديل.')) return;
-  Object.keys(day).filter(function(k){ return /^\d+$/.test(k); }).forEach(function(k){
-    if(day[k] && day[k].locked){ day[k].locked=false; delete day[k].lockedAt; delete day[k].lockedBy; }
-  });
-  delete day['__dayClosed__']; delete day['__dayClosedBy__'];
-  saveDay(sessionK);
-  renderRotationTab();
-  if(document.getElementById('pa').classList.contains('active')) renderList();
-  toast('🔓 تم إعادة فتح اليوم');
-}
-
-// Build {hospitalKey: {hospital, block, days:[{key,date,group,dayNo,unit,present,absent,evaluated,locked,closed,avg}]}}
-function buildRotationGroups(){
-  var groups = {};
-  Object.keys(history).forEach(function(dk){
-    var day = history[dk] || {};
-    var idxs = Object.keys(day).filter(function(k){ return /^\d+$/.test(k); });
-    var hasAny = idxs.some(function(k){ return day[k] && (day[k].attendance || day[k].evaluated); });
-    if(!hasAny) return;
-    var rot = rotationOf(day);
-    var hk = rot.hospital ? (rot.hospital + (rot.block?(' • '+rot.block):'')) : '— بدون مستشفى محدد —';
-    if(!groups[hk]) groups[hk] = { hospital: rot.hospital||'(غير محدد)', block: rot.block||'', days: [] };
-    var present=0,absent=0,evaluated=0,locked=0,sum=0,cnt=0;
-    idxs.forEach(function(k){
-      var r = day[k]||{};
-      if(r.attendance==='present') present++;
-      if(r.attendance==='absent')  absent++;
-      if(r.evaluated){ evaluated++; if(r.total!==undefined){ sum+=r.total; cnt++; } }
-      if(r.locked) locked++;
-    });
-    groups[hk].days.push({
-      key: dk,
-      date: dk.replace('_morning','').replace('_evening',''),
-      group: dk.indexOf('_morning')>=0?'صباحي':'مسائي',
-      dayNo: rot.dayNo, unit: rot.unit,
-      present:present, absent:absent, evaluated:evaluated, locked:locked,
-      closed: !!day['__dayClosed__'],
-      avg: cnt>0 ? (sum/cnt) : null
-    });
-  });
-  Object.keys(groups).forEach(function(hk){
-    groups[hk].days.sort(function(a,b){
-      var dn = (a.dayNo||'').localeCompare(b.dayNo||'');
-      return dn !== 0 ? dn : a.date.localeCompare(b.date);
-    });
-  });
-  return groups;
-}
-
-function renderRotationTab(){
-  var cont = document.getElementById('rotTabContent');
-  if(!cont) return;
-  var cur = getRotation();
-  var html = '';
-
-  // --- Setup panel: today's rotation ---
-  html += '<div style="background:linear-gradient(135deg,#0f6e56,#16a085);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:18px">';
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">';
-  html += '<div><div style="font-size:15px;font-weight:700">🔄 إعداد دورة اليوم</div>';
-  var setup=[];
-  if(cur.hospital) setup.push('🏥 '+cur.hospital);
-  if(cur.dayNo)    setup.push('📅 اليوم '+cur.dayNo+'/4');
-  if(cur.unit)     setup.push('🩺 '+cur.unit);
-  html += '<div style="font-size:13px;opacity:.95;margin-top:4px">'+(setup.length?setup.join('  •  '):'لم تُحدَّد دورة لليوم الحالي بعد')+'</div></div>';
-  html += '<button class="btn" style="background:rgba(255,255,255,.22);color:#fff" onclick="openRotModal()">✏️ تحديد المستشفى واليوم</button>';
-  html += '</div>';
-  html += '<div style="font-size:12px;opacity:.85;margin-top:8px">المجموعة الحالية: '+(curGroup==='morning'?'صباحية':'مسائية')+' — انتقل لتبويب الحضور لإجراء التقييم، ثم أغلق اليوم من هنا.</div>';
-  html += '</div>';
-
-  // --- Review: hospitals -> days ---
-  var groups = buildRotationGroups();
-  var hkeys = Object.keys(groups).sort();
-  if(!hkeys.length){
-    html += '<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">🔄</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد أيام محفوظة بعد</div><div style="font-size:13px;color:var(--muted)">ستظهر هنا أيام كل مستشفى بمجرد تسجيل الحضور أو التقييم</div></div>';
-    cont.innerHTML = html;
-    return;
-  }
-
-  html += '<div style="font-size:14px;font-weight:700;color:var(--primary);margin-bottom:10px">📚 الأيام المحفوظة حسب المستشفى</div>';
-  hkeys.forEach(function(hk){
-    var g = groups[hk];
-    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden">';
-    html += '<div style="background:#eef7f4;padding:11px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
-    html += '<div style="font-size:15px;font-weight:700;color:#0f6e56">🏥 '+g.hospital+(g.block?' <span style="font-size:12px;color:var(--muted);font-weight:400">— فترة '+g.block+'</span>':'')+'</div>';
-    html += '<span style="font-size:12px;color:var(--muted)">'+g.days.length+' / 4 أيام</span>';
-    html += '</div>';
-    html += '<div style="padding:12px 15px;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">';
-    g.days.forEach(function(d){
-      var allLocked = d.evaluated>0 && d.locked>=d.evaluated;
-      var statusCol = d.closed||allLocked ? 'var(--success)' : '#b7770d';
-      var statusTxt = d.closed||allLocked ? '🔒 مغلق' : '🟡 مفتوح';
-      var avgTxt = d.avg!==null ? d.avg.toFixed(2)+'/15' : '—';
-      html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
-      html += '<div style="background:#f8fafc;padding:9px 11px;border-bottom:1px solid var(--border)">';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:14px;font-weight:700;color:var(--primary)">'+(d.dayNo?('اليوم '+d.dayNo):d.date)+'</span><span style="font-size:11px;font-weight:700;color:'+statusCol+'">'+statusTxt+'</span></div>';
-      html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+d.date+' • '+d.group+(d.unit?(' • '+d.unit):'')+'</div>';
-      html += '</div>';
-      html += '<div style="padding:9px 11px;font-size:12px;color:var(--text);display:flex;flex-wrap:wrap;gap:8px">';
-      html += '<span style="color:#1e8449">✓ '+d.present+'</span>';
-      html += '<span style="color:#c0392b">✗ '+d.absent+'</span>';
-      html += '<span style="color:var(--pl)">📝 '+d.evaluated+'</span>';
-      html += '<span style="margin-right:auto;font-weight:700">معدل '+avgTxt+'</span>';
-      html += '</div>';
-      html += '<div style="padding:0 11px 11px;display:flex;gap:6px;flex-wrap:wrap">';
-      html += '<button class="btn bo" style="font-size:11px;padding:5px 9px;flex:1" onclick="openDayDetail(\''+d.key+'\')">👁️ عرض</button>';
-      if(d.closed||allLocked){
-        html += '<button class="btn bo" style="font-size:11px;padding:5px 9px" onclick="reopenDay(\''+d.key+'\')">🔓 فتح</button>';
-      } else {
-        html += '<button class="btn" style="background:#117a65;color:#fff;font-size:11px;padding:5px 9px;flex:1" onclick="closeDay(\''+d.key+'\')">🔒 إغلاق اليوم</button>';
-      }
-      html += '</div>';
-      html += '</div>';
-    });
-    html += '</div></div>';
-  });
-
-  cont.innerHTML = html;
-}
 
 // ═══════════════════════════════════════════════════════════════════════
 // ★ DATA GUARD LAYER — zero data loss architecture
@@ -1798,6 +1588,7 @@ function loadFromCache(uid) {
     history         = c.h   || {};
     roster          = c.r   || [];
     if (c.sdb && c.sdb.length) studentDb = c.sdb;
+    if (c.gb && c.gb.length) gradebook = c.gb;
     if (c.hn) document.getElementById('hName').value   = c.hn;
     if (c.ho) document.getElementById('hNo').value     = c.ho;
     if (c.sn) document.getElementById('supName').value = c.sn;
@@ -1890,6 +1681,20 @@ function startListeners() {
     }
   });
   dbListeners.push({ ref: sdbRef, event: 'value' });
+
+  // ★ Semester gradebook — synced to the Google account, persistent
+  var gbRef = dbRef('gradebook');
+  gbRef.on('value', function(snap) {
+    if (!isStillMe()) return;
+    var val = snap.val();
+    if (val) {
+      gradebook = Array.isArray(val) ? val : Object.values(val);
+      try{ localStorage.setItem('hsp_gb', JSON.stringify(gradebook)); }catch(e){}
+      var pgb = document.getElementById('pgb');
+      if (pgb && pgb.classList.contains('active')) gbRender();
+    }
+  });
+  dbListeners.push({ ref: gbRef, event: 'value' });
 
   var rRef = dbRef('roster');
   rRef.on('value', function(snap) {
@@ -2030,6 +1835,7 @@ function cacheLocally() {
       se: studentsEvening,
       h: history, r: roster,
       sdb: studentDb,
+      gb: gradebook,
       hn: document.getElementById('hName').value,
       ho: document.getElementById('hNo').value,
       sn: document.getElementById('supName').value
@@ -2074,16 +1880,15 @@ var FIELDS=[
 // TABS
 // ═══════════════════════════════════════════
 function showTab(n){
-  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');p.classList.remove('genie')});
+  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',rot:'prot'};
-  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',rot:'tbrot'};
+  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',grades:'pgb'};
+  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',grades:'tbgb'};
   var panel=document.getElementById(panels[n]);
   panel.classList.add('active');
-  // ★ genie unfurl from lower-left corner on every switch
-  panel.classList.remove('genie'); void panel.offsetWidth; panel.classList.add('genie');
-  var hidden=document.getElementById(btns[n]); if(hidden) hidden.classList.add('active');
-  syncNav(n);
+  // restart the entrance animation so every switch feels alive
+  panel.style.animation='none'; void panel.offsetWidth; panel.style.animation='';
+  document.getElementById(btns[n]).classList.add('active');
   // Attendance tab always shows TODAY — never shows historical data
   if(n==='att'){ curDate=today(); renderList(); }
   if(n==='paper')  renderPaper();
@@ -2093,57 +1898,8 @@ function showTab(n){
   if(n==='teach')  tmRender();
   if(n==='audit')  renderAudit();
   if(n==='prog')   renderProgress();
-  if(n==='rot')    renderRotationTab();
+  if(n==='grades') gbRender();
 }
-
-// ── STYLE-10 NAV CONFIG + CONTROLLERS ─────────────────────────────────
-var NAV_GROUPS={
-  daily:   [['att','الحضور والتقييم'],['paper','الورقة اليومية'],['rot','الدورة']],
-  records: [['hist','السجل التاريخي'],['prog','متابعة الطلاب'],['audit','سجل التغييرات']],
-  admin:   [['roster','جدول المجموعات'],['db','قاعدة البيانات'],['teach','المواد التعليمية']]
-};
-var NAV_ICON={att:'👥',paper:'📄',rot:'🔄',hist:'📅',prog:'📈',audit:'📋',roster:'🏥',db:'🗄️',teach:'📚'};
-function groupOf(tab){ for(var g in NAV_GROUPS){ if(NAV_GROUPS[g].some(function(x){return x[0]===tab;})) return g; } return 'daily'; }
-
-function selectGroup(g){
-  document.querySelectorAll('#navGroups .navgrp').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-g')===g); });
-  var subs=document.getElementById('navSubs');
-  var html='<span class="subpill" id="subPill"></span>';
-  NAV_GROUPS[g].forEach(function(x){ html+='<button class="navsub" data-t="'+x[0]+'" onclick="showTab(\''+x[0]+'\')">'+x[1]+'</button>'; });
-  subs.innerHTML=html;
-}
-function moveSubPill(){
-  var pill=document.getElementById('subPill'); if(!pill) return;
-  var active=document.querySelector('#navSubs .navsub.active'); if(!active){ pill.style.width='0'; return; }
-  var bar=document.getElementById('navSubs');
-  var r=active.getBoundingClientRect(), br=bar.getBoundingClientRect();
-  pill.style.width=r.width+'px';
-  pill.style.right=(r.right-br.right)*-1+'px';
-}
-function syncNav(n){
-  // Desktop two-level: ensure the right group is shown, then mark + glide pill
-  var g=groupOf(n);
-  var curActiveGrp=document.querySelector('#navGroups .navgrp.active');
-  if(!curActiveGrp || curActiveGrp.getAttribute('data-g')!==g || !document.querySelector('#navSubs .navsub[data-t="'+n+'"]')){
-    selectGroup(g);
-  }
-  document.querySelectorAll('#navSubs .navsub').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-t')===n); });
-  setTimeout(moveSubPill,20);
-  // Mobile bottom bar: mark primary item, or "more" if n is a secondary tab
-  var primary=['att','rot','hist','prog'];
-  document.querySelectorAll('#bottomBar .bb-item').forEach(function(b){
-    var t=b.getAttribute('data-t');
-    b.classList.toggle('active', t===n || (t==='__more' && primary.indexOf(n)<0));
-  });
-}
-function openMoreSheet(){
-  var grid=document.getElementById('moreGrid');
-  var more=[['paper','الورقة اليومية'],['roster','جدول المجموعات'],['db','قاعدة البيانات'],['teach','المواد التعليمية'],['audit','سجل التغييرات']];
-  grid.innerHTML=more.map(function(x){ return '<div class="more-cell" onclick="showTab(\''+x[0]+'\');closeMoreSheet()"><span class="mc-ic">'+(NAV_ICON[x[0]]||'•')+'</span>'+x[1]+'</div>'; }).join('');
-  document.getElementById('moreOverlay').classList.add('open');
-}
-function closeMoreSheet(){ document.getElementById('moreOverlay').classList.remove('open'); }
-window.addEventListener('resize', function(){ setTimeout(moveSubPill,30); });
 
 function switchGroup(g){
   curGroup = g;
@@ -4416,6 +4172,211 @@ function applyGrpLoader(){
 tick(); setInterval(tick, 1000);
 curDate = today(); // Always start on today
 dbLoad();
+gbLocalLoad();
+
+// ═══════════════════════════════════════════════════════════════════════
+// ★ SEMESTER GRADEBOOK — separate, persistent store (never reset)
+//   Record per student: {name, group, type, email, final, hospitals:[
+//     {name, days:[{att:'present'|'absent'|'', score:''}, x4]} x3 ]}
+//   Stored at users/{uid}/gradebook (cloud) + hsp_gb (local).
+// ═══════════════════════════════════════════════════════════════════════
+function gbBlankHospitals(){
+  var hs=[]; for(var i=0;i<3;i++){ var d=[]; for(var j=0;j<4;j++) d.push({att:'',score:''}); hs.push({name:'',days:d}); } return hs;
+}
+function gbNormalize(rec){
+  rec = rec||{};
+  var hs = Array.isArray(rec.hospitals)?rec.hospitals:[];
+  while(hs.length<3) hs.push({name:'',days:[]});
+  hs = hs.slice(0,3).map(function(h){
+    h=h||{}; var d=Array.isArray(h.days)?h.days:[];
+    while(d.length<4) d.push({att:'',score:''});
+    d=d.slice(0,4).map(function(x){ x=x||{}; return {att:x.att||'',score:(x.score!==undefined&&x.score!==null)?String(x.score):''}; });
+    return {name:h.name||'',days:d};
+  });
+  return {name:rec.name||'',group:(rec.group!==undefined?String(rec.group):''),type:rec.type||'',email:rec.email||'',final:(rec.final!==undefined&&rec.final!==null)?String(rec.final):'',hospitals:hs};
+}
+function gbLocalLoad(){
+  try{ var raw=localStorage.getItem('hsp_gb'); if(raw){ var d=JSON.parse(raw); if(Array.isArray(d)){ gradebook=d.map(gbNormalize); } } }catch(e){}
+}
+function gbSave(){
+  gradebook = gradebook.map(gbNormalize);
+  try{ localStorage.setItem('hsp_gb', JSON.stringify(gradebook)); }catch(e){}
+  if (!isOfflineMode && currentUser && db) guardedSet('gradebook', gradebook);
+  else cacheLocally();
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────
+var gbOpenStudent = {};   // remembers expanded students across re-render
+var gbOpenGroup = {};
+function gbRender(){
+  var cont=document.getElementById('gbContent'); if(!cont) return;
+  if(!gradebook.length){
+    cont.innerHTML='<div style="border:2px dashed var(--primary);border-radius:12px;padding:30px;text-align:center;background:#f1f6f7">'
+      +'<div style="font-size:40px;margin-bottom:10px">📒</div>'
+      +'<div style="font-size:16px;font-weight:700;color:var(--primary);margin-bottom:8px">سجل الدرجات فارغ</div>'
+      +'<div style="font-size:13px;color:var(--muted);line-height:1.9">حمّل القالب وعبّئه ثم استورده،<br>أو اضغط «جلب الطلاب من قاعدة البيانات» لإنشاء السجل تلقائياً.</div></div>';
+    return;
+  }
+  // group by group number
+  var groups={};
+  gradebook.forEach(function(s,idx){ var g=s.group||'بدون مجموعة'; if(!groups[g])groups[g]=[]; groups[g].push(idx); });
+  var gkeys=Object.keys(groups).sort(function(a,b){ return (parseInt(a)||999)-(parseInt(b)||999) || a.localeCompare(b,'ar'); });
+  var html='';
+  gkeys.forEach(function(g){
+    var open = gbOpenGroup[g]!==false; // default open
+    html+='<div style="margin-bottom:14px;border:0.5px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)">';
+    html+='<div style="background:var(--primary);color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-size:14px;font-weight:600" onclick="gbToggleGroup(\''+encodeURIComponent(g)+'\')">';
+    html+='<span>👥 المجموعة '+g+' — '+groups[g].length+' طالب</span><span>'+(open?'▾':'▸')+'</span></div>';
+    html+='<div style="padding:6px;display:'+(open?'block':'none')+'">';
+    groups[g].forEach(function(idx){
+      var s=gradebook[idx]; var sopen=!!gbOpenStudent[idx];
+      html+='<div style="border:0.5px solid #e8eeee;border-radius:8px;margin:6px 0">';
+      html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;gap:8px;flex-wrap:wrap">';
+      html+='<span style="font-weight:600;font-size:14px;cursor:pointer" onclick="gbToggleStudent('+idx+')">'+(sopen?'▾ ':'▸ ')+s.name+'</span>';
+      html+='<span style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">الدرجة النهائية <input value="'+(s.final||'')+'" placeholder="—" oninput="gbSetFinal('+idx+',this.value)" style="width:60px;text-align:center;border:1px solid #cfe0de;border-radius:6px;padding:4px;font-size:13px;font-weight:700;color:var(--pdark,#0A6068)"></span>';
+      html+='</div>';
+      html+='<div style="display:'+(sopen?'block':'none')+';padding:4px 12px 12px;border-top:0.5px solid #eef3f3">';
+      s.hospitals.forEach(function(hp,hi){
+        html+='<div style="margin-top:10px">';
+        html+='<input value="'+(hp.name||'').replace(/"/g,'&quot;')+'" placeholder="اسم المستشفى '+(hi+1)+'" oninput="gbSetHosp('+idx+','+hi+',this.value)" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:13px;margin-bottom:6px;background:#f1f6f7;color:var(--text)">';
+        html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">';
+        hp.days.forEach(function(d,di){
+          var p=d.att==='present', a=d.att==='absent';
+          html+='<div style="border:0.5px solid #e1eaea;border-radius:7px;padding:7px;text-align:center;background:#fbfdfd">';
+          html+='<div style="font-size:11px;color:var(--muted);margin-bottom:5px">اليوم '+(di+1)+'</div>';
+          html+='<div style="display:flex;gap:3px;justify-content:center;margin-bottom:5px">';
+          html+='<button onclick="gbSetAtt('+idx+','+hi+','+di+',\'present\')" style="border:1px solid '+(p?'#27500A':'#dde8e8')+';background:'+(p?'#27500A':'#fff')+';color:'+(p?'#fff':'#6b8585')+';border-radius:5px;width:26px;height:26px;font-size:12px;cursor:pointer">✓</button>';
+          html+='<button onclick="gbSetAtt('+idx+','+hi+','+di+',\'absent\')" style="border:1px solid '+(a?'#A32D2D':'#dde8e8')+';background:'+(a?'#A32D2D':'#fff')+';color:'+(a?'#fff':'#6b8585')+';border-radius:5px;width:26px;height:26px;font-size:12px;cursor:pointer">✗</button>';
+          html+='</div>';
+          html+='<input value="'+(d.score||'')+'" placeholder="—" oninput="gbSetScore('+idx+','+hi+','+di+',this.value)" style="width:48px;text-align:center;border:1px solid #cfe0de;border-radius:5px;padding:3px;font-size:12px">';
+          html+='</div>';
+        });
+        html+='</div></div>';
+      });
+      html+='</div></div>';
+    });
+    html+='</div></div>';
+  });
+  cont.innerHTML=html;
+}
+function gbToggleGroup(eg){ var g=decodeURIComponent(eg); gbOpenGroup[g]=(gbOpenGroup[g]===false); gbRender(); }
+function gbToggleStudent(idx){ gbOpenStudent[idx]=!gbOpenStudent[idx]; gbRender(); }
+function gbSetFinal(idx,v){ gradebook[idx].final=v; gbSaveDebounced(); }
+function gbSetHosp(idx,hi,v){ gradebook[idx].hospitals[hi].name=v; gbSaveDebounced(); }
+function gbSetScore(idx,hi,di,v){ gradebook[idx].hospitals[hi].days[di].score=v; gbSaveDebounced(); }
+function gbSetAtt(idx,hi,di,v){ var d=gradebook[idx].hospitals[hi].days[di]; d.att=(d.att===v?'':v); gbSave(); gbRender(); }
+var gbSaveTimer=null;
+function gbSaveDebounced(){ clearTimeout(gbSaveTimer); gbSaveTimer=setTimeout(gbSave,600); }
+
+// ── SEED FROM STUDENT DATABASE ────────────────────────────────────────
+function gbSeedFromDb(){
+  if(!studentDb||!studentDb.length){ toast('قاعدة البيانات فارغة — استورد الطلاب أولاً'); return; }
+  if(gradebook.length && !confirm('سيتم إضافة الطلاب من قاعدة البيانات إلى سجل الدرجات (دون مسح الموجود). متابعة؟')) return;
+  var existing={}; gradebook.forEach(function(s){ existing[(s.name||'').trim()]=true; });
+  var added=0;
+  studentDb.forEach(function(r){
+    var nm=(r.name||'').trim(); if(!nm||existing[nm]) return;
+    gradebook.push(gbNormalize({name:nm,group:r.group||'',type:r.type||'',email:r.email||'',hospitals:gbBlankHospitals()}));
+    existing[nm]=true; added++;
+  });
+  gbSave(); gbRender();
+  toast(added?('تمت إضافة '+added+' طالب ✓'):'لا يوجد طلاب جدد لإضافتهم');
+}
+
+// ── EXCEL TEMPLATE DOWNLOAD ───────────────────────────────────────────
+function gbDownloadTemplate(){
+  var wb=XLSX.utils.book_new();
+  var top=['م','المجموعة','اسم الطالب','نوع الدراسة','البريد الإلكتروني'];
+  var sub=['','','','',''];
+  for(var hi=1;hi<=3;hi++){
+    top.push('المستشفى '+hi); for(var k=0;k<8;k++) top.push('');
+    sub.push('اسم المستشفى');
+    for(var d=1;d<=4;d++){ sub.push('ي'+d+' ح/غ'); sub.push('ي'+d+' الدرجة'); }
+  }
+  top.push('الدرجة النهائية'); sub.push('');
+  var rows=[top,sub,
+    [1,'1','أحمد محمد علي','صباحي','ahmed@college.edu.iq','مستشفى الكندي','حاضر',13,'حاضر',12.5,'غائب','','حاضر',14,'','','','','','','','','','','','','','','','',''],
+    [2,'1','سارة خالد حسن','صباحي','sara@college.edu.iq'],
+    [3,'2','نور أحمد سعيد','مسائي','noor@college.edu.iq']
+  ];
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:4},{wch:9},{wch:22},{wch:11},{wch:24}].concat(Array(28).fill({wch:10}));
+  XLSX.utils.book_append_sheet(wb,ws,'سجل الدرجات الفصلي');
+  XLSX.writeFile(wb,'gradebook_template.xlsx');
+  toast('تم تحميل القالب ✓');
+}
+
+// ── IMPORT (merge by student name — never wipes typed grades) ─────────
+function gbImportFile(event){
+  var file=event.target.files[0]; if(!file) return;
+  toast('جاري قراءة الملف...');
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(rows.length<3){ toast('الملف لا يحتوي بيانات كافية'); event.target.value=''; return; }
+      // header is 2 rows; data starts at row index 2
+      function val(r,c){ return r[c]!==undefined?String(r[c]).trim():''; }
+      function attNorm(s){ s=(s||'').trim(); if(s==='حاضر'||s==='ح'||s.toLowerCase()==='present')return 'present'; if(s==='غائب'||s==='غ'||s.toLowerCase()==='absent')return 'absent'; return ''; }
+      var imported=[];
+      for(var i=2;i<rows.length;i++){
+        var r=rows[i]; var name=val(r,2); if(!name) continue;
+        var rec={name:name,group:val(r,1),type:val(r,3),email:val(r,4),hospitals:[],final:''};
+        var c=5;
+        for(var hi=0;hi<3;hi++){
+          var hname=val(r,c); var days=[];
+          for(var d=0;d<4;d++){ days.push({att:attNorm(val(r,c+1+d*2)),score:val(r,c+2+d*2)}); }
+          rec.hospitals.push({name:hname,days:days});
+          c+=9;
+        }
+        rec.final=val(r,c); // final grade column
+        imported.push(gbNormalize(rec));
+      }
+      if(!imported.length){ toast('لا توجد صفوف طلاب في الملف'); event.target.value=''; return; }
+      // MERGE by name: update existing, add new, keep untouched students
+      var byName={}; gradebook.forEach(function(s,ix){ byName[(s.name||'').trim()]=ix; });
+      var updated=0,addedNew=0;
+      imported.forEach(function(rec){
+        var key=(rec.name||'').trim();
+        if(byName[key]!==undefined){ gradebook[byName[key]]=rec; updated++; }
+        else { gradebook.push(rec); addedNew++; }
+      });
+      gbSave(); gbRender();
+      toast('تم الاستيراد ✓ (محدّث: '+updated+' · جديد: '+addedNew+')');
+    }catch(err){ toast('خطأ في قراءة الملف: '+err.message); console.error(err); }
+    event.target.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── EXPORT (current gradebook back to the same template layout) ───────
+function gbExportExcel(){
+  if(!gradebook.length){ toast('لا توجد بيانات للتصدير'); return; }
+  var wb=XLSX.utils.book_new();
+  var top=['م','المجموعة','اسم الطالب','نوع الدراسة','البريد الإلكتروني'];
+  var sub=['','','','',''];
+  for(var hi=1;hi<=3;hi++){ top.push('المستشفى '+hi); for(var k=0;k<8;k++) top.push(''); sub.push('اسم المستشفى'); for(var d=1;d<=4;d++){ sub.push('ي'+d+' ح/غ'); sub.push('ي'+d+' الدرجة'); } }
+  top.push('الدرجة النهائية'); sub.push('');
+  var rows=[top,sub];
+  var sorted=gradebook.slice().sort(function(a,b){ return (parseInt(a.group)||999)-(parseInt(b.group)||999); });
+  sorted.forEach(function(s,i){
+    var row=[i+1,s.group||'',s.name||'',s.type||'',s.email||''];
+    s.hospitals.forEach(function(hp){
+      row.push(hp.name||'');
+      hp.days.forEach(function(d){ row.push(d.att==='present'?'حاضر':d.att==='absent'?'غائب':''); row.push(d.score||''); });
+    });
+    row.push(s.final||'');
+    rows.push(row);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:4},{wch:9},{wch:22},{wch:11},{wch:24}].concat(Array(28).fill({wch:10}));
+  XLSX.utils.book_append_sheet(wb,ws,'سجل الدرجات الفصلي');
+  XLSX.writeFile(wb,'سجل_الدرجات_الفصلي.xlsx');
+  toast('تم تصدير الدرجات ✓');
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // ★ STARTUP — INSTANT SESSION RESTORE
@@ -4439,6 +4400,7 @@ function optimisticRestore(sess){
       history = c.h || {};
       roster  = c.r || [];
       if (c.sdb && c.sdb.length) studentDb = c.sdb;
+      if (c.gb && c.gb.length) gradebook = c.gb;
       if (c.hn) document.getElementById('hName').value   = c.hn;
       if (c.ho) document.getElementById('hNo').value     = c.ho;
       if (c.sn) document.getElementById('supName').value = c.sn;
@@ -5149,11 +5111,6 @@ document.addEventListener('keydown', function(e){
 document.addEventListener('DOMContentLoaded', function(){
   var mo = document.getElementById('tmModal');
   if(mo) mo.addEventListener('click', function(e){ if(e.target===this) tmCloseModal(); });
-  // ★ Initialize Style-10 two-level nav: show daily group + mark active tab
-  if(typeof selectGroup==='function'){
-    selectGroup('daily');
-    if(typeof syncNav==='function') syncNav('att');
-  }
 });
 
 
