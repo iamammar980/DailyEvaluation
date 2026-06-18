@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <!-- Firebase loads dynamically in JS only when online mode is chosen -->
 <style>
-:root{--bg:#f4f7fb;--surface:#fff;--border:#dde6f0;--primary:#0c2740;--pl:#185fa5;--accent:#0f6e56;--danger:#c0392b;--warn:#b7770d;--success:#1e8449;--text:#1f2d3d;--muted:#73839a;--r:10px;--side:#0c2740;--side-active:#185fa5;--side-text:#b5d4f4;--side-label:#85b7eb}
+:root{--bg:#f5f6fa;--surface:#fff;--border:#e2e6ea;--primary:#1a5276;--pl:#2980b9;--accent:#16a085;--danger:#c0392b;--warn:#e67e22;--success:#27ae60;--text:#2c3e50;--muted:#7f8c8d;--r:10px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;direction:rtl}
 
@@ -55,16 +55,14 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 
 /* MAIN */
 .app-body{display:none}
-.main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;align-items:flex-start;gap:16px}
-.tab-content-wrap{flex:1;min-width:0}
+.main{max-width:980px;margin:0 auto;padding:16px 14px}
 
-/* TABS — sidebar rail */
-.tab-nav{display:flex;flex-direction:column;background:var(--side);border-radius:var(--r);overflow:hidden;margin-bottom:0;width:172px;flex:0 0 172px;padding:8px 0;align-self:stretch}
-.tab-btn{display:flex;align-items:center;gap:7px;text-align:right;width:100%;padding:9px 16px;font-size:12.5px;font-weight:600;border:none;background:transparent;color:var(--side-text);cursor:pointer;transition:all .15s;border-radius:0}
+/* TABS */
+.tab-nav{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+.tab-btn{flex:1;padding:10px 5px;font-size:13px;font-weight:600;border:none;border-left:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
 .tab-btn:last-child{border-left:none}
-.tab-div{flex:0 0 auto;width:auto;align-self:auto;border:none;opacity:1;margin:0;padding:10px 16px 3px;font-size:10px;font-weight:700;color:var(--side-label);letter-spacing:.3px}
-.tab-btn.active{background:var(--side-active);color:#fff}
-.tab-btn:not(.active):hover{background:rgba(255,255,255,.07);color:#fff}
+.tab-btn.active{background:var(--primary);color:#fff}
+.tab-btn:not(.active):hover{background:var(--bg);color:var(--text)}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
 
@@ -303,6 +301,35 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .grp-item-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:8px}
 .grp-item-meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
 .grp-loader-ftr{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;background:#fafbfc}
+
+/* ROTATION SYSTEM */
+.rot-hero{background:linear-gradient(135deg,#117a65,#16a085);color:#fff;border-radius:14px;padding:20px 22px;margin-bottom:16px}
+.rot-hero h2{font-size:18px;font-weight:700;margin-bottom:4px}
+.rot-hero p{font-size:13px;opacity:.9;line-height:1.6}
+.rot-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.rot-card-hd{background:#f8fafc;border-bottom:1px solid var(--border);padding:12px 16px;font-size:14px;font-weight:700;color:var(--primary);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.rot-card-bd{padding:16px}
+.rot-empty{text-align:center;padding:30px 16px;color:var(--muted)}
+.rot-empty .ico{font-size:48px;margin-bottom:10px}
+.rot-active-banner{background:linear-gradient(135deg,#1a5276,#2980b9);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:16px}
+.rot-active-banner .rt{font-size:16px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rot-meta-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:10px}
+.rot-meta-item{background:rgba(255,255,255,.12);border-radius:8px;padding:8px 11px}
+.rot-meta-item .l{font-size:11px;opacity:.8}
+.rot-meta-item .v{font-size:15px;font-weight:700;margin-top:2px}
+.rot-stat-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-bottom:14px}
+.rot-stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px;text-align:center}
+.rot-stat .num{font-size:22px;font-weight:700;color:var(--primary)}
+.rot-stat .lbl{font-size:11px;color:var(--muted);margin-top:2px}
+.rot-day-chip{display:inline-flex;align-items:center;gap:6px;background:#e8f4ff;border:1px solid #bde0ff;color:var(--pl);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;margin:3px}
+.rot-day-chip.empty{background:var(--bg);border-color:var(--border);color:var(--muted)}
+.rot-arch-item{border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:10px;background:#fff}
+.rot-arch-item .at{font-size:14px;font-weight:700;color:var(--text);margin-bottom:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rot-arch-item .am{font-size:12px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.rot-arch-acts{display:flex;gap:6px;flex-wrap:wrap}
+.rot-src-tabs{display:flex;gap:0;background:var(--bg);border-radius:8px;overflow:hidden;margin-bottom:14px;border:1px solid var(--border)}
+.rot-src-tab{flex:1;padding:9px;font-size:13px;font-weight:600;border:none;background:transparent;color:var(--muted);cursor:pointer}
+.rot-src-tab.active{background:var(--primary);color:#fff}
 .num-input-wrap{display:flex;align-items:center;gap:8px;margin-top:6px}
 .num-input-wrap input[type=number]{width:80px;border:2px solid var(--border);border-radius:8px;padding:6px 10px;font-size:20px;font-weight:700;color:var(--primary);text-align:center;direction:ltr;-moz-appearance:textfield;transition:border-color .15s}
 .num-input-wrap input[type=number]::-webkit-inner-spin-button,
@@ -343,22 +370,12 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .fullscreen-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:999;display:none;align-items:center;justify-content:center;flex-direction:column}
 .fullscreen-overlay.open{display:flex}
 .fullscreen-overlay img{max-width:95vw;max-height:85vh;object-fit:contain;border-radius:8px}
-@media(max-width:900px){
-  .tab-nav{width:148px;flex:0 0 148px}
-  .tab-btn{font-size:11.5px;padding:8px 12px}
-}
-@media(max-width:640px){
-  .main{flex-direction:column;gap:12px}
-  .tab-nav{flex-direction:row;width:100%;flex:0 0 auto;align-self:stretch;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:6px;gap:2px}
-  .tab-btn{flex:0 0 auto;width:auto;white-space:nowrap;border-radius:8px;padding:8px 12px;font-size:12px}
-  .tab-btn::after{display:none}
-  .tab-div{flex:0 0 auto;align-self:center;padding:0 4px;width:auto;border-left:2px solid rgba(255,255,255,.25);font-size:0;overflow:hidden}
-}
 @media(max-width:600px){
   .stats-bar{grid-template-columns:repeat(2,1fr)}
   .lhdr,.srow{grid-template-columns:24px 1fr 88px 55px}
   .ecell{display:none}
   .hdr-top h1{font-size:13px}
+  .tab-btn{font-size:11px;padding:9px 3px}
   .user-name{display:none}
 }
 
@@ -393,8 +410,8 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .btn:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(0,0,0,.14);filter:brightness(1.04)}
 .btn:active{transform:scale(.96);box-shadow:none}
 .tab-btn{position:relative;transition:color .22s,background .25s}
-.tab-btn::after{content:'';position:absolute;top:0;bottom:0;right:0;width:3px;border-radius:0;background:var(--accent);transform:scaleY(0);transition:transform .3s cubic-bezier(.22,1,.36,1)}
-.tab-btn.active::after{transform:scaleY(1)}
+.tab-btn::after{content:'';position:absolute;bottom:0;right:14%;left:14%;height:3px;border-radius:3px 3px 0 0;background:var(--accent);transform:scaleX(0);transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.tab-btn.active::after{transform:scaleX(1)}
 .overlay{display:flex;opacity:0;pointer-events:none;visibility:hidden;transition:opacity .26s ease,visibility .26s}
 .overlay.open{opacity:1;pointer-events:auto;visibility:visible}
 .overlay>div{transform:translateY(22px) scale(.965);opacity:0;transition:transform .34s cubic-bezier(.22,1,.36,1),opacity .3s}
@@ -561,20 +578,14 @@ window.addEventListener('load', function() {
   <div class="app-body" id="appBody">
     <div class="main">
       <div class="tab-nav">
-        <div class="tab-div" aria-hidden="true">اليومي</div>
         <button class="tab-btn active" id="tba" onclick="showTab('att')">👥 الحضور والتقييم</button>
-        <button class="tab-btn" id="tbrot" onclick="showTab('rot')">🔄 الدورة</button>
         <button class="tab-btn" id="tbp" onclick="showTab('paper')">📄 الورقة اليومية</button>
-        <div class="tab-div" aria-hidden="true">المراجعة</div>
-        <button class="tab-btn" id="tbh" onclick="showTab('hist')">📅 السجل التاريخي</button>
-        <button class="tab-btn" id="tbpg" onclick="showTab('prog')">📈 متابعة الطلاب</button>
-        <button class="tab-btn" id="tbal" onclick="showTab('audit')">📋 سجل التغييرات</button>
-        <div class="tab-div" aria-hidden="true">الإعداد</div>
+        <button class="tab-btn" id="tbrot" onclick="showTab('rot')">🔄 نظام الدورات</button>
         <button class="tab-btn" id="tbr" onclick="showTab('roster')">🏥 جدول المجموعات</button>
+        <button class="tab-btn" id="tbh" onclick="showTab('hist')">📅 السجل التاريخي</button>
         <button class="tab-btn" id="tbdb" onclick="showTab('db')">🗄️ قاعدة البيانات</button>
         <button class="tab-btn" id="tbtm" onclick="showTab('teach')">📚 المواد التعليمية</button>
       </div>
-      <div class="tab-content-wrap">
 
       <!-- TAB: ATTENDANCE -->
       <div class="tab-panel active" id="pa">
@@ -593,14 +604,6 @@ window.addEventListener('load', function() {
             <span style="font-size:12px;color:var(--muted)" id="curDateLabel"></span>
           </div>
         </div>
-
-        <!-- ★ ROTATION CONTEXT BAR — hospital / block / day(1-4) / unit -->
-        <div id="rotBar" style="background:linear-gradient(135deg,#0f6e56,#16a085);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <div style="font-size:13px;font-weight:700">🔄 الدورة الحالية</div>
-          <span id="rotSummary" style="font-size:13px;opacity:.95;flex:1">— لم تُحدَّد بعد —</span>
-          <button class="btn" style="background:rgba(255,255,255,.2);color:#fff;font-size:12px;padding:5px 12px" onclick="openRotModal()">✏️ تحديد المستشفى واليوم</button>
-        </div>
-
         <div class="toolbar">
           <input class="sbox" type="text" id="srch" placeholder="🔍 ابحث عن طالب..." oninput="renderList()">
           <button class="btn bp" onclick="sortSt()">🔤 أبجدي</button>
@@ -657,18 +660,21 @@ window.addEventListener('load', function() {
         <div class="plist" id="pList"></div>
       </div>
 
+      <!-- TAB: ROTATION SYSTEM -->
+      <div class="tab-panel" id="prot">
+        <div id="rotContent"></div>
+      </div>
+
       <!-- TAB: ROSTER -->
       <div class="tab-panel" id="pr">
         <div class="rtop">
           <div>
             <h2>🏥 جدول توزيع المجموعات</h2>
-            <p>يُبنى تلقائياً من قاعدة البيانات — عدّل الطلاب والمجموعات من تبويب «قاعدة البيانات»</p>
+            <p>ارفع ملف Excel لاستيراد الطلاب وجداولهم</p>
           </div>
           <div class="ract">
-            <button class="btn bp" onclick="rebuildRosterFromDb();renderRoster();toast('تم تحديث الجدول من قاعدة البيانات')">🔄 تحديث من قاعدة البيانات</button>
-            <button class="btn bo" onclick="showTab('db')">🗄️ فتح قاعدة البيانات</button>
-            <button class="btn bo" onclick="dlTemplate()" style="font-size:12px">📥 قالب</button>
-            <button class="btn bo" onclick="document.getElementById('rFile').click()" style="font-size:12px">📂 استيراد قديم</button>
+            <button class="btn bo" onclick="dlTemplate()">📥 تحميل القالب</button>
+            <button class="btn bp" onclick="document.getElementById('rFile').click()">📂 رفع ملف Excel</button>
             <input type="file" id="rFile" accept=".xlsx,.xls" style="display:none" onchange="importRoster(event)">
             <button class="btn bred" id="clrRBtn" onclick="clearRoster()" style="display:none">🗑 مسح</button>
           </div>
@@ -686,9 +692,9 @@ window.addEventListener('load', function() {
         <div id="rCont">
           <div class="rempty">
             <div style="font-size:44px;margin-bottom:10px">📋</div>
-            <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">الجدول فارغ</div>
-            <div style="font-size:13px;color:var(--muted);margin-bottom:14px">أضف طلاباً في «قاعدة البيانات» ثم اضغط «تحديث من قاعدة البيانات»</div>
-            <button class="btn bp" onclick="showTab('db')">🗄️ فتح قاعدة البيانات</button>
+            <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لم يتم استيراد أي جدول بعد</div>
+            <div style="font-size:13px;color:var(--muted);margin-bottom:14px">حمّل القالب، عبّئه ببيانات طلابك، ثم ارفعه هنا</div>
+            <button class="btn bp" onclick="document.getElementById('rFile').click()">📂 رفع ملف Excel الآن</button>
           </div>
         </div>
       </div>
@@ -707,62 +713,20 @@ window.addEventListener('load', function() {
         <div id="histList"></div>
       </div>
 
-      <!-- TAB: AUDIT LOG (change tracking) -->
-      <div class="tab-panel" id="pal">
-        <div class="hist-hdr">
-          <h2>📋 سجل التغييرات على التقييمات</h2>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <input type="text" class="sbox" id="auditSearch" placeholder="🔍 ابحث باسم الطالب أو التاريخ أو المُحرِّر..." oninput="renderAudit()" style="max-width:300px">
-            <button class="btn ba" onclick="exportAuditExcel()">📥 تصدير Excel</button>
-          </div>
-        </div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">يُسجَّل هنا تلقائياً كل إنشاء أو تعديل لأي تقييم: ماذا تغيّر، متى، وبأي حساب — مرتبط بحسابك على Google.</div>
-        <div id="auditList"></div>
-      </div>
-
-      <!-- TAB: STUDENT PROGRESS + AT-RISK -->
-      <div class="tab-panel" id="ppg">
-        <div class="hist-hdr">
-          <h2>📈 متابعة تطور الطلاب</h2>
-          <div style="font-size:12px;color:var(--muted)">المتوسط، الحضور، وتطور الدرجات لكل طالب عبر كل الجلسات — مع تنبيه للطلاب المتعثرين</div>
-        </div>
-        <div id="progContent"></div>
-      </div>
-
-      <!-- TAB: ROTATION (setup + saved-day review) -->
-      <div class="tab-panel" id="prot">
-        <div class="hist-hdr">
-          <h2>🔄 نظام الدورة</h2>
-          <div style="font-size:12px;color:var(--muted)">حدّد مستشفى ويوم الدورة، وراجع أيام كل مستشفى المحفوظة — وأغلق اليوم عند انتهاء تقييمه</div>
-        </div>
-        <div id="rotTabContent"></div>
-      </div>
-
       <!-- TAB: STUDENT DATABASE -->
       <div class="tab-panel" id="pdb">
         <div id="dbWrap">
-          <!-- Header: title + shift toggle + import/export -->
-          <div style="background:#0c2740;border-radius:12px;padding:16px 18px;margin-bottom:14px;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <!-- Upload area - always shown -->
+          <div style="background:#1a5276;border-radius:12px;padding:20px 22px;margin-bottom:16px;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px">
             <div>
-              <div style="font-size:16px;font-weight:700">🗄️ قاعدة بيانات الطلاب</div>
-              <div style="font-size:12px;color:#b5d4f4;margin-top:2px">المصدر الرئيسي — يُبنى منه جدول المجموعات والدورات</div>
+              <div style="font-size:17px;font-weight:700;margin-bottom:4px">🗄️ قاعدة بيانات الطلاب</div>
+              <div style="font-size:13px;opacity:.85">ارفع ملف Excel لاستيراد بيانات الطلاب</div>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-              <div style="display:flex;background:rgba(255,255,255,.12);border-radius:8px;padding:2px">
-                <button id="dbShiftMorning" onclick="dbSetShift('صباحي')" style="border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;background:#185fa5;color:#fff">🌅 صباحي</button>
-                <button id="dbShiftEvening" onclick="dbSetShift('مسائي')" style="border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;background:transparent;color:#b5d4f4">🌙 مسائي</button>
-              </div>
-              <button onclick="dlDbTemplate()" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer">📥 قالب</button>
-              <button onclick="dbExportExcel()" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer">📤 تصدير</button>
-              <button onclick="document.getElementById('dbFileInput').click()" style="background:#1e8449;color:#fff;border:none;border-radius:8px;padding:7px 13px;font-size:12px;font-weight:700;cursor:pointer">📂 استيراد</button>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button onclick="dlDbTemplate()" style="background:#fff;color:#1a5276;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer">📥 تحميل القالب</button>
+              <button onclick="document.getElementById('dbFileInput').click()" style="background:#27ae60;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer">📂 رفع ملف Excel</button>
               <input type="file" id="dbFileInput" accept=".xlsx,.xls" style="display:none" onchange="importDbFile(event)">
             </div>
-          </div>
-          <!-- Sub-tab nav -->
-          <div style="display:flex;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px">
-            <button class="db-subtab" id="dbSubStudents" onclick="dbSetSub('students')" style="flex:1;border:none;background:transparent;padding:10px;font-size:13px;font-weight:700;cursor:pointer;color:var(--pl);border-bottom:2px solid var(--pl)">👥 الطلاب</button>
-            <button class="db-subtab" id="dbSubHosp" onclick="dbSetSub('hosp')" style="flex:1;border:none;background:transparent;padding:10px;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">🏥 المستشفيات والدورات</button>
-            <button class="db-subtab" id="dbSubEmail" onclick="dbSetSub('email')" style="flex:1;border:none;background:transparent;padding:10px;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">✉️ البريد</button>
           </div>
           <!-- Dynamic content -->
           <div id="dbContent"></div>
@@ -789,28 +753,12 @@ window.addEventListener('load', function() {
         </div>
       </div>
 
-      <!-- TAB: TEACHING MATERIALS -->
-      <div class="tab-panel" id="ptm">
-        <div id="tmWrap">
-          <!-- Breadcrumb -->
-          <div id="tmBread" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-            <span style="font-size:16px;font-weight:700;color:var(--primary)">📚 المواد التعليمية</span>
-            <span id="tmBreadCat" style="display:none;color:var(--muted);font-size:13px"></span>
-          </div>
-          <!-- Add topic button (shown in category view) -->
-          <div id="tmActions" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-            <button class="btn bp" onclick="tmOpenAddModal()" id="tmAddBtn" style="display:none">➕ إضافة موضوع</button>
-            <button class="btn bo" onclick="tmBackToCategories()" id="tmBackBtn" style="display:none">← الفئات</button>
-          </div>
-          <!-- Content area -->
-          <div id="tmContent"></div>
-        </div>
       </div>
 
-    </div><!-- /tab-content-wrap -->
-    </div><!-- /main -->
-  </div><!-- /appBody -->
-</div><!-- /appRoot -->
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- GROUP LOADER MODAL -->
 <div class="overlay" id="grpLoaderM">
@@ -828,6 +776,21 @@ window.addEventListener('load', function() {
 </div>
 
 
+
+<!-- ROTATION IMPORT MODAL -->
+<div class="overlay" id="rotImportM">
+  <div class="grp-loader-modal">
+    <div class="grp-loader-hdr">
+      <h2>🔄 بدء دورة جديدة — استيراد مجموعة</h2>
+      <button style="background:rgba(255,255,255,.2);border:none;color:#fff;width:27px;height:27px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center" onclick="rotCloseImport()">✕</button>
+    </div>
+    <div class="grp-loader-body" id="rotImportBody"></div>
+    <div class="grp-loader-ftr">
+      <button class="btn bo" onclick="rotCloseImport()">إلغاء</button>
+      <button class="btn bp" id="rotImportApply" onclick="rotApplyImport()" style="display:none">✅ بدء الدورة بهذه المجموعة</button>
+    </div>
+  </div>
+</div>
 
 <!-- EMAIL MODAL -->
 <div class="overlay" id="emailModal">
@@ -873,6 +836,24 @@ window.addEventListener('load', function() {
             <div id="emailProgressBar" style="height:100%;background:#27ae60;border-radius:3px;width:0%;transition:width .3s"></div>
           </div>
         </div>
+      <!-- TAB: TEACHING MATERIALS -->
+      <div class="tab-panel" id="ptm">
+        <div id="tmWrap">
+          <!-- Breadcrumb -->
+          <div id="tmBread" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <span style="font-size:16px;font-weight:700;color:var(--primary)">📚 المواد التعليمية</span>
+            <span id="tmBreadCat" style="display:none;color:var(--muted);font-size:13px"></span>
+          </div>
+          <!-- Add topic button (shown in category view) -->
+          <div id="tmActions" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <button class="btn bp" onclick="tmOpenAddModal()" id="tmAddBtn" style="display:none">➕ إضافة موضوع</button>
+            <button class="btn bo" onclick="tmBackToCategories()" id="tmBackBtn" style="display:none">← الفئات</button>
+          </div>
+          <!-- Content area -->
+          <div id="tmContent"></div>
+        </div>
+      </div>
+
       </div>
     </div>
   </div>
@@ -912,45 +893,6 @@ window.addEventListener('load', function() {
   </div>
 </div>
 
-<!-- ROTATION CONTEXT MODAL -->
-<div class="overlay" id="rotModal">
-  <div class="modal" style="max-width:480px">
-    <div class="mhdr" style="background:#0f6e56"><h2>🔄 تحديد الدورة الحالية</h2><button class="mcl" onclick="closeRotModal()">✕</button></div>
-    <div class="mbody">
-      <div id="rotAutoHint" style="background:#e8f8f0;border:1px solid var(--success);border-radius:8px;padding:9px 12px;margin-bottom:14px;font-size:12px;color:#0f6e56;display:none"></div>
-      <div style="margin-bottom:12px">
-        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px">المستشفى</label>
-        <input type="text" id="rotHospital" placeholder="اسم المستشفى" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:14px;direction:rtl">
-      </div>
-      <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-        <div style="flex:1;min-width:150px">
-          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px">بداية فترة الأسبوعين</label>
-          <input type="date" id="rotBlock" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:14px;direction:ltr">
-        </div>
-        <div style="flex:1;min-width:120px">
-          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px">اليوم</label>
-          <select id="rotDayNo" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:14px">
-            <option value="">—</option>
-            <option value="1">اليوم 1</option>
-            <option value="2">اليوم 2</option>
-            <option value="3">اليوم 3</option>
-            <option value="4">اليوم 4</option>
-          </select>
-        </div>
-      </div>
-      <div style="margin-bottom:6px">
-        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:5px">الوحدة / القسم (الطلاب يتناوبون عليها)</label>
-        <input type="text" id="rotUnit" placeholder="مثال: الطوارئ، الباطنية، النسائية..." style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:14px;direction:rtl">
-      </div>
-    </div>
-    <div class="mftr">
-      <button class="btn bo" onclick="autoFillRot()">🔄 كشف تلقائي</button>
-      <button class="btn bo" onclick="closeRotModal()">إلغاء</button>
-      <button class="btn bp" style="background:#0f6e56" onclick="saveRotModal()">💾 حفظ</button>
-    </div>
-  </div>
-</div>
-
 <!-- CALENDAR MODAL -->
 <div class="overlay" id="calM">
   <div class="cal-modal">
@@ -979,17 +921,6 @@ window.addEventListener('load', function() {
       </div>
     </div>
     <div class="dm-body" id="dmBody"></div>
-  </div>
-</div>
-
-<!-- STUDENT PROGRESS DETAIL MODAL -->
-<div class="overlay" id="progDetailM">
-  <div class="dmodal">
-    <div class="dm-hdr">
-      <h2 id="progDetailTitle">متابعة الطالب</h2>
-      <button class="mcl" onclick="closeProgressDetail()">✕</button>
-    </div>
-    <div class="dm-body" id="progDetailBody"></div>
   </div>
 </div>
 
@@ -1090,8 +1021,10 @@ var studentsMorning = [];
 var studentsEvening = [];
 var history  = {};   // keyed by "YYYY-MM-DD_morning" or "YYYY-MM-DD_evening"
 var roster   = [];
-var cycles   = [];  // rotation cycles: each {id,hospital,group,type,startDate,unit,note}
 var studentDb = [];  // master DB — isolated from daily workflow
+var rotations = { active: null, archive: {} };  // ★ rotation cycle system
+var rotImportSel = null;     // selected group in import modal
+var rotImportSource = 'roster'; // 'roster' | 'db'
 var curDate  = today();
 var curGroup = 'morning';  // 'morning' | 'evening'
 var curSt    = null;
@@ -1109,520 +1042,6 @@ function getSession(){ return getDay(sessionKey()); }
 function getStudents(){ return curGroup==='morning'?studentsMorning:studentsEvening; }
 function setStudents(arr){ if(curGroup==='morning') studentsMorning=arr; else studentsEvening=arr; }
 // (dbRef / dateToKey / keyToDate / sessionDbKey are defined once above, with offline guards)
-
-// ═══════════════════════════════════════════════════════════════════════
-// ★ ROTATION CONTEXT — hospital / 2-week block / day(1-4) / unit
-//   Each day record carries these tags so a student's marks can roll up:
-//   day → hospital (avg of up to 4 days) → overall (all hospitals).
-//   Auto-detected from the loaded roster group, with manual override.
-// ═══════════════════════════════════════════════════════════════════════
-// Returns {hospital, block, dayNo, unit} stored on the current session, if any.
-function getRotation(){
-  var d = getSession();
-  return {
-    hospital: d['__hospital__'] || '',
-    block:    d['__block__']    || '',
-    dayNo:    d['__dayNo__']    || '',
-    unit:     d['__unit__']     || ''
-  };
-}
-function setRotation(rot){
-  var d = getSession();
-  if(rot.hospital) d['__hospital__']=rot.hospital; else delete d['__hospital__'];
-  if(rot.block)    d['__block__']=rot.block;       else delete d['__block__'];
-  if(rot.dayNo)    d['__dayNo__']=rot.dayNo;        else delete d['__dayNo__'];
-  if(rot.unit)     d['__unit__']=rot.unit;          else delete d['__unit__'];
-  saveDay(sessionKey());
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// ★ ROTATION CYCLES — a cycle is one hospital stay (2 weeks = 4 eval days)
-//   for one group. Each cycle pre-computes its 4 working days from a start
-//   date (getSched), and each day-slot can import the group with one click.
-//   Moving to the next hospital = "+ add cycle". Cycles persist under
-//   users/{uid}/cycles; the per-day evaluations stay in history as before.
-// ═══════════════════════════════════════════════════════════════════════
-function cyKey(){ return 'hsp_cycles_' + (currentUser ? currentUser.uid : 'anon'); }
-function saveCycles(){
-  try{ localStorage.setItem(cyKey(), JSON.stringify(cycles)); }catch(e){}
-  if(isOfflineMode || !currentUser || !db){ if(typeof cacheLocally==='function') cacheLocally(); }
-  else { guardedSet('cycles', cycles); }
-}
-function newCycleId(){ return 'cy_' + Date.now() + '_' + Math.floor(Math.random()*1000); }
-
-// The 4 preset day-slots for a cycle: date + the matching history record (if any).
-function cycleDays(cy){
-  var sched = getSched(cy.startDate);            // up to 4 working days, skips Fri/Sat
-  var grp   = (cy.type==='مسائي') ? 'evening' : 'morning';
-  var out = [];
-  for(var i=0;i<4;i++){
-    var date = sched[i] || '';
-    var key  = date ? (date+'_'+grp) : '';
-    var rec  = key ? (history[key]||null) : null;
-    var present=0,absent=0,evaluated=0,locked=0,sum=0,cnt=0;
-    if(rec){
-      Object.keys(rec).filter(function(k){return /^\d+$/.test(k);}).forEach(function(k){
-        var r=rec[k]||{};
-        if(r.attendance==='present')present++;
-        if(r.attendance==='absent')absent++;
-        if(r.evaluated){evaluated++; if(r.total!==undefined){sum+=r.total;cnt++;}}
-        if(r.locked)locked++;
-      });
-    }
-    out.push({
-      dayNo:i+1, date:date, key:key, group:grp,
-      hasRecord: !!(rec && (present||absent||evaluated)),
-      present:present, absent:absent, evaluated:evaluated, locked:locked,
-      closed: !!(rec && rec['__dayClosed__']),
-      unit: (rec && rec['__unit__']) || (cy.units && cy.units[i]) || '',
-      avg: cnt>0 ? (sum/cnt) : null
-    });
-  }
-  return out;
-}
-
-// Import a cycle's group into one specific day-slot.
-//  • If the slot is TODAY: load the group live into attendance, ready to grade now.
-//  • If the slot is NOT today: seed that day's record (names + hospital/day/unit)
-//    so it's prepared and reviewable; it becomes gradable when its date arrives,
-//    since the attendance tab only ever grades the current day by design.
-function importCycleDay(cycleId, dayNo){
-  var cy = null;
-  for(var i=0;i<cycles.length;i++){ if(cycles[i].id===cycleId){ cy=cycles[i]; break; } }
-  if(!cy){ toast('الدورة غير موجودة'); return; }
-
-  // Gather this group's students from the roster.
-  var names = [];
-  for(var j=0;j<roster.length;j++){
-    var r=roster[j];
-    if((r.hospital||'')===(cy.hospital||'') && (r.group||'')===(cy.group||'') && (r.type||'')===(cy.type||'')){
-      if(r.name) names.push({name:r.name});
-    }
-  }
-  if(!names.length){ toast('لا يوجد طلاب في هذه المجموعة ضمن الجدول — تحقق من جدول المجموعات'); return; }
-
-  var days = cycleDays(cy);
-  var slot = days[dayNo-1];
-  if(!slot || !slot.date){ toast('لا يمكن حساب تاريخ هذا اليوم — تحقق من تاريخ البداية'); return; }
-
-  var isToday = (slot.date === today());
-
-  if(isToday){
-    // Live path: load into the live group and open attendance for grading now.
-    curGroup = slot.group;
-    setStudents(names);
-    if(typeof saveStudents==='function') saveStudents();
-    switchGroup(curGroup);
-    // setRotation works on the current session (today + curGroup) → correct here.
-    setRotation({ hospital:cy.hospital, block:cy.startDate, dayNo:String(dayNo), unit:slot.unit||'' });
-    renderRotBar();
-    showTab('att');
-    renderList();
-    toast('✅ تم تحميل '+names.length+' طالب لليوم '+dayNo+' (اليوم) — جاهز للتقييم');
-    return;
-  }
-
-  // Seed path: write directly into the slot's history record (not the live session).
-  var key = slot.key;                 // "YYYY-MM-DD_morning|evening"
-  var rec = history[key] || (history[key] = {});
-  // Create attendance placeholders only if the day has no records yet.
-  var hasNumeric = Object.keys(rec).some(function(k){ return /^\d+$/.test(k); });
-  if(!hasNumeric){
-    for(var n=0;n<names.length;n++){ if(!rec[String(n)]) rec[String(n)] = {}; }
-  }
-  rec['__names__']    = names.map(function(s){ return s.name; });
-  rec['__hospital__'] = cy.hospital || '';
-  rec['__block__']    = cy.startDate || '';
-  rec['__dayNo__']    = String(dayNo);
-  if(slot.unit) rec['__unit__'] = slot.unit;
-  rec['__savedAt__']  = Date.now();
-  // Persist directly (not via saveDay) so live group state can't overwrite __names__.
-  if(isOfflineMode || !currentUser || !db){
-    if(typeof cacheLocally==='function') cacheLocally();
-  } else {
-    var dbKey = key.replace(/^(\d{4})-(\d{2})-(\d{2})_/, '$1_$2_$3_');
-    guardedSet('history/' + dbKey, rec);
-  }
-
-  // Refresh the rotation tab so the slot now shows as prepared.
-  renderRotationTab();
-  var when = slot.date < today() ? 'يوم سابق' : 'يوم قادم';
-  toast('📥 تم تجهيز اليوم '+dayNo+' ('+slot.date+' — '+when+') بـ '+names.length+' طالب. يصبح قابلاً للتقييم في تاريخه.');
-}
-
-function addCycleFromForm(){
-  var hosp = (document.getElementById('cyHospital').value||'').trim();
-  var grp  = (document.getElementById('cyGroup').value||'').trim();
-  var typ  = document.getElementById('cyType').value||'صباحي';
-  var sd   = document.getElementById('cyStart').value||'';
-  if(!hosp){ toast('أدخل اسم المستشفى'); return; }
-  if(!sd){ toast('حدّد تاريخ بداية الدورة'); return; }
-  cycles.push({ id:newCycleId(), hospital:hosp, group:grp, type:typ, startDate:sd, units:['','','',''], note:'' });
-  saveCycles();
-  document.getElementById('cyHospital').value='';
-  document.getElementById('cyGroup').value='';
-  document.getElementById('cyStart').value='';
-  var f=document.getElementById('cyAddForm'); if(f) f.style.display='none';
-  renderRotationTab();
-  toast('🔄 تمت إضافة دورة جديدة — '+hosp);
-}
-
-function deleteCycle(cycleId){
-  if(!confirm('حذف هذه الدورة؟ (لن تُحذف التقييمات المحفوظة — فقط بطاقة الدورة)')) return;
-  cycles = cycles.filter(function(c){ return c.id!==cycleId; });
-  saveCycles();
-  renderRotationTab();
-  toast('🗑️ تم حذف الدورة');
-}
-
-function toggleCycleForm(){
-  var f=document.getElementById('cyAddForm'); if(!f) return;
-  f.style.display = f.style.display==='none' ? '' : 'none';
-  if(f.style.display===''){
-    var h=document.getElementById('cyHospital');
-    if(h && !h.value){ h.value=document.getElementById('hName').value||''; }
-  }
-}
-
-// Suggest cycles from the roster groups that don't have a cycle yet.
-function suggestCyclesFromRoster(){
-  if(!roster || !roster.length){ toast('لا يوجد جدول مجموعات لاستيراده'); return; }
-  var seen={}; cycles.forEach(function(c){ seen[(c.hospital||'')+'|'+(c.group||'')+'|'+(c.type||'')]=1; });
-  var added=0;
-  var grpKeys={};
-  roster.forEach(function(r){
-    var k=(r.hospital||'')+'|'+(r.group||'')+'|'+(r.type||'');
-    if(!grpKeys[k]) grpKeys[k]={hospital:r.hospital||'',group:r.group||'',type:r.type||'صباحي',startDate:r.startDate||''};
-  });
-  Object.keys(grpKeys).forEach(function(k){
-    if(seen[k]) return;
-    var g=grpKeys[k];
-    if(!g.hospital || !g.startDate) return;
-    cycles.push({ id:newCycleId(), hospital:g.hospital, group:g.group, type:g.type, startDate:g.startDate, units:['','','',''], note:'' });
-    added++;
-  });
-  if(!added){ toast('كل مجموعات الجدول لها دورات بالفعل'); return; }
-  saveCycles();
-  renderRotationTab();
-  toast('🔄 تم إنشاء '+added+' دورة من الجدول');
-}
-
-// Given a roster group (hospital + start date) auto-detect which day (1-4)
-// today is within its 2-week / 4-working-day schedule.
-function autoDetectRotation(hospital, startDate){
-  var sched = getSched(startDate);              // up to 4 working days
-  var idx = sched.indexOf(today());
-  return {
-    hospital: hospital || '',
-    block:    startDate || '',
-    dayNo:    idx >= 0 ? String(idx+1) : '',     // 1..4, or '' if today not in schedule
-    unit:     ''
-  };
-}
-// Pull the rotation tags off ANY stored day record (for history/progress).
-function rotationOf(rec){
-  rec = rec || {};
-  return {
-    hospital: rec['__hospital__'] || '',
-    block:    rec['__block__']    || '',
-    dayNo:    rec['__dayNo__']    || '',
-    unit:     rec['__unit__']     || ''
-  };
-}
-
-// Render the rotation summary bar on the attendance tab.
-function renderRotBar(){
-  var el = document.getElementById('rotSummary');
-  if(!el) return;
-  var r = getRotation();
-  if(!r.hospital && !r.dayNo && !r.unit){
-    el.textContent = '— لم تُحدَّد بعد (اضغط لتحديد المستشفى واليوم) —';
-    return;
-  }
-  var parts = [];
-  if(r.hospital) parts.push('🏥 '+r.hospital);
-  if(r.dayNo)    parts.push('📅 اليوم '+r.dayNo+'/4');
-  if(r.unit)     parts.push('🩺 '+r.unit);
-  el.textContent = parts.join('  •  ');
-}
-
-// Try to auto-detect the active group's hospital + start date from the roster,
-// matching by the students currently loaded into the active group.
-function detectActiveGroupRoster(){
-  if(!roster || !roster.length) return null;
-  var sts = getStudents();
-  if(!sts || !sts.length) return null;
-  var firstName = sts[0].name;
-  for(var i=0;i<roster.length;i++){
-    if((roster[i].name||'').trim() === firstName.trim()){
-      return { hospital: roster[i].hospital||'', startDate: roster[i].startDate||'' };
-    }
-  }
-  return null;
-}
-
-function openRotModal(){
-  var r = getRotation();
-  document.getElementById('rotHospital').value = r.hospital || document.getElementById('hName').value || '';
-  document.getElementById('rotBlock').value    = r.block || '';
-  document.getElementById('rotDayNo').value    = r.dayNo || '';
-  document.getElementById('rotUnit').value     = r.unit || '';
-  // If nothing set yet, try an auto-detect to pre-fill (manual override still possible)
-  var hint = document.getElementById('rotAutoHint');
-  hint.style.display='none';
-  if(!r.hospital && !r.dayNo){
-    var rg = detectActiveGroupRoster();
-    if(rg && rg.startDate){
-      var auto = autoDetectRotation(rg.hospital, rg.startDate);
-      document.getElementById('rotHospital').value = auto.hospital;
-      document.getElementById('rotBlock').value    = auto.block;
-      document.getElementById('rotDayNo').value    = auto.dayNo;
-      hint.style.display='block';
-      hint.textContent = auto.dayNo
-        ? '🔄 تم الكشف تلقائياً من الجدول: اليوم '+auto.dayNo+' — يمكنك التعديل'
-        : '🔄 المستشفى من الجدول — اليوم خارج فترة الجدول، حدّده يدوياً';
-    }
-  }
-  document.getElementById('rotModal').classList.add('open');
-}
-
-function autoFillRot(){
-  var rg = detectActiveGroupRoster();
-  if(!rg || !rg.startDate){ toast('لا يوجد جدول مطابق — أدخل البيانات يدوياً'); return; }
-  var auto = autoDetectRotation(rg.hospital, rg.startDate);
-  document.getElementById('rotHospital').value = auto.hospital;
-  document.getElementById('rotBlock').value    = auto.block;
-  document.getElementById('rotDayNo').value    = auto.dayNo;
-  var hint = document.getElementById('rotAutoHint');
-  hint.style.display='block';
-  hint.textContent = auto.dayNo
-    ? '🔄 اليوم '+auto.dayNo+' من فترة الأسبوعين'
-    : '🔄 اليوم الحالي خارج جدول هذه المجموعة — حدّده يدوياً';
-  toast('تم الكشف التلقائي');
-}
-
-function saveRotModal(){
-  setRotation({
-    hospital: (document.getElementById('rotHospital').value||'').trim(),
-    block:    document.getElementById('rotBlock').value||'',
-    dayNo:    document.getElementById('rotDayNo').value||'',
-    unit:     (document.getElementById('rotUnit').value||'').trim()
-  });
-  closeRotModal();
-  renderRotBar();
-  var ppr=document.getElementById('prot');
-  if(ppr && ppr.classList.contains('active')) renderRotationTab();
-  toast('✅ تم حفظ بيانات الدورة');
-}
-
-function closeRotModal(){ document.getElementById('rotModal').classList.remove('open'); }
-
-// ═══════════════════════════════════════════════════════════════════════
-// ★ ROTATION TAB — set up today's rotation AND review every saved day.
-//   Days are grouped Hospital → 2-week block → Day(1-4). Each day is a
-//   card built from the existing history record (no duplicate storage).
-//   "إغلاق اليوم" locks every evaluated student in that day at once.
-// ═══════════════════════════════════════════════════════════════════════
-
-// Lock (finalize) every evaluated student in one session key.
-function closeDay(sessionK){
-  var day = history[sessionK] || {};
-  var idxs = Object.keys(day).filter(function(k){ return /^\d+$/.test(k); });
-  var evaluated = idxs.filter(function(k){ return day[k] && day[k].evaluated; });
-  if(!evaluated.length){ toast('لا توجد تقييمات لإغلاقها في هذا اليوم'); return; }
-  var open = evaluated.filter(function(k){ return !day[k].locked; });
-  if(!open.length){ toast('كل تقييمات هذا اليوم مغلقة بالفعل'); return; }
-  var clean = sessionK.replace('_morning','').replace('_evening','');
-  if(!confirm('إغلاق واعتماد يوم '+clean+'؟\nسيتم قفل '+open.length+' تقييم — لن يمكن تعديلها إلا بفتحها مجدداً.')) return;
-  var who = currentUser ? (currentUser.email||currentUser.displayName||'') : '';
-  open.forEach(function(k){
-    day[k].locked = true;
-    day[k].lockedAt = Date.now();
-    day[k].lockedBy = who;
-  });
-  day['__dayClosed__'] = Date.now();
-  day['__dayClosedBy__'] = who;
-  saveDay(sessionK);
-  renderRotationTab();
-  if(document.getElementById('pa').classList.contains('active')) renderList();
-  toast('🔒 تم إغلاق اليوم واعتماد '+open.length+' تقييم');
-}
-
-function reopenDay(sessionK){
-  var day = history[sessionK] || {};
-  if(!confirm('إعادة فتح هذا اليوم؟ سيتم رفع القفل عن تقييماته للتعديل.')) return;
-  Object.keys(day).filter(function(k){ return /^\d+$/.test(k); }).forEach(function(k){
-    if(day[k] && day[k].locked){ day[k].locked=false; delete day[k].lockedAt; delete day[k].lockedBy; }
-  });
-  delete day['__dayClosed__']; delete day['__dayClosedBy__'];
-  saveDay(sessionK);
-  renderRotationTab();
-  if(document.getElementById('pa').classList.contains('active')) renderList();
-  toast('🔓 تم إعادة فتح اليوم');
-}
-
-// Build {hospitalKey: {hospital, block, days:[{key,date,group,dayNo,unit,present,absent,evaluated,locked,closed,avg}]}}
-function buildRotationGroups(){
-  var groups = {};
-  Object.keys(history).forEach(function(dk){
-    var day = history[dk] || {};
-    var idxs = Object.keys(day).filter(function(k){ return /^\d+$/.test(k); });
-    var hasAny = idxs.some(function(k){ return day[k] && (day[k].attendance || day[k].evaluated); });
-    if(!hasAny) return;
-    var rot = rotationOf(day);
-    var hk = rot.hospital ? (rot.hospital + (rot.block?(' • '+rot.block):'')) : '— بدون مستشفى محدد —';
-    if(!groups[hk]) groups[hk] = { hospital: rot.hospital||'(غير محدد)', block: rot.block||'', days: [] };
-    var present=0,absent=0,evaluated=0,locked=0,sum=0,cnt=0;
-    idxs.forEach(function(k){
-      var r = day[k]||{};
-      if(r.attendance==='present') present++;
-      if(r.attendance==='absent')  absent++;
-      if(r.evaluated){ evaluated++; if(r.total!==undefined){ sum+=r.total; cnt++; } }
-      if(r.locked) locked++;
-    });
-    groups[hk].days.push({
-      key: dk,
-      date: dk.replace('_morning','').replace('_evening',''),
-      group: dk.indexOf('_morning')>=0?'صباحي':'مسائي',
-      dayNo: rot.dayNo, unit: rot.unit,
-      present:present, absent:absent, evaluated:evaluated, locked:locked,
-      closed: !!day['__dayClosed__'],
-      avg: cnt>0 ? (sum/cnt) : null
-    });
-  });
-  Object.keys(groups).forEach(function(hk){
-    groups[hk].days.sort(function(a,b){
-      var dn = (a.dayNo||'').localeCompare(b.dayNo||'');
-      return dn !== 0 ? dn : a.date.localeCompare(b.date);
-    });
-  });
-  return groups;
-}
-
-function renderRotationTab(){
-  var cont = document.getElementById('rotTabContent');
-  if(!cont) return;
-  var html = '';
-
-  // --- Header: actions ---
-  html += '<div style="background:linear-gradient(135deg,#0c2740,#185fa5);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:16px">';
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">';
-  html += '<div><div style="font-size:15px;font-weight:700">🔄 دورات التدريب</div>';
-  html += '<div style="font-size:12px;opacity:.9;margin-top:3px">كل دورة = مستشفى واحد لمدة أسبوعين (٤ أيام تقييم). استورد المجموعة لكل يوم بضغطة واحدة.</div></div>';
-  html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
-  html += '<button class="btn" style="background:rgba(255,255,255,.22);color:#fff" onclick="suggestCyclesFromRoster()">📋 من الجدول</button>';
-  html += '<button class="btn" style="background:#fff;color:#0c2740;font-weight:700" onclick="toggleCycleForm()">➕ إضافة دورة</button>';
-  html += '</div></div></div>';
-
-  // --- Add-cycle form (hidden until toggled) ---
-  html += '<div id="cyAddForm" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">';
-  html += '<div style="font-size:14px;font-weight:700;color:var(--primary);margin-bottom:12px">➕ دورة جديدة (مستشفى جديد)</div>';
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">';
-  html += '<div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">اسم المستشفى</label><input id="cyHospital" class="hinput" style="width:100%" placeholder="مثال: مستشفى الكندي"></div>';
-  html += '<div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">رقم المجموعة</label><input id="cyGroup" class="hinput" style="width:100%" placeholder="مثال: 1"></div>';
-  html += '<div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">النوع</label><select id="cyType" class="hinput" style="width:100%"><option value="صباحي">صباحي</option><option value="مسائي">مسائي</option></select></div>';
-  html += '<div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">تاريخ بداية الدورة</label><input id="cyStart" type="date" class="hinput" style="width:100%"></div>';
-  html += '</div>';
-  html += '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn bp" onclick="addCycleFromForm()">✅ حفظ الدورة</button><button class="btn bo" onclick="toggleCycleForm()">إلغاء</button></div>';
-  html += '<div style="font-size:11px;color:var(--muted);margin-top:8px">سيتم حساب الأيام الأربعة تلقائياً من تاريخ البداية (يومان كل أسبوع، مع تخطّي الجمعة والسبت).</div>';
-  html += '</div>';
-
-  // --- Cycle mother-cards ---
-  if(!cycles.length){
-    html += '<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">🔄</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد دورات بعد</div><div style="font-size:13px;color:var(--muted)">اضغط «➕ إضافة دورة» لإنشاء أول دورة، أو «📋 من الجدول» لإنشائها تلقائياً من جدول المجموعات</div></div>';
-    cont.innerHTML = html;
-    return;
-  }
-
-  var ordered = cycles.slice().sort(function(a,b){ return (a.startDate||'').localeCompare(b.startDate||''); });
-  ordered.forEach(function(cy, ci){
-    var days = cycleDays(cy);
-    var doneCount = days.filter(function(d){ return d.hasRecord; }).length;
-    var typeLabel = cy.type==='مسائي'?'مسائي':'صباحي';
-    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden">';
-    // Cycle header (the "mother")
-    html += '<div style="background:#eaf1fb;padding:13px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
-    html += '<div><div style="font-size:16px;font-weight:700;color:#0c2740">🏥 '+(cy.hospital||'(مستشفى)')+'<span style="font-size:12px;color:var(--muted);font-weight:400">  — دورة '+(ci+1)+'</span></div>';
-    var meta=[];
-    if(cy.group) meta.push('مجموعة '+cy.group);
-    meta.push(typeLabel);
-    if(cy.startDate) meta.push('تبدأ '+cy.startDate);
-    html += '<div style="font-size:12px;color:var(--muted);margin-top:3px">'+meta.join('  •  ')+'</div></div>';
-    html += '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:12px;font-weight:700;color:'+(doneCount>=4?'var(--success)':'var(--pl)')+'">'+doneCount+' / 4 أيام</span>';
-    html += '<button class="btn bo" style="font-size:11px;padding:4px 9px" onclick="deleteCycle(\''+cy.id+'\')">🗑️</button></div>';
-    html += '</div>';
-    // The 4 preset day-slots
-    html += '<div style="padding:14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:11px">';
-    days.forEach(function(d){
-      var allLocked = d.evaluated>0 && d.locked>=d.evaluated;
-      var closed = d.closed||allLocked;
-      var avgTxt = d.avg!==null ? d.avg.toFixed(2)+'/15' : '—';
-      var accent = closed ? 'var(--success)' : (d.hasRecord ? 'var(--pl)' : 'var(--border)');
-      html += '<div style="border:1px solid var(--border);border-top:3px solid '+accent+';border-radius:10px;overflow:hidden">';
-      // slot header
-      html += '<div style="padding:9px 11px;border-bottom:1px solid var(--border)">';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between">';
-      html += '<span style="font-size:14px;font-weight:700;color:var(--primary)">اليوم '+d.dayNo+'</span>';
-      var badge = closed ? '<span style="font-size:10px;font-weight:700;color:var(--success)">🔒 مغلق</span>'
-                : d.hasRecord ? '<span style="font-size:10px;font-weight:700;color:var(--pl)">🟡 جارٍ</span>'
-                : '<span style="font-size:10px;font-weight:700;color:var(--muted)">○ فارغ</span>';
-      html += badge+'</div>';
-      html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+(d.date||'— تاريخ غير محسوب')+(d.unit?(' • 🩺 '+d.unit):'')+'</div>';
-      html += '</div>';
-      // slot stats (only if there's a record)
-      if(d.hasRecord){
-        html += '<div style="padding:8px 11px;font-size:12px;display:flex;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--border)">';
-        html += '<span style="color:#1e8449">✓ '+d.present+'</span>';
-        html += '<span style="color:#c0392b">✗ '+d.absent+'</span>';
-        html += '<span style="color:var(--pl)">📝 '+d.evaluated+'</span>';
-        html += '<span style="margin-right:auto;font-weight:700">معدل '+avgTxt+'</span>';
-        html += '</div>';
-      }
-      // slot actions
-      html += '<div style="padding:9px 11px;display:flex;gap:6px;flex-wrap:wrap">';
-      html += '<button class="btn bp" style="font-size:11px;padding:6px 9px;flex:1" onclick="importCycleDay(\''+cy.id+'\','+d.dayNo+')">'+(d.hasRecord?'↻ متابعة':'📥 استيراد المجموعة')+'</button>';
-      if(d.hasRecord){
-        html += '<button class="btn bo" style="font-size:11px;padding:6px 8px" onclick="openDayDetail(\''+d.key+'\')">👁️</button>';
-        if(closed){
-          html += '<button class="btn bo" style="font-size:11px;padding:6px 8px" onclick="reopenDay(\''+d.key+'\')">🔓</button>';
-        } else {
-          html += '<button class="btn" style="background:#117a65;color:#fff;font-size:11px;padding:6px 8px" onclick="closeDay(\''+d.key+'\')">🔒</button>';
-        }
-      }
-      html += '</div>';
-      html += '</div>';
-    });
-    html += '</div></div>';
-  });
-
-  // --- Secondary: any saved days that don't belong to a defined cycle ---
-  var groups = buildRotationGroups();
-  var orphan = [];
-  Object.keys(groups).forEach(function(hk){
-    groups[hk].days.forEach(function(d){
-      var inCycle = ordered.some(function(cy){ return cycleDays(cy).some(function(cd){ return cd.key===d.key; }); });
-      if(!inCycle) orphan.push(d);
-    });
-  });
-  if(orphan.length){
-    html += '<div style="font-size:13px;font-weight:700;color:var(--muted);margin:18px 0 10px">📅 أيام محفوظة خارج الدورات المعرّفة</div>';
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">';
-    orphan.forEach(function(d){
-      var allLocked = d.evaluated>0 && d.locked>=d.evaluated;
-      var closed=d.closed||allLocked;
-      var avgTxt = d.avg!==null ? d.avg.toFixed(2)+'/15' : '—';
-      html += '<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px">';
-      html += '<div style="display:flex;justify-content:space-between"><span style="font-size:13px;font-weight:700;color:var(--primary)">'+(d.dayNo?('اليوم '+d.dayNo):d.date)+'</span><span style="font-size:11px;font-weight:700;color:'+(closed?'var(--success)':'#b7770d')+'">'+(closed?'🔒':'🟡')+'</span></div>';
-      html += '<div style="font-size:11px;color:var(--muted);margin:2px 0 6px">'+d.date+' • '+d.group+'</div>';
-      html += '<div style="font-size:12px;margin-bottom:7px"><span style="color:#1e8449">✓'+d.present+'</span> <span style="color:#c0392b">✗'+d.absent+'</span> <span style="color:var(--pl)">📝'+d.evaluated+'</span> <span style="font-weight:700">'+avgTxt+'</span></div>';
-      html += '<button class="btn bo" style="font-size:11px;padding:5px 9px;width:100%" onclick="openDayDetail(\''+d.key+'\')">👁️ عرض</button>';
-      html += '</div>';
-    });
-    html += '</div>';
-  }
-
-  cont.innerHTML = html;
-}
 
 // ═══════════════════════════════════════════════════════════════════════
 // ★ DATA GUARD LAYER — zero data loss architecture
@@ -1884,7 +1303,7 @@ function attachAuthListener() {
       if (isNewUser) {
         stopListeners();
         dataLoaded = false;
-        studentsMorning = []; studentsEvening = []; history = {}; roster = []; cycles = [];
+        studentsMorning = []; studentsEvening = []; history = {}; roster = [];
       }
 
       currentUser = user;
@@ -1922,7 +1341,7 @@ function attachAuthListener() {
       lastUid = null;
       dataLoaded = false;
       currentUser = null;
-      studentsMorning = []; studentsEvening = []; history = {}; roster = []; cycles = [];
+      studentsMorning = []; studentsEvening = []; history = {}; roster = [];
       document.getElementById('sList').innerHTML = '';
       document.getElementById('hName').value = '';
       document.getElementById('hNo').value = '';
@@ -1955,7 +1374,7 @@ function handleUserClick() {
 function exitToLogin() {
   isOfflineMode = false;
   currentUser   = null;
-  studentsMorning = []; studentsEvening = []; history = {}; roster = []; cycles = [];
+  studentsMorning = []; studentsEvening = []; history = {}; roster = [];
   document.getElementById('sList').innerHTML = '';
   document.getElementById('hName').value = '';
   document.getElementById('hNo').value   = '';
@@ -1992,8 +1411,8 @@ function loadFromCache(uid) {
     studentsEvening = sameDay ? (c.se || []) : [];
     history         = c.h   || {};
     roster          = c.r   || [];
-    cycles          = c.cy  || [];
     if (c.sdb && c.sdb.length) studentDb = c.sdb;
+    if (c.rot) rotations = { active: c.rot.active || null, archive: c.rot.archive || {} };
     if (c.hn) document.getElementById('hName').value   = c.hn;
     if (c.ho) document.getElementById('hNo').value     = c.ho;
     if (c.sn) document.getElementById('supName').value = c.sn;
@@ -2053,7 +1472,6 @@ function startListeners() {
       dbLoad();
       takeSnapshot();
       flushQueue(); // re-send anything that failed before the reload
-      flushAudit(); // ★ re-send any offline audit entries
     }
   }
 
@@ -2087,6 +1505,18 @@ function startListeners() {
   });
   dbListeners.push({ ref: sdbRef, event: 'value' });
 
+  // ★ Rotation cycle system — synced to the Google account
+  var rotRef = dbRef('rotations');
+  rotRef.on('value', function(snap) {
+    if (!isStillMe()) return;
+    var val = snap.val();
+    rotations = val ? { active: val.active || null, archive: val.archive || {} } : { active: null, archive: {} };
+    try{ localStorage.setItem('hsp_rot_'+myUid, JSON.stringify(rotations)); }catch(e){}
+    var prot = document.getElementById('prot');
+    if (prot && prot.classList.contains('active')) rotRender();
+  });
+  dbListeners.push({ ref: rotRef, event: 'value' });
+
   var rRef = dbRef('roster');
   rRef.on('value', function(snap) {
     if (!isStillMe()) return;
@@ -2097,18 +1527,6 @@ function startListeners() {
     if (dataLoaded) { renderRosterIfActive(); cacheLocally(); } else checkAllLoaded();
   });
   dbListeners.push({ ref: rRef, event: 'value' });
-
-  // ★ Rotation cycles (each = hospital + group + 4 preset day-slots)
-  var cyRef = dbRef('cycles');
-  cyRef.on('value', function(snap) {
-    if (!isStillMe()) return;
-    var val = snap.val();
-    cycles = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
-    try{ localStorage.setItem(cyKey(), JSON.stringify(cycles)); }catch(e){}
-    var pr = document.getElementById('prot');
-    if (pr && pr.classList.contains('active')) renderRotationTab();
-  });
-  dbListeners.push({ ref: cyRef, event: 'value' });
 
   var stRef = dbRef('settings');
   stRef.on('value', function(snap) {
@@ -2121,18 +1539,6 @@ function startListeners() {
     checkAllLoaded();
   });
   dbListeners.push({ ref: stRef, event: 'value' });
-
-  // ★ Audit log listener — append-only history of assessment changes
-  var alRef = dbRef('auditLog');
-  alRef.on('value', function(snap){
-    if (!isStillMe()) return;
-    var raw = snap.val() || {};
-    auditData = Object.keys(raw).map(function(k){ return raw[k]; })
-                .sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
-    var pal = document.getElementById('pal');
-    if (pal && pal.classList.contains('active')) renderAudit();
-  });
-  dbListeners.push({ ref: alRef, event: 'value' });
 
   db.ref('.info/connected').on('value', function(snap) {
     if (!isStillMe()) return;
@@ -2237,8 +1643,8 @@ function cacheLocally() {
       sm: studentsMorning,         // ★ today's students now cached — reload-safe
       se: studentsEvening,
       h: history, r: roster,
-      cy: cycles,
       sdb: studentDb,
+      rot: rotations,
       hn: document.getElementById('hName').value,
       ho: document.getElementById('hNo').value,
       sn: document.getElementById('supName').value
@@ -2285,8 +1691,8 @@ var FIELDS=[
 function showTab(n){
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',rot:'prot'};
-  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',rot:'tbrot'};
+  var panels={att:'pa',paper:'pp',rot:'prot',roster:'pr',hist:'ph',db:'pdb',teach:'ptm'};
+  var btns={att:'tba',paper:'tbp',rot:'tbrot',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm'};
   var panel=document.getElementById(panels[n]);
   panel.classList.add('active');
   // restart the entrance animation so every switch feels alive
@@ -2295,13 +1701,11 @@ function showTab(n){
   // Attendance tab always shows TODAY — never shows historical data
   if(n==='att'){ curDate=today(); renderList(); }
   if(n==='paper')  renderPaper();
+  if(n==='rot')    rotRender();
   if(n==='roster') renderRoster();
   if(n==='hist')   renderHist();
   if(n==='db'){ dbRender(); renderBackupCenter(); }
   if(n==='teach')  tmRender();
-  if(n==='audit')  renderAudit();
-  if(n==='prog')   renderProgress();
-  if(n==='rot')    renderRotationTab();
 }
 
 function switchGroup(g){
@@ -2349,10 +1753,9 @@ function renderList(){
     var rec=day[i]||{}, att=rec.attendance||'none';
     var sc=rec.total!==undefined?rec.total.toFixed(2):null;
     var attTime=rec.attendanceTime?'<span style="font-size:10px;color:var(--muted);margin-right:4px">'+rec.attendanceTime+'</span>':'';
-    var lockIcon=rec.locked?'<span title="معتمد ومقفل" style="font-size:12px;margin-right:4px">🔒</span>':'';
     html+='<div class="srow'+(att==='absent'?' ar':'')+'">';
     html+='<div class="snum">'+shown+'</div>';
-    html+='<div class="sname" onclick="openEval('+i+')" style="display:flex;align-items:center;gap:4px">'+s.name+lockIcon+attTime+'</div>';
+    html+='<div class="sname" onclick="openEval('+i+')" style="display:flex;align-items:center;gap:4px">'+s.name+attTime+'</div>';
         html+='<div class="atg"><button class="ab '+(att==='present'?'abap':'abp')+'" onclick="setAtt(event,'+i+',\'present\')">✓</button><button class="ab '+(att==='absent'?'abaa':'aba')+'" onclick="setAtt(event,'+i+',\'absent\')">✗</button></div>';
     html+='<div class="sbadge'+(sc===null?' empty':'')+'"><span>'+(sc!==null?sc+'/15':'—')+'</span></div>';
     html+='<div class="ecell"><div class="ei '+(rec.evaluated?'done':'pend')+'" onclick="openEval('+i+')">'+(rec.evaluated?'✏️':'📝')+'</div></div>';
@@ -2362,7 +1765,6 @@ function renderList(){
   document.getElementById('sList').innerHTML=html;
   updStats();
   loadDayNotes();
-  renderRotBar();
 }
 
 function setAtt(e,i,v){
@@ -2432,15 +1834,6 @@ function openEval(idx){
   document.getElementById('mSN').textContent=s.name+' — '+curDate;
   var html='';
   var colors=['#1a5276','#117a65','#6c3483','#b7770d','#922b21'];
-  // ★ Sign-off / lock banner
-  if(rec.locked){
-    var lockWhen = rec.lockedAt ? new Date(rec.lockedAt).toLocaleString('ar-SA') : '';
-    html+='<div style="background:#e8f8f0;border:1px solid var(--success);border-radius:8px;padding:10px 12px;margin-bottom:11px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
-    html+='<div><div style="font-size:13px;font-weight:700;color:var(--success)">🔒 تقييم معتمد ومقفل</div>';
-    html+='<div style="font-size:11px;color:var(--muted);margin-top:2px">بواسطة '+(rec.lockedBy||'')+(lockWhen?' — '+lockWhen:'')+'</div></div>';
-    html+='<button class="btn bo" style="font-size:12px" onclick="unlockEval('+idx+')">🔓 فتح للتعديل</button>';
-    html+='</div>';
-  }
   for(var fi=0;fi<FIELDS.length;fi++){
     var f=FIELDS[fi];
     var secTotal=f.items.reduce(function(s,x){return s+x.m},0);
@@ -2500,62 +1893,7 @@ function openEval(idx){
   html+='<div class="narea"><label>ملاحظات:</label><textarea id="eNotes">'+(rec.notes||'')+'</textarea></div>';
   document.getElementById('mBody').innerHTML=html;
   recalc();
-  applyLockState(rec.locked); // ★ disable inputs + footer when locked
   document.getElementById('evalM').classList.add('open');
-}
-
-// ★ Sign-off helpers
-function applyLockState(locked){
-  var body = document.getElementById('mBody');
-  if(body){
-    body.querySelectorAll('input,textarea,button').forEach(function(el){
-      // keep the unlock button itself usable
-      if(el.getAttribute('onclick') && el.getAttribute('onclick').indexOf('unlockEval')>=0) return;
-      el.disabled = !!locked;
-      el.style.opacity = locked ? '0.6' : '';
-    });
-  }
-  var ftr = document.querySelector('#evalM .mftr');
-  if(ftr){
-    var saveBtn = ftr.querySelector('.bp');
-    var lockBtn = document.getElementById('lockBtn');
-    var day = getSession(), rec = day[curSt]||{};
-    if(saveBtn){ saveBtn.style.display = locked ? 'none' : ''; }
-    if(!lockBtn && !locked && rec.evaluated){
-      // add a "lock / sign off" button next to save (only once evaluated)
-      lockBtn = document.createElement('button');
-      lockBtn.id = 'lockBtn';
-      lockBtn.className = 'btn';
-      lockBtn.style.cssText = 'background:#117a65;color:#fff';
-      lockBtn.textContent = '🔒 اعتماد وقفل';
-      lockBtn.onclick = function(){ lockEval(curSt); };
-      ftr.appendChild(lockBtn);
-    } else if(lockBtn){
-      lockBtn.style.display = (locked || !rec.evaluated) ? 'none' : '';
-    }
-  }
-}
-
-function lockEval(idx){
-  var day=getSession(); if(!day[idx]) return;
-  if(!day[idx].evaluated){ toast('احفظ التقييم أولاً قبل الاعتماد'); return; }
-  if(!confirm('اعتماد وقفل هذا التقييم؟ لن يمكن تعديله إلا بفتحه مجدداً.')) return;
-  day[idx].locked = true;
-  day[idx].lockedAt = Date.now();
-  day[idx].lockedBy = currentUser ? (currentUser.email||currentUser.displayName||'') : '';
-  saveDay(sessionKey());
-  openEval(idx); renderList();
-  toast('🔒 تم اعتماد التقييم');
-}
-
-function unlockEval(idx){
-  var day=getSession(); if(!day[idx]) return;
-  if(!confirm('فتح هذا التقييم للتعديل؟')) return;
-  day[idx].locked = false;
-  delete day[idx].lockedAt; delete day[idx].lockedBy;
-  saveDay(sessionKey());
-  openEval(idx); renderList();
-  toast('🔓 تم فتح التقييم للتعديل');
 }
 
 function setEvalPaper(idx,val){
@@ -2631,12 +1969,7 @@ function recalc(){
 }
 
 function saveEval(){
-  var day=getSession();
-  // ★ refuse to overwrite a locked (signed-off) evaluation
-  if(day[curSt] && day[curSt].locked){ toast('🔒 التقييم معتمد — افتحه أولاً للتعديل'); return; }
-  // ★ snapshot the old record BEFORE editing (deep copy) for the audit log
-  var oldRec = day[curSt] ? JSON.parse(JSON.stringify(day[curSt])) : null;
-  if(!day[curSt])day[curSt]={};
+  var day=getSession(); if(!day[curSt])day[curSt]={};
   var rec=day[curSt]; rec.scores={}; var t=0;
   for(var fi=0;fi<FIELDS.length;fi++){
     for(var ii=0;ii<FIELDS[fi].items.length;ii++){
@@ -2654,129 +1987,9 @@ function saveEval(){
   rec.total=Math.min(t,15);
   rec.notes=document.getElementById('eNotes').value;
   rec.evaluated=true;
-  logChange(sessionKey(), curSt, getStudents()[curSt].name, oldRec, rec); // ★ audit trail
   saveDay(sessionKey()); closeMod(); renderList(); toast('تم حفظ التقييم ✓');
 }
 function closeMod(){document.getElementById('evalM').classList.remove('open');}
-
-// ═══════════════════════════════════════════
-// ★ AUDIT LOG — append-only record of every assessment change
-//   Stored at users/{uid}/auditLog via push() (never overwritten).
-//   Editor = the signed-in Google account.
-// ═══════════════════════════════════════════
-var auditData = [];
-
-function logChange(sessionK, idx, studentName, oldRec, newRec){
-  if (!currentUser) return;
-  var labels = {};
-  FIELDS.forEach(function(f){ f.items.forEach(function(it){ labels[it.k]=it.l; }); });
-  var os = (oldRec && oldRec.scores) || {}, ns = (newRec && newRec.scores) || {};
-  var changes = [];
-  Object.keys(labels).forEach(function(k){
-    var ov = os[k], nv = ns[k];
-    if (ov !== nv) changes.push({ field: labels[k], from: ov===undefined?'—':ov, to: nv===undefined?'—':nv });
-  });
-  var ot = (oldRec && oldRec.total!==undefined) ? oldRec.total : undefined;
-  var nt = (newRec && newRec.total!==undefined) ? newRec.total : undefined;
-  if (ot !== nt) changes.push({ field:'المجموع', from: ot===undefined?'—':ot.toFixed(2), to: nt===undefined?'—':nt.toFixed(2) });
-  if (!changes.length) return; // nothing actually changed
-
-  var entry = {
-    ts: Date.now(),
-    date: sessionK.replace('_morning','').replace('_evening',''),
-    group: sessionK.indexOf('_morning')>=0 ? 'صباحي' : 'مسائي',
-    student: studentName,
-    editor: (currentUser.email || currentUser.displayName || 'غير معروف'),
-    action: (oldRec && oldRec.evaluated) ? 'تعديل' : 'إنشاء',
-    changes: changes
-  };
-  if (!isOfflineMode && db && currentUser){
-    var r = dbRef('auditLog');
-    if (r) { r.push(entry).catch(function(){ queueAudit(entry); }); }
-    else queueAudit(entry);
-  } else {
-    queueAudit(entry);
-  }
-}
-
-// Offline fallback queue (flushed when reconnected)
-function queueAudit(entry){
-  if (!currentUser) return;
-  try{
-    var k = 'hsp_audit_'+currentUser.uid;
-    var arr = JSON.parse(localStorage.getItem(k)||'[]');
-    arr.push(entry); localStorage.setItem(k, JSON.stringify(arr));
-  }catch(e){}
-}
-
-function flushAudit(){
-  if (isOfflineMode || !db || !currentUser || !navigator.onLine) return;
-  var k = 'hsp_audit_'+currentUser.uid;
-  var arr = [];
-  try{ arr = JSON.parse(localStorage.getItem(k)||'[]'); }catch(e){ return; }
-  if (!arr.length) return;
-  var ref = dbRef('auditLog');
-  if (!ref) return;
-  var pending = arr.slice();
-  pending.forEach(function(entry){ ref.push(entry).catch(function(){}); });
-  try{ localStorage.removeItem(k); }catch(e){}
-}
-
-function renderAudit(){
-  var el = document.getElementById('auditList');
-  if(!el) return;
-  var q = (document.getElementById('auditSearch') && document.getElementById('auditSearch').value || '').toLowerCase();
-  var rows = auditData.filter(function(e){
-    if(!q) return true;
-    return (e.student||'').toLowerCase().indexOf(q)>=0
-        || (e.date||'').indexOf(q)>=0
-        || (e.editor||'').toLowerCase().indexOf(q)>=0;
-  });
-  if(!rows.length){
-    el.innerHTML = '<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">📋</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد تغييرات مسجلة بعد</div><div style="font-size:13px;color:var(--muted)">سيُسجَّل هنا كل إنشاء أو تعديل لأي تقييم تلقائياً</div></div>';
-    return;
-  }
-  var html = '';
-  rows.forEach(function(e){
-    var when = new Date(e.ts);
-    var changeRows = (e.changes||[]).map(function(c){
-      return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px solid #f0f0f0"><span style="color:#555">'+c.field+'</span><span><span style="color:#c0392b">'+c.from+'</span> <span style="color:#999">←</span> <span style="color:#1e8449;font-weight:700">'+c.to+'</span></span></div>';
-    }).join('');
-    var badgeCls = e.action==='تعديل' ? 'hpap' : 'hp';
-    html += '<div class="hday-card" style="cursor:default">'
-      + '<div class="hday-hdr"><div>'
-      + '<div class="hday-date" style="display:flex;align-items:center;gap:6px">'
-      + '<span style="font-size:11px;font-weight:700;border-radius:12px;padding:2px 8px;background:'+(e.group==='صباحي'?'#2980b9':'#8e44ad')+';color:#fff">'+(e.group||'')+'</span>'
-      + e.student+'</div>'
-      + '<div class="hday-dow">'+e.date+' — '+when.toLocaleString('ar-SA')+'</div></div>'
-      + '<span class="hchip '+badgeCls+'">'+(e.action||'')+'</span></div>'
-      + '<div style="padding:10px 16px">'
-      + '<div style="font-size:11px;color:#888;margin-bottom:6px">بواسطة: '+(e.editor||'')+'</div>'
-      + changeRows + '</div></div>';
-  });
-  el.innerHTML = html;
-}
-
-function exportAuditExcel(){
-  if(!auditData.length){ toast('لا توجد تغييرات لتصديرها'); return; }
-  var wb = XLSX.utils.book_new();
-  var rows = [['التاريخ والوقت','اليوم','المجموعة','اسم الطالب','الإجراء','المُحرِّر','الحقل','من','إلى']];
-  auditData.forEach(function(e){
-    var when = new Date(e.ts).toLocaleString('ar-SA');
-    if(!e.changes || !e.changes.length){
-      rows.push([when, e.date, e.group, e.student, e.action, e.editor, '', '', '']);
-    } else {
-      e.changes.forEach(function(c){
-        rows.push([when, e.date, e.group, e.student, e.action, e.editor, c.field, c.from, c.to]);
-      });
-    }
-  });
-  var ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{wch:20},{wch:12},{wch:8},{wch:22},{wch:8},{wch:26},{wch:16},{wch:8},{wch:8}];
-  XLSX.utils.book_append_sheet(wb, ws, 'سجل التغييرات');
-  XLSX.writeFile(wb, 'سجل_التغييرات_'+today()+'.xlsx');
-  toast('✅ تم تصدير سجل التغييرات');
-}
 
 // ═══════════════════════════════════════════
 // PAPER TAB
@@ -2882,23 +2095,7 @@ function importRoster(event){
         nr.push({hospital:iH>=0?String(row[iH]||'').trim():'',group:iG>=0?String(row[iG]||'').trim():'',name:name,type:iT>=0?String(row[iT]||'').trim():'',startDate:sd,notes:iNt>=0?String(row[iNt]||'').trim():''});
       }
       if(!nr.length){toast('لم يتم العثور على بيانات');return;}
-      roster=nr; saveRoster();
-      // Back-sync into the master database (merge by name+shift) so DB stays the source of truth.
-      nr.forEach(function(r){
-        var sh = (r.type==='مسائي')?'مسائي':'صباحي';
-        var idx = (typeof dbFindIndex==='function') ? dbFindIndex(r.name, sh) : -1;
-        if(idx>=0){ if(r.group) studentDb[idx].group=r.group; }
-        else { studentDb.push({ name:r.name, type:sh, group:r.group||'', email:'', manualFinal:'' }); }
-        // ensure a cycle exists for this group+shift if a hospital+startDate were given
-        if(r.hospital && r.startDate && typeof newCycleId==='function'){
-          var has=false;
-          for(var ci2=0;ci2<cycles.length;ci2++){ if((cycles[ci2].group||'')===(r.group||'') && (cycles[ci2].type||'')===sh && (cycles[ci2].hospital||'')===r.hospital){ has=true; break; } }
-          if(!has) cycles.push({ id:newCycleId(), hospital:r.hospital, group:r.group||'', type:sh, startDate:r.startDate, units:['','','',''], note:'' });
-        }
-      });
-      if(typeof dbSave==='function') dbSave();
-      if(typeof saveCycles==='function') saveCycles();
-      renderRoster(); toast('تم استيراد '+nr.length+' طالب ✓ (أُضيفوا لقاعدة البيانات)');
+      roster=nr; saveRoster(); renderRoster(); toast('تم استيراد '+nr.length+' طالب ✓');
     }catch(err){toast('خطأ في قراءة الملف');console.error(err);}
     event.target.value='';
   };
@@ -2913,260 +2110,6 @@ function dlTemplate(){
   var ws=XLSX.utils.aoa_to_sheet(d); ws['!cols']=[{wch:22},{wch:14},{wch:26},{wch:14},{wch:16},{wch:18}];
   XLSX.utils.book_append_sheet(wb,ws,'جدول الطلاب');
   XLSX.writeFile(wb,'student_roster_template.xlsx'); toast('تم تحميل القالب ✓');
-}
-
-// ═══════════════════════════════════════════════════════════
-// ★ STUDENT PROGRESS + AT-RISK TAB
-//   Aggregates every session for each student across all of
-//   history (both groups) into a longitudinal picture, and
-//   flags students needing attention.
-//   At-risk rule: average < 9/15 OR 2+ absences OR any missing paper.
-// ═══════════════════════════════════════════════════════════
-var RISK_AVG = 9, RISK_ABSENCES = 2;
-
-// Build {name: {sessions:[{date,group,total,att,paper,scores}], avg, present, absent, missingPaper, evals}}
-function buildStudentProfiles(){
-  var prof = {};
-  Object.keys(history).sort().forEach(function(dk){
-    var isM = dk.indexOf('_morning')>=0;
-    var names = (history[dk] && history[dk]['__names__']) ? history[dk]['__names__'] : null;
-    if(!names){
-      // fall back to current live lists if no stored names
-      var live = isM ? studentsMorning : studentsEvening;
-      names = live.map(function(s){ return s.name; });
-    }
-    var day = history[dk] || {};
-    var clean = dk.replace('_morning','').replace('_evening','');
-    var rot = rotationOf(day); // hospital/block/dayNo/unit for this session
-    names.forEach(function(nm, i){
-      if(!nm) return;
-      var r = day[i] || {};
-      if(!r.attendance && !r.evaluated) return;
-      if(!prof[nm]) prof[nm] = {name:nm, sessions:[], sum:0, cnt:0, present:0, absent:0, missingPaper:0, evals:0, hospitals:{}};
-      var p = prof[nm];
-      p.sessions.push({ date:clean, group:isM?'صباحي':'مسائي', total:(r.total!==undefined?r.total:null), att:r.attendance||null, paper:r.paperDelivered, scores:r.scores||{}, hospital:rot.hospital, block:rot.block, dayNo:rot.dayNo, unit:rot.unit });
-      if(r.attendance==='present') p.present++;
-      if(r.attendance==='absent')  p.absent++;
-      if(r.paperDelivered===false) p.missingPaper++;
-      if(r.evaluated){ p.evals++; if(r.total!==undefined){ p.sum+=r.total; p.cnt++; } }
-      // ★ per-hospital rollup (keyed by hospital + block so two visits stay separate)
-      if(rot.hospital){
-        var hk = rot.hospital + (rot.block?(' • '+rot.block):'');
-        if(!p.hospitals[hk]) p.hospitals[hk] = {hospital:rot.hospital, block:rot.block, days:[], sum:0, cnt:0};
-        var h = p.hospitals[hk];
-        h.days.push({ date:clean, dayNo:rot.dayNo, unit:rot.unit, total:(r.total!==undefined?r.total:null) });
-        if(r.evaluated && r.total!==undefined){ h.sum+=r.total; h.cnt++; }
-      }
-    });
-  });
-  Object.keys(prof).forEach(function(k){
-    var p = prof[k];
-    p.avg = p.cnt>0 ? (p.sum/p.cnt) : null;
-    Object.keys(p.hospitals).forEach(function(hk){
-      var h = p.hospitals[hk];
-      h.avg = h.cnt>0 ? (h.sum/h.cnt) : null;
-    });
-    p.risk = [];
-    if(p.avg!==null && p.avg < RISK_AVG) p.risk.push('متوسط منخفض ('+p.avg.toFixed(2)+'/15)');
-    if(p.absent >= RISK_ABSENCES) p.risk.push(p.absent+' غيابات');
-    if(p.missingPaper > 0) p.risk.push(p.missingPaper+' ورقة غير مُسلّمة');
-  });
-  return prof;
-}
-
-var progSelected = null;
-
-function renderProgress(){
-  var prof = buildStudentProfiles();
-  var names = Object.keys(prof).sort(function(a,b){ return a.localeCompare(b,'ar'); });
-  var atRisk = names.filter(function(n){ return prof[n].risk.length>0; });
-  var cont = document.getElementById('progContent');
-  if(!cont) return;
-
-  if(!names.length){
-    cont.innerHTML = '<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">📈</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد بيانات بعد</div><div style="font-size:13px;color:var(--muted)">ستظهر متابعة الطلاب بعد إجراء أول تقييم</div></div>';
-    return;
-  }
-
-  var html = '';
-  // At-risk panel
-  html += '<div style="background:'+(atRisk.length?'#fdf2f2':'#e8f8f0')+';border:1px solid '+(atRisk.length?'var(--danger)':'var(--success)')+';border-radius:12px;padding:14px 16px;margin-bottom:16px">';
-  html += '<div style="font-size:15px;font-weight:700;color:'+(atRisk.length?'var(--danger)':'var(--success)')+';margin-bottom:'+(atRisk.length?'10px':'0')+'">'+(atRisk.length?('⚠️ طلاب بحاجة إلى متابعة ('+atRisk.length+')'):'✓ لا يوجد طلاب بحاجة إلى متابعة')+'</div>';
-  if(atRisk.length){
-    html += '<div style="display:flex;flex-direction:column;gap:8px">';
-    atRisk.forEach(function(n){
-      var p = prof[n];
-      html += '<div style="background:#fff;border:1px solid #f0c9c5;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;cursor:pointer" onclick="openProgressDetail(\''+encodeURIComponent(n)+'\')">';
-      html += '<span style="font-weight:600;font-size:14px">'+n+'</span>';
-      html += '<span style="font-size:12px;color:var(--danger)">'+p.risk.join(' • ')+'</span>';
-      html += '</div>';
-    });
-    html += '</div>';
-  }
-  html += '</div>';
-
-  // Search + all students table
-  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">';
-  html += '<input type="text" class="sbox" id="progSearch" placeholder="🔍 ابحث عن طالب..." oninput="renderProgress()" value="'+(document.getElementById('progSearch')?document.getElementById('progSearch').value:'')+'" style="max-width:280px">';
-  html += '<span style="font-size:13px;color:var(--muted)">'+names.length+' طالب</span>';
-  html += '</div>';
-
-  var q = (document.getElementById('progSearch') && document.getElementById('progSearch').value || '').toLowerCase();
-  var shown = names.filter(function(n){ return !q || n.toLowerCase().indexOf(q)>=0; });
-
-  html += '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:560px">';
-  html += '<thead><tr style="background:var(--primary);color:#fff">';
-  ['اسم الطالب','الجلسات','المتوسط /15','حاضر','غائب','ورقة ناقصة','الحالة'].forEach(function(h){
-    html += '<th style="padding:9px 10px;text-align:right;font-size:12px;white-space:nowrap">'+h+'</th>';
-  });
-  html += '</tr></thead><tbody>';
-  shown.forEach(function(n,i){
-    var p = prof[n];
-    var avgTxt = p.avg!==null ? p.avg.toFixed(2) : '—';
-    var avgCol = p.avg===null ? '#aaa' : p.avg>=12 ? '#1e8449' : p.avg>=RISK_AVG ? '#2980b9' : '#c0392b';
-    html += '<tr style="background:'+(i%2?'#f8fafc':'#fff')+';cursor:pointer" onclick="openProgressDetail(\''+encodeURIComponent(n)+'\')">';
-    html += '<td style="padding:8px 10px;font-weight:600">'+n+(p.risk.length?' <span style="font-size:11px">⚠️</span>':'')+'</td>';
-    html += '<td style="padding:8px 10px;text-align:center">'+p.sessions.length+'</td>';
-    html += '<td style="padding:8px 10px;text-align:center;font-weight:700;color:'+avgCol+'">'+avgTxt+'</td>';
-    html += '<td style="padding:8px 10px;text-align:center;color:#1e8449">'+p.present+'</td>';
-    html += '<td style="padding:8px 10px;text-align:center;color:#c0392b">'+p.absent+'</td>';
-    html += '<td style="padding:8px 10px;text-align:center;color:#b7770d">'+p.missingPaper+'</td>';
-    html += '<td style="padding:8px 10px;text-align:center">'+(p.risk.length?'<span style="color:var(--danger);font-weight:700">متابعة</span>':'<span style="color:var(--success)">جيد</span>')+'</td>';
-    html += '</tr>';
-  });
-  html += '</tbody></table></div>';
-  cont.innerHTML = html;
-}
-
-// Per-student longitudinal detail (trend of the 5 sections over sessions)
-function openProgressDetail(encName){
-  var name = decodeURIComponent(encName);
-  var prof = buildStudentProfiles();
-  var p = prof[name];
-  if(!p){ toast('لا توجد بيانات لهذا الطالب'); return; }
-  var colors=['#1a5276','#117a65','#6c3483','#b7770d','#922b21'];
-
-  var html = '';
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">';
-  html += '<div><div style="font-size:18px;font-weight:700;color:var(--primary)">'+name+'</div>';
-  html += '<div style="font-size:12px;color:var(--muted)">'+p.sessions.length+' جلسة • المتوسط '+(p.avg!==null?p.avg.toFixed(2):'—')+'/15</div></div>';
-  html += '<button class="btn" style="background:#117a65;color:#fff;font-size:12px" onclick="printStudentSummary(\''+encName+'\')">🖨️ تقرير الطالب</button>';
-  html += '</div>';
-
-  if(p.risk.length){
-    html += '<div style="background:#fdf2f2;border:1px solid var(--danger);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--danger);font-weight:600">⚠️ '+p.risk.join(' • ')+'</div>';
-  }
-
-  // Total trend as horizontal bars per session
-  html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">📈 تطور المجموع عبر الجلسات</div>';
-  html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:18px">';
-  p.sessions.forEach(function(s){
-    var pct = s.total!==null ? Math.min(100,(s.total/15)*100) : 0;
-    var bcol = s.total===null ? '#ccc' : s.total>=12 ? '#1e8449' : s.total>=RISK_AVG ? '#2980b9' : '#c0392b';
-    html += '<div style="display:flex;align-items:center;gap:8px">';
-    html += '<span style="font-size:11px;color:var(--muted);min-width:96px">'+s.date+' ('+s.group+')</span>';
-    html += '<div style="flex:1;height:18px;background:#eee;border-radius:9px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+bcol+'"></div></div>';
-    html += '<span style="font-size:12px;font-weight:700;min-width:48px;text-align:left;color:'+bcol+'">'+(s.total!==null?s.total.toFixed(2):'—')+'</span>';
-    html += '</div>';
-  });
-  html += '</div>';
-
-  // ★ Per-hospital rollup (each hospital = up to 4 rotation days averaged)
-  var hkeys = Object.keys(p.hospitals||{});
-  if(hkeys.length){
-    html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">🏥 الأداء حسب المستشفى</div>';
-    html += '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px">';
-    hkeys.forEach(function(hk){
-      var h = p.hospitals[hk];
-      var hAvg = h.avg!==null ? h.avg.toFixed(2) : '—';
-      var hcol = h.avg===null ? '#888' : h.avg>=12 ? '#1e8449' : h.avg>=RISK_AVG ? '#2980b9' : '#c0392b';
-      html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
-      html += '<div style="background:#eef7f4;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">';
-      html += '<span style="font-size:13px;font-weight:700;color:#0f6e56">🏥 '+h.hospital+(h.block?' <span style="font-size:11px;color:var(--muted);font-weight:400">('+h.block+')</span>':'')+'</span>';
-      html += '<span style="font-size:13px;font-weight:800;color:'+hcol+'">المعدل '+hAvg+'/15</span>';
-      html += '</div>';
-      html += '<div style="padding:8px 12px;display:flex;flex-direction:column;gap:5px">';
-      h.days.sort(function(a,b){ return (a.dayNo||'').localeCompare(b.dayNo||''); });
-      h.days.forEach(function(d){
-        var dpct = d.total!==null ? Math.min(100,(d.total/15)*100) : 0;
-        var dcol = d.total===null ? '#ccc' : d.total>=12 ? '#1e8449' : d.total>=RISK_AVG ? '#2980b9' : '#c0392b';
-        html += '<div style="display:flex;align-items:center;gap:8px">';
-        html += '<span style="font-size:11px;color:var(--muted);min-width:110px">'+(d.dayNo?('اليوم '+d.dayNo):d.date)+(d.unit?(' — '+d.unit):'')+'</span>';
-        html += '<div style="flex:1;height:14px;background:#eee;border-radius:7px;overflow:hidden"><div style="height:100%;width:'+dpct+'%;background:'+dcol+'"></div></div>';
-        html += '<span style="font-size:11px;font-weight:700;min-width:42px;text-align:left;color:'+dcol+'">'+(d.total!==null?d.total.toFixed(2):'—')+'</span>';
-        html += '</div>';
-      });
-      html += '</div></div>';
-    });
-    html += '</div>';
-  }
-
-  // Section averages across sessions
-  html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">📊 متوسط كل محور</div>';
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">';
-  FIELDS.forEach(function(f,fi){
-    var secMax = f.items.reduce(function(a,x){return a+x.m},0);
-    var sum=0, cnt=0;
-    p.sessions.forEach(function(s){
-      if(!s.scores) return;
-      var has=false, sv=0;
-      f.items.forEach(function(it){ if(s.scores[it.k]!==undefined){ sv+=parseFloat(s.scores[it.k])||0; has=true; } });
-      if(has){ sum+=sv; cnt++; }
-    });
-    var avg = cnt>0 ? (sum/cnt) : null;
-    var pct = avg!==null ? Math.min(100,(avg/secMax)*100) : 0;
-    html += '<div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:10px">';
-    html += '<div style="font-size:12px;font-weight:700;color:'+colors[fi]+';margin-bottom:4px">'+f.s+'</div>';
-    html += '<div style="font-size:16px;font-weight:800;color:'+colors[fi]+'">'+(avg!==null?avg.toFixed(2):'—')+' <span style="font-size:11px;color:var(--muted);font-weight:400">/ '+secMax.toFixed(2)+'</span></div>';
-    html += '<div style="height:5px;background:#e0e0e0;border-radius:3px;margin-top:5px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+colors[fi]+'"></div></div>';
-    html += '</div>';
-  });
-  html += '</div>';
-
-  document.getElementById('progDetailTitle').textContent = 'متابعة الطالب: '+name;
-  document.getElementById('progDetailBody').innerHTML = html;
-  document.getElementById('progDetailM').classList.add('open');
-}
-function closeProgressDetail(){ document.getElementById('progDetailM').classList.remove('open'); }
-
-// Feature 4: printable per-student summary (read-only handout)
-function printStudentSummary(encName){
-  var name = decodeURIComponent(encName);
-  var prof = buildStudentProfiles();
-  var p = prof[name];
-  if(!p){ toast('لا توجد بيانات'); return; }
-  var hN = document.getElementById('hName').value || '—';
-  var sup = document.getElementById('supName').value || '—';
-  var colors=['#1a5276','#117a65','#6c3483','#b7770d','#922b21'];
-
-  var rows = p.sessions.map(function(s){
-    var secs = FIELDS.map(function(f,fi){
-      var has=false, sv=0;
-      f.items.forEach(function(it){ if(s.scores && s.scores[it.k]!==undefined){ sv+=parseFloat(s.scores[it.k])||0; has=true; } });
-      return '<td style="text-align:center;padding:5px;font-size:11px;color:'+colors[fi]+';font-weight:700">'+(has?sv.toFixed(2):'—')+'</td>';
-    }).join('');
-    var attTxt = s.att==='present'?'حاضر':s.att==='absent'?'غائب':'—';
-    var pdTxt = s.paper===true?'✓':s.paper===false?'✗':'—';
-    return '<tr><td style="padding:5px 8px;font-size:11px">'+s.date+' ('+s.group+')</td><td style="text-align:center;padding:5px;font-size:11px">'+attTxt+'</td>'+secs+'<td style="text-align:center;padding:5px;font-weight:800;font-size:11px;background:#f0f6fb">'+(s.total!==null?s.total.toFixed(2):'—')+'</td><td style="text-align:center;padding:5px">'+pdTxt+'</td></tr>';
-  }).join('');
-
-  var headCols = FIELDS.map(function(f,fi){ return '<th style="padding:6px 3px;font-size:9.5px;color:'+colors[fi]+'">'+f.s+'</th>'; }).join('');
-
-  var html = '<div style="font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#222">'
-    + pdfHeader('تقرير متابعة الطالب', 'Student Progress Report — '+name, '#117a65')
-    + '<div style="display:flex;gap:8px;margin-bottom:14px">'
-    + '<div style="flex:1;background:#eef7ff;border:1px solid #bcd9f2;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#1a5276">'+p.sessions.length+'</div><div style="font-size:10px;color:#666">الجلسات</div></div>'
-    + '<div style="flex:1;background:#e8f8f0;border:1px solid #a9dfc3;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#1e8449">'+p.present+'</div><div style="font-size:10px;color:#666">حاضر</div></div>'
-    + '<div style="flex:1;background:#fdf2f2;border:1px solid #ecb1ab;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#922b21">'+p.absent+'</div><div style="font-size:10px;color:#666">غائب</div></div>'
-    + '<div style="flex:1;background:#fff8e9;border:1px solid #efd49a;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#b7770d">'+(p.avg!==null?p.avg.toFixed(2):'—')+'</div><div style="font-size:10px;color:#666">المتوسط /15</div></div>'
-    + '</div>'
-    + (p.risk.length?'<div style="background:#fdf2f2;border:1px solid #c0392b;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#922b21;font-weight:700">⚠️ بحاجة إلى متابعة: '+p.risk.join(' • ')+'</div>':'')
-    + '<table style="width:100%;border-collapse:collapse;border:1px solid #dfe5ea">'
-    + '<thead><tr style="background:#f1f5f8"><th style="padding:6px 8px;font-size:10px;text-align:right">التاريخ</th><th style="padding:6px;font-size:10px">الحضور</th>'+headCols+'<th style="padding:6px;font-size:10px">المجموع</th><th style="padding:6px;font-size:10px">الورقة</th></tr></thead>'
-    + '<tbody>'+rows+'</tbody></table>'
-    + pdfSignature() + '</div>';
-
-  pdfDownload(html, 'تقرير_'+name+'_'+today()+'.pdf', true);
 }
 
 // ═══════════════════════════════════════════
@@ -3640,14 +2583,12 @@ function tick(){
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2400);}
 
 document.getElementById('evalM').addEventListener('click',function(e){if(e.target===this)closeMod();});
-document.getElementById('rotModal').addEventListener('click',function(e){if(e.target===this)closeRotModal();});
 document.getElementById('tmModal').addEventListener('click',function(e){if(e.target===this)tmCloseModal();});
 document.getElementById('emailModal').addEventListener('click',function(e){if(e.target===this)closeEmailModal();});
 document.getElementById('grpLoaderM').addEventListener('click',function(e){if(e.target===this)closeGrpLoader();});
 document.getElementById('attPdfModal').addEventListener('click',function(e){if(e.target===this)document.getElementById('attPdfModal').classList.remove('open');});
 document.getElementById('calM').addEventListener('click',function(e){if(e.target===this)closeCal();});
 document.getElementById('dayDetailM').addEventListener('click',function(e){if(e.target===this)closeDayDetail();});
-document.getElementById('progDetailM').addEventListener('click',function(e){if(e.target===this)closeProgressDetail();});
 
 // ═══════════════════════════════════════════
 // ATTENDANCE PDF EXPORT — Isolated feature
@@ -4009,7 +2950,6 @@ function backupDownload(){
     app: 'hospital-daily-evaluation', version: 2, exportedAt: new Date().toISOString(),
     account: currentUser ? (currentUser.email || currentUser.uid) : 'offline',
     history: history, roster: roster, studentDb: studentDb,
-    cycles: cycles,
     studentsMorning: studentsMorning, studentsEvening: studentsEvening,
     settings: {
       hospitalName: document.getElementById('hName').value,
@@ -4047,7 +2987,6 @@ function applyBackup(d){
   var bh = d.history || d.h || {};
   Object.keys(bh).forEach(function(k){ history[k] = bh[k]; });
   if ((d.roster||d.r||[]).length) roster = d.roster || d.r;
-  if ((d.cycles||d.cy||[]).length) cycles = d.cycles || d.cy;
   if ((d.studentDb||d.sdb||[]).length) studentDb = d.studentDb || d.sdb;
   if (d.settings){
     if(d.settings.hospitalName)  document.getElementById('hName').value   = d.settings.hospitalName;
@@ -4066,7 +3005,6 @@ function applyBackup(d){
       queueWrite('history/'+dbKey, history[k]);
     });
     queueWrite('roster', roster);
-    queueWrite('cycles', cycles);
     queueWrite('settings', {
       hospitalName: document.getElementById('hName').value,
       hospitalNo: document.getElementById('hNo').value,
@@ -4184,270 +3122,42 @@ function buildNotesPDF(dateStr, group, notes){
     + pdfSignature() + '</div>';
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// ★ STUDENT DATABASE — master source of truth (rebuilt)
-//   studentDb row: {name, type('صباحي'|'مسائي'), group, email, manualFinal}
-//   Final mark per student is computed live from history (avg of all
-//   evaluation-day totals across all hospitals), with optional manual
-//   override (manualFinal). Morning/evening kept fully separate via `type`.
-//   Database is the master: the roster (جدول المجموعات) is rebuilt from it.
-// ═══════════════════════════════════════════════════════════════════════
-var dbShift = 'صباحي';      // current shift filter for the DB tab
-var dbSub   = 'students';   // current sub-tab: students | hosp | email
-
-function dbSetShift(sh){
-  dbShift = sh;
-  var m=document.getElementById('dbShiftMorning'), e=document.getElementById('dbShiftEvening');
-  if(m){ m.style.background = sh==='صباحي'?'#185fa5':'transparent'; m.style.color = sh==='صباحي'?'#fff':'#b5d4f4'; }
-  if(e){ e.style.background = sh==='مسائي'?'#185fa5':'transparent'; e.style.color = sh==='مسائي'?'#fff':'#b5d4f4'; }
-  dbRender();
-}
-function dbSetSub(sub){
-  dbSub = sub;
-  [['students','dbSubStudents'],['hosp','dbSubHosp'],['email','dbSubEmail']].forEach(function(p){
-    var el=document.getElementById(p[1]); if(!el) return;
-    var on = p[0]===sub;
-    el.style.color = on?'var(--pl)':'var(--muted)';
-    el.style.borderBottomColor = on?'var(--pl)':'transparent';
-  });
-  dbRender();
-}
-
 function dbSave(){
   try{ localStorage.setItem('hsp_sdb', JSON.stringify(studentDb)); }catch(e){}
+  // ★ also persisted to the cloud under the signed-in Google account
   if (!isOfflineMode && currentUser && db) guardedSet('studentDb', studentDb);
   else cacheLocally();
 }
+
 function dbLoad(){
   try{
     var raw = localStorage.getItem('hsp_sdb');
-    if(raw){ var d = JSON.parse(raw); if(Array.isArray(d) && d.length > 0){ studentDb = d; return true; } }
+    if(raw){
+      var d = JSON.parse(raw);
+      if(Array.isArray(d) && d.length > 0){ studentDb = d; return true; }
+    }
   }catch(e){}
   return false;
 }
 
-// Final mark for a student in a shift: manual override if set, else the
-// live average of all their evaluation totals across history (all hospitals).
-// The student's cycles for a shift = the hospitals they actually rotate through.
-function dbStudentCycles(name, shift){
-  var row = dbFindRow(name, shift);
-  var grp = row ? (row.group||'') : '';
-  return cycles.filter(function(c){ return (c.type||'')===shift && (c.group||'')===grp; })
-    .sort(function(a,b){ return (a.startDate||'').localeCompare(b.startDate||''); });
-}
-
-// Always 3 hospital slots for a student: real cycles first (auto), padded with placeholders.
-function dbStudentSlots(name, shift){
-  var cys = dbStudentCycles(name, shift);
-  var slots = [];
-  for(var i=0;i<3;i++){
-    var cy = cys[i] || null;
-    slots.push({ slotNo:i+1, cy:cy, hospital: cy ? (cy.hospital||'') : '' });
-  }
-  return slots;
-}
-
-// Resolved day-grade for a SLOT: manual override (keyed by slot) wins; else auto from the
-// slot's cycle if one is attached; else null (empty placeholder).
-function dbSlotDayGrade(name, shift, slot, dayNo){
-  var row = dbFindRow(name, shift);
-  var mk = 'slot'+slot.slotNo+':'+dayNo;
-  if(row && row.manualGrades && row.manualGrades[mk]!==undefined && row.manualGrades[mk]!=='' && row.manualGrades[mk]!==null){
-    var mv = parseFloat(row.manualGrades[mk]);
-    if(!isNaN(mv)) return { value:mv, manual:true };
-  }
-  if(slot.cy){
-    var auto = dbAutoDayGrade(name, slot.cy, dayNo);
-    if(auto!==null) return { value:auto, manual:false };
-  }
-  return { value:null, manual:false };
-}
-
-function dbSlotSubtotal(name, shift, slot){
-  var sum=0,cnt=0;
-  for(var d=1;d<=4;d++){ var g=dbSlotDayGrade(name, shift, slot, d); if(g.value!==null){ sum+=g.value; cnt++; } }
-  return cnt>0 ? (sum/cnt) : null;
-}
-
-// Set / clear a manual grade for a SLOT day (works for placeholder rows too).
-function dbSetSlotDayGrade(name, slotNo, dayNo){
-  var idx = dbFindIndex(name, dbShift);
-  if(idx<0) return;
-  var row = studentDb[idx];
-  var mk = 'slot'+slotNo+':'+dayNo;
-  var cur = (row.manualGrades && row.manualGrades[mk]!==undefined) ? row.manualGrades[mk] : '';
-  var v = prompt('درجة هذا اليوم (0–15) — اتركها فارغة للحساب التلقائي من الدورة:', cur);
-  if(v===null) return;
-  if(!row.manualGrades) row.manualGrades = {};
-  if(String(v).trim()===''){ delete row.manualGrades[mk]; }
-  else { var nv=parseFloat(v); if(isNaN(nv)){ toast('قيمة غير صالحة'); return; } row.manualGrades[mk]=Math.min(15,Math.max(0,nv)); }
-  dbSave();
-  dbRender();
-  toast('تم تحديث درجة اليوم ✓');
-}
-
-// Auto day-grade from history: find the student's total for one cycle-day, or null.
-function dbAutoDayGrade(name, cy, dayNo){
-  var days = (typeof cycleDays==='function') ? cycleDays(cy) : [];
-  var slot = days[dayNo-1];
-  if(!slot || !slot.key) return null;
-  var rec = history[slot.key];
-  if(!rec) return null;
-  var names = rec['__names__'] || null;
-  if(!names) return null;
-  for(var i=0;i<names.length;i++){
-    if(names[i] && names[i].trim()===name.trim()){
-      var r = rec[String(i)];
-      if(r && r.evaluated && r.total!==undefined) return r.total;
-      return null;
-    }
-  }
-  return null;
-}
-
-// Resolved day-grade: manual override wins, else auto. Returns {value, manual}.
-function dbDayGrade(name, shift, cy, dayNo){
-  var row = dbFindRow(name, shift);
-  var mk = cy.id + ':' + dayNo;
-  if(row && row.manualGrades && row.manualGrades[mk]!==undefined && row.manualGrades[mk]!=='' && row.manualGrades[mk]!==null){
-    var mv = parseFloat(row.manualGrades[mk]);
-    if(!isNaN(mv)) return { value:mv, manual:true };
-  }
-  var auto = dbAutoDayGrade(name, cy, dayNo);
-  return { value: auto, manual:false };
-}
-
-// Hospital sub-total for a student = average of that cycle's present day-grades.
-function dbHospitalSubtotal(name, shift, cy){
-  var sum=0,cnt=0;
-  for(var d=1;d<=4;d++){
-    var g = dbDayGrade(name, shift, cy, d);
-    if(g.value!==null){ sum+=g.value; cnt++; }
-  }
-  return cnt>0 ? (sum/cnt) : null;
-}
-
-// Final mark: manual override on the row wins; else average of the 3 slot sub-totals.
-function dbFinalMark(name, shift){
-  var row = dbFindRow(name, shift);
-  if(row && row.manualFinal!==undefined && row.manualFinal!=='' && row.manualFinal!==null){
-    var mv = parseFloat(row.manualFinal);
-    if(!isNaN(mv)) return { value:mv, manual:true };
-  }
-  var slots = dbStudentSlots(name, shift);
-  var sum=0,cnt=0;
-  slots.forEach(function(slot){
-    var st = dbSlotSubtotal(name, shift, slot);
-    if(st!==null){ sum+=st; cnt++; }
-  });
-  if(cnt>0) return { value:sum/cnt, manual:false };
-  return { value:null, manual:false };
-}
-
-// Set / clear a manual day-grade override.
-function dbSetDayGrade(name, cycleId, dayNo){
-  var idx = dbFindIndex(name, dbShift);
-  if(idx<0) return;
-  var row = studentDb[idx];
-  var mk = cycleId + ':' + dayNo;
-  var cur = (row.manualGrades && row.manualGrades[mk]!==undefined) ? row.manualGrades[mk] : '';
-  var v = prompt('درجة هذا اليوم (0–15) — اتركها فارغة للحساب التلقائي من التقييم:', cur);
-  if(v===null) return;
-  if(!row.manualGrades) row.manualGrades = {};
-  if(String(v).trim()===''){ delete row.manualGrades[mk]; }
-  else { var nv=parseFloat(v); if(isNaN(nv)){ toast('قيمة غير صالحة'); return; } row.manualGrades[mk]=Math.min(15,Math.max(0,nv)); }
-  dbSave();
-  dbRender();
-  toast('تم تحديث درجة اليوم ✓');
-}
-
-// Per-hospital rollup for a student+shift: {hospitalKey:{hospital,block,avg,cnt}}
-function dbHospitalRollup(name, shift){
-  var prof = buildStudentProfiles()[name];
-  var out = {};
-  if(!prof) return out;
-  Object.keys(prof.hospitals||{}).forEach(function(hk){
-    var h = prof.hospitals[hk];
-    out[hk] = { hospital:h.hospital, block:h.block, avg:h.avg, cnt:h.cnt };
-  });
-  return out;
-}
-
-function dbFindRow(name, shift){
-  for(var i=0;i<studentDb.length;i++){
-    if(studentDb[i].name && studentDb[i].name.trim()===name.trim() && (studentDb[i].type||'')===shift) return studentDb[i];
-  }
-  return null;
-}
-function dbFindIndex(name, shift){
-  for(var i=0;i<studentDb.length;i++){
-    if(studentDb[i].name && studentDb[i].name.trim()===name.trim() && (studentDb[i].type||'')===shift) return i;
-  }
-  return -1;
-}
-
-// ── Excel template (one flat sheet) ──
 function dlDbTemplate(){
   var wb = XLSX.utils.book_new();
-  var headers = ['اسم الطالب','نوع الدراسة','رقم المجموعة','البريد الإلكتروني','الدرجة النهائية (اختياري)'];
+  var headers = ['م','اسم الطالب','نوع الدراسة','رقم المجموعة','اسم المستشفى','المنطقة','حالة الحضور','الدرجة النهائية','البريد الإلكتروني','التاريخ'];
   var rows = [
     headers,
-    ['أحمد محمد علي','صباحي','A','ahmed@college.edu.iq',''],
-    ['سارة خالد حسن','صباحي','A','sara@college.edu.iq',''],
-    ['نور أحمد سعيد','مسائي','B','noor@college.edu.iq',''],
-    ['زينب كريم طاهر','صباحي','C','zainab@college.edu.iq',''],
-    ['علي حسين جاسم','مسائي','B','ali@college.edu.iq','']
+    [1,'أحمد محمد علي','صباحي','1','مستشفى الكندي','الرصافة','حاضر',13.5,'ahmed@college.edu.iq','2025-03-03'],
+    [2,'سارة خالد حسن','صباحي','1','مستشفى الكندي','الرصافة','حاضر',12.0,'sara@college.edu.iq','2025-03-03'],
+    [3,'نور أحمد سعيد','مسائي','2','مستشفى الكندي','الرصافة','غائب','','noor@college.edu.iq','2025-03-03'],
+    [4,'زينب كريم طاهر','صباحي','3','مستشفى ابن سينا','الرصافة','حاضر',14.25,'zainab@college.edu.iq','2025-03-03'],
+    [5,'علي حسين جاسم','مسائي','4','مستشفى الجمهوري','الكرخ','حاضر',11.0,'ali@college.edu.iq','2025-03-10'],
   ];
   var ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{wch:24},{wch:12},{wch:12},{wch:28},{wch:20}];
-  if(ws['!ref']) ws['!ref'] = ws['!ref'];
-  ws['!rtl'] = true;
-  XLSX.utils.book_append_sheet(wb, ws, 'الطلاب');
+  ws['!cols'] = [{wch:4},{wch:24},{wch:12},{wch:12},{wch:22},{wch:12},{wch:12},{wch:14},{wch:28},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws, 'قاعدة البيانات');
   XLSX.writeFile(wb, 'student_database_template.xlsx');
   toast('تم تحميل القالب ✓');
 }
 
-// ── Excel export: students of current shift + computed finals + hospitals ──
-function dbExportExcel(){
-  if(!studentDb.length){ toast('قاعدة البيانات فارغة'); return; }
-  var wb = XLSX.utils.book_new();
-  ['صباحي','مسائي'].forEach(function(sh){
-    var list = studentDb.filter(function(r){ return (r.type||'')===sh; });
-    if(!list.length) return;
-    // Fixed 3 hospital slots × (4 days + subtotal), matching the on-screen grid.
-    var headers = ['اسم الطالب','المجموعة','البريد'];
-    for(var s=1;s<=3;s++){
-      headers.push('مستشفى'+s, 'م'+s+' ي1','م'+s+' ي2','م'+s+' ي3','م'+s+' ي4','م'+s+' معدل');
-    }
-    headers.push('الدرجة النهائية','يدوي؟');
-    var aoa = [headers];
-    list.forEach(function(r){
-      var row = [r.name, r.group||'', r.email||''];
-      var slots = dbStudentSlots(r.name, sh);
-      slots.forEach(function(slot){
-        row.push(slot.hospital || ('مستشفى '+slot.slotNo));
-        for(var d=1;d<=4;d++){
-          var gd = dbSlotDayGrade(r.name, sh, slot, d);
-          row.push(gd.value!==null ? Number(gd.value.toFixed(2)) : '');
-        }
-        var st = dbSlotSubtotal(r.name, sh, slot);
-        row.push(st!==null ? Number(st.toFixed(2)) : '');
-      });
-      var fin = dbFinalMark(r.name, sh);
-      row.push(fin.value!==null ? Number(fin.value.toFixed(2)) : '');
-      row.push(fin.manual ? 'نعم' : '');
-      aoa.push(row);
-    });
-    var ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = headers.map(function(h,i){ return {wch: i===0?22:11}; });
-    ws['!rtl'] = true;
-    XLSX.utils.book_append_sheet(wb, ws, sh);
-  });
-  XLSX.writeFile(wb, 'student_database_'+today()+'.xlsx');
-  toast('تم تصدير قاعدة البيانات ✓');
-}
-
-// ── Excel import: one flat sheet → studentDb rows (merge by name+shift) ──
 function importDbFile(event){
   var file = event.target.files[0];
   if(!file){ return; }
@@ -4457,381 +3167,212 @@ function importDbFile(event){
     try{
       var bytes = new Uint8Array(e.target.result);
       var wb = XLSX.read(bytes, {type:'array', cellDates:true});
-      var added=0, updated=0;
-      wb.SheetNames.forEach(function(sn){
-        var ws = wb.Sheets[sn];
-        var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-        if(!rows.length) return;
-        var hr=-1;
-        for(var i=0;i<rows.length && i<10;i++){
-          for(var j=0;j<rows[i].length;j++){ if(String(rows[i][j]).indexOf('اسم الطالب')>=0){ hr=i; break; } }
-          if(hr>=0) break;
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      if(!rows.length){ toast('الملف فارغ'); event.target.value=''; return; }
+
+      // Find header row containing اسم الطالب
+      var hr = -1;
+      for(var i=0; i<rows.length && i<10; i++){
+        for(var j=0; j<rows[i].length; j++){
+          if(String(rows[i][j]).indexOf('اسم الطالب') >= 0){ hr = i; break; }
         }
-        if(hr<0) return;
-        var hdrs = rows[hr].map(function(h){ return String(h).trim(); });
-        function col(kw){ for(var x=0;x<hdrs.length;x++) if(hdrs[x].indexOf(kw)>=0) return x; return -1; }
-        var iN=col('الطالب'), iT=col('الدراسة'), iG=col('المجموعة'), iE=col('البريد'), iF=col('النهائية');
-        // sheet name may itself be the shift
-        var sheetShift = (sn==='صباحي'||sn==='مسائي') ? sn : '';
-        for(var i=hr+1;i<rows.length;i++){
-          var row=rows[i];
-          var name=String(row[iN]||'').trim();
-          if(!name) continue;
-          var shift = iT>=0 ? String(row[iT]||'').trim() : '';
-          if(!shift) shift = sheetShift || 'صباحي';
-          if(shift!=='صباحي'&&shift!=='مسائي') shift='صباحي';
-          var grp = iG>=0 ? String(row[iG]||'').trim() : '';
-          var email = iE>=0 ? String(row[iE]||'').trim() : '';
-          var manual = '';
-          if(iF>=0 && row[iF]!==''){ var mv=parseFloat(row[iF]); if(!isNaN(mv)) manual=Math.min(15,Math.max(0,mv)); }
-          var idx = dbFindIndex(name, shift);
-          if(idx>=0){
-            if(grp) studentDb[idx].group=grp;
-            if(email) studentDb[idx].email=email;
-            if(manual!=='') studentDb[idx].manualFinal=manual;
-            updated++;
-          } else {
-            studentDb.push({ name:name, type:shift, group:grp, email:email, manualFinal: manual!==''?manual:'' });
-            added++;
-          }
+        if(hr >= 0) break;
+      }
+      if(hr < 0){ toast('خطأ: لم يتم العثور على عمود اسم الطالب'); event.target.value=''; return; }
+
+      var hdrs = rows[hr].map(function(h){ return String(h).trim(); });
+      function col(kw){ for(var x=0;x<hdrs.length;x++) if(hdrs[x].indexOf(kw)>=0) return x; return -1; }
+
+      var iN=col('الطالب'), iT=col('الدراسة'), iG=col('المجموعة'), iH=col('المستشفى');
+      var iA=col('المنطقة'), iAt=col('الحضور'), iGr=col('الدرجة'), iE=col('البريد'), iD=col('التاريخ');
+
+      var result = [];
+      for(var i=hr+1; i<rows.length; i++){
+        var row = rows[i];
+        var name = String(row[iN]||'').trim();
+        if(!name) continue;
+        var sd = '';
+        if(iD>=0 && row[iD]){
+          var rv = row[iD];
+          if(rv instanceof Date) sd = rv.toISOString().slice(0,10);
+          else if(typeof rv==='number') sd = new Date(Math.round((rv-25569)*86400*1000)).toISOString().slice(0,10);
+          else sd = String(rv).trim().slice(0,10);
         }
-      });
-      if(!added && !updated){ toast('لم يتم العثور على بيانات صالحة (تأكد من عمود «اسم الطالب»)'); event.target.value=''; return; }
+        var gr = '';
+        if(iGr>=0 && row[iGr]!==''){ var gv=parseFloat(row[iGr]); if(!isNaN(gv)) gr=Math.min(15,Math.max(0,gv)); }
+        result.push({
+          num:      String(result.length+1),
+          name:     name,
+          type:     iT>=0  ? String(row[iT]||'').trim()  : '',
+          group:    iG>=0  ? String(row[iG]||'').trim()  : '',
+          hospital: iH>=0  ? String(row[iH]||'').trim()  : '',
+          area:     iA>=0  ? String(row[iA]||'').trim()  : '',
+          attendance:iAt>=0? String(row[iAt]||'').trim() : '',
+          grade:    gr,
+          email:    iE>=0  ? String(row[iE]||'').trim()  : '',
+          date:     sd
+        });
+      }
+      if(!result.length){ toast('لا توجد بيانات في الملف'); event.target.value=''; return; }
+      studentDb = result;
       dbSave();
-      rebuildRosterFromDb();
       dbRender();
-      toast('تم الاستيراد ✓ ('+added+' جديد، '+updated+' محدّث)');
+      toast('تم استيراد ' + result.length + ' طالب ✓');
     }catch(err){
-      toast('خطأ: '+err.message);
+      toast('خطأ: ' + err.message);
       console.error('importDbFile error:', err);
     }
-    event.target.value='';
+    event.target.value = '';
   };
   reader.onerror = function(){ toast('فشل قراءة الملف'); event.target.value=''; };
   reader.readAsArrayBuffer(file);
 }
 
-// ── Rebuild roster (جدول المجموعات) from the database (master) + cycles ──
-function rebuildRosterFromDb(){
-  var newRoster = [];
+function dbRender(){
+  var cont = document.getElementById('dbContent');
+  if(!cont) return;
+
+  if(!studentDb || studentDb.length === 0){
+    cont.innerHTML =
+      '<div style="border:2px dashed #2980b9;border-radius:12px;padding:32px;text-align:center;background:#f0f8ff">'
+      +'<div style="font-size:40px;margin-bottom:12px">📂</div>'
+      +'<div style="font-size:16px;font-weight:700;color:#1a5276;margin-bottom:8px">قاعدة البيانات فارغة</div>'
+      +'<div style="font-size:13px;color:#666;margin-bottom:20px;line-height:1.8">'
+      +'اضغط <strong>📥 تحميل القالب</strong> لتنزيل ملف Excel جاهز<br>'
+      +'عبّئه ببيانات الطلاب ثم اضغط <strong>📂 رفع ملف Excel</strong>'
+      +'</div>'
+      +'</div>';
+    document.getElementById('dbApplyBtn') && (document.getElementById('dbApplyBtn').style.display='none');
+    document.getElementById('dbClearBtn') && (document.getElementById('dbClearBtn').style.display='none');
+    document.getElementById('dbStatsBar') && (document.getElementById('dbStatsBar').style.display='none');
+    document.getElementById('dbFilters')  && (document.getElementById('dbFilters').style.display='none');
+    return;
+  }
+
+  // Show action buttons
+  document.getElementById('dbApplyBtn') && (document.getElementById('dbApplyBtn').style.display='');
+  document.getElementById('dbClearBtn') && (document.getElementById('dbClearBtn').style.display='');
+
+  // Stats
+  var mo=0,ev=0,hSet={},gSet={};
   studentDb.forEach(function(r){
-    if(!r.name) return;
-    // find a cycle for this group+shift to attach hospital/startDate (optional)
-    var cy = null;
-    for(var i=0;i<cycles.length;i++){
-      if((cycles[i].group||'')===(r.group||'') && (cycles[i].type||'')===(r.type||'')){ cy=cycles[i]; break; }
-    }
-    newRoster.push({
-      hospital: cy?cy.hospital:'', group:r.group||'', name:r.name,
-      type:r.type||'', startDate: cy?cy.startDate:'', notes:''
-    });
+    if(r.type==='صباحي') mo++; else if(r.type==='مسائي') ev++;
+    if(r.hospital) hSet[r.hospital]=1;
+    if(r.group)    gSet[r.group]=1;
   });
-  roster = newRoster;
-  if(typeof saveRoster==='function') saveRoster();
-  if(typeof renderRosterIfActive==='function') renderRosterIfActive();
+
+  // Filters
+  var fH = document.getElementById('dbFH') ? document.getElementById('dbFH').value : '';
+  var fT = document.getElementById('dbFT') ? document.getElementById('dbFT').value : '';
+  var fG = document.getElementById('dbFG') ? document.getElementById('dbFG').value : '';
+  var fA = document.getElementById('dbFA') ? document.getElementById('dbFA').value : '';
+  var fAt= document.getElementById('dbFAt')? document.getElementById('dbFAt').value : '';
+  var q  = document.getElementById('dbQ')  ? (document.getElementById('dbQ').value||'').toLowerCase() : '';
+
+  var fil = studentDb.filter(function(r){
+    if(fH && r.hospital !== fH) return false;
+    if(fT && r.type     !== fT) return false;
+    if(fG && r.group    !== fG) return false;
+    if(fA && r.area     !== fA) return false;
+    if(fAt&& r.attendance!==fAt)return false;
+    if(q && (r.name+r.hospital+r.area+r.group+r.type).toLowerCase().indexOf(q)<0) return false;
+    return true;
+  });
+
+  // Build filter options
+  var hosps = Object.keys(hSet).sort();
+  var grps  = Object.keys(gSet).sort(function(a,b){return Number(a)-Number(b);});
+  var areas = []; studentDb.forEach(function(r){ if(r.area && areas.indexOf(r.area)<0) areas.push(r.area); }); areas.sort();
+
+  var html = '';
+
+  // Stats bar
+  html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px">';
+  html += '<div style="background:#fff;border:1px solid #ddd;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#1a5276">'+studentDb.length+'</div><div style="font-size:11px;color:#888">إجمالي</div></div>';
+  html += '<div style="background:#d6eaf8;border:1px solid #2980b9;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#1a5276">'+mo+'</div><div style="font-size:11px;color:#555">صباحي</div></div>';
+  html += '<div style="background:#e8daef;border:1px solid #8e44ad;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#6c3483">'+ev+'</div><div style="font-size:11px;color:#555">مسائي</div></div>';
+  html += '<div style="background:#d5f5e3;border:1px solid #27ae60;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#1e8449">'+Object.keys(hSet).length+'</div><div style="font-size:11px;color:#555">مستشفى</div></div>';
+  html += '<div style="background:#fef9e7;border:1px solid #f39c12;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#b7770d">'+Object.keys(gSet).length+'</div><div style="font-size:11px;color:#555">مجموعة</div></div>';
+  html += '</div>';
+
+  // Action buttons row
+  html += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">';
+  html += '<button onclick="dbApply()" style="background:#27ae60;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">✅ تطبيق على المجموعات</button>';
+  html += '<button onclick="dbClear()" style="background:#c0392b;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">🗑 مسح قاعدة البيانات</button>';
+  html += '</div>';
+
+  // Filters row
+  html += '<div style="background:#fff;border:1px solid #e2e6ea;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+  html += '<input id="dbQ" type="text" placeholder="🔍 ابحث..." oninput="dbRender()" style="flex:1;min-width:140px;border:1px solid #ddd;border-radius:8px;padding:6px 10px;font-size:13px" value="'+(q||'')+'">';
+  html += '<select id="dbFH" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">كل المستشفيات</option>'+hosps.map(function(h){return'<option value="'+h+'"'+(h===fH?' selected':'')+'>'+h+'</option>';}).join('')+'</select>';
+  html += '<select id="dbFT" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">الكل</option><option value="صباحي"'+(fT==='صباحي'?' selected':'')+'>صباحي</option><option value="مسائي"'+(fT==='مسائي'?' selected':'')+'>مسائي</option></select>';
+  html += '<select id="dbFG" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">كل المجموعات</option>'+grps.map(function(g){return'<option value="'+g+'"'+(g===fG?' selected':'')+'>مجموعة '+g+'</option>';}).join('')+'</select>';
+  html += '<select id="dbFA" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">كل المناطق</option>'+areas.map(function(a){return'<option value="'+a+'"'+(a===fA?' selected':'')+'>'+a+'</option>';}).join('')+'</select>';
+  html += '<select id="dbFAt" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">كل الحالات</option><option value="حاضر"'+(fAt==='حاضر'?' selected':'')+'>حاضر</option><option value="غائب"'+(fAt==='غائب'?' selected':'')+'>غائب</option></select>';
+  html += '<span style="font-size:12px;color:#888">'+fil.length+' / '+studentDb.length+'</span>';
+  html += '</div>';
+
+  // Table
+  html += '<div style="overflow-x:auto;border:1px solid #e2e6ea;border-radius:10px">';
+  html += '<table style="width:100%;border-collapse:collapse;min-width:750px;font-size:13px">';
+  html += '<thead><tr style="background:#1a5276;color:#fff">';
+  ['#','اسم الطالب','نوع الدراسة','المجموعة','المستشفى','المنطقة','الحضور','الدرجة','البريد','التاريخ'].forEach(function(h){
+    html += '<th style="padding:9px 10px;text-align:right;font-size:12px;white-space:nowrap">'+h+'</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  for(var i=0; i<fil.length; i++){
+    var r = fil[i];
+    var bg = i%2===0 ? '#fff' : '#f8fafc';
+    var isMo = r.type === 'صباحي';
+    var attColor = r.attendance==='حاضر' ? '#1e8449' : r.attendance==='غائب' ? '#922b21' : '#888';
+    var grColor = r.grade==='' ? '#aaa' : parseFloat(r.grade)>=12 ? '#1a5276' : parseFloat(r.grade)>=8 ? '#117a65' : '#c0392b';
+    html += '<tr style="background:'+bg+'">';
+    html += '<td style="padding:8px 10px;color:#999;text-align:center">'+(i+1)+'</td>';
+    html += '<td style="padding:8px 10px;font-weight:600">'+r.name+'</td>';
+    html += '<td style="padding:8px 10px;text-align:center"><span style="background:'+(isMo?'#d6eaf8':'#e8daef')+';color:'+(isMo?'#1a5276':'#6c3483')+';border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">'+(r.type||'—')+'</span></td>';
+    html += '<td style="padding:8px 10px;text-align:center;font-weight:600">'+(r.group||'—')+'</td>';
+    html += '<td style="padding:8px 10px"><span style="background:#d5f5e3;color:#1e8449;border-radius:8px;padding:2px 7px;font-size:11px">'+(r.hospital||'—')+'</span></td>';
+    html += '<td style="padding:8px 10px"><span style="background:#fef9e7;color:#7d6608;border-radius:8px;padding:2px 7px;font-size:11px">'+(r.area||'—')+'</span></td>';
+    html += '<td style="padding:8px 10px;text-align:center;color:'+attColor+';font-weight:700">'+(r.attendance||'—')+'</td>';
+    html += '<td style="padding:8px 10px;text-align:center;color:'+grColor+';font-weight:700">'+(r.grade!==''?parseFloat(r.grade).toFixed(2):'—')+'</td>';
+    html += '<td style="padding:8px 10px;font-size:11px;color:#2980b9">'+(r.email?'<a href="mailto:'+r.email+'" style="color:#2980b9">'+r.email+'</a>':'—')+'</td>';
+    html += '<td style="padding:8px 10px;font-size:11px;color:#888">'+(r.date||'—')+'</td>';
+    html += '</tr>';
+  }
+  if(!fil.length){
+    html += '<tr><td colspan="10" style="padding:24px;text-align:center;color:#888">لا توجد نتائج للفلاتر المختارة</td></tr>';
+  }
+  html += '</tbody></table></div>';
+  cont.innerHTML = html;
 }
 
-// ── Add / edit / delete a student (current shift) ──
-function dbAddStudent(){
-  var name = prompt('اسم الطالب الجديد ('+dbShift+'):');
-  if(!name || !name.trim()) return;
-  name=name.trim();
-  if(dbFindIndex(name, dbShift)>=0){ toast('هذا الاسم موجود بالفعل في هذه الفترة'); return; }
-  var grp = prompt('رقم/حرف المجموعة (A أو B أو C):','')||'';
-  var email = prompt('البريد الإلكتروني (اختياري):','')||'';
-  studentDb.push({ name:name, type:dbShift, group:grp.trim(), email:email.trim(), manualFinal:'' });
-  dbSave(); rebuildRosterFromDb(); dbRender();
-  toast('تمت إضافة الطالب ✓');
-}
-function dbEditStudent(name){
-  var idx = dbFindIndex(name, dbShift);
-  if(idx<0) return;
-  var r = studentDb[idx];
-  var nn = prompt('اسم الطالب:', r.name); if(nn===null) return; nn=nn.trim()||r.name;
-  var ng = prompt('المجموعة:', r.group||''); if(ng===null) return;
-  var ne = prompt('البريد الإلكتروني:', r.email||''); if(ne===null) return;
-  var nf = prompt('الدرجة النهائية اليدوية (اتركها فارغة للحساب التلقائي):', r.manualFinal!==undefined?r.manualFinal:'');
-  if(nf===null) return;
-  r.name=nn; r.group=ng.trim(); r.email=ne.trim();
-  if(nf.trim()===''){ r.manualFinal=''; } else { var mv=parseFloat(nf); r.manualFinal = isNaN(mv)?'':Math.min(15,Math.max(0,mv)); }
-  dbSave(); rebuildRosterFromDb(); dbRender();
-  toast('تم التعديل ✓');
-}
-function dbDeleteStudent(name){
-  var idx = dbFindIndex(name, dbShift);
-  if(idx<0) return;
-  if(!confirm('حذف الطالب «'+name+'» من قاعدة البيانات؟ (لا تتأثر التقييمات المحفوظة)')) return;
-  studentDb.splice(idx,1);
-  dbSave(); rebuildRosterFromDb(); dbRender();
-  toast('تم الحذف ✓');
-}
-function dbMoveStudent(name){
-  var idx = dbFindIndex(name, dbShift);
-  if(idx<0) return;
-  var ng = prompt('نقل «'+name+'» إلى المجموعة:', studentDb[idx].group||'');
-  if(ng===null) return;
-  studentDb[idx].group = ng.trim();
-  dbSave(); rebuildRosterFromDb(); dbRender();
-  toast('تم النقل إلى المجموعة '+ng.trim()+' ✓');
-}
-
-// ── Apply DB to live attendance groups (kept, now shift-aware) ──
 function dbApply(){
   if(!studentDb.length){ toast('قاعدة البيانات فارغة'); return; }
   var mo = studentDb.filter(function(r){ return r.type==='صباحي'; });
   var ev = studentDb.filter(function(r){ return r.type==='مسائي'; });
-  if(!confirm('تطبيق قاعدة البيانات على مجموعات الحضور؟\n\nصباحي: '+mo.length+' طالب\nمسائي: '+ev.length+' طالب\n\nالتقييمات والحضور السابقة لن تُمسح.')) return;
+  if(!confirm('تطبيق قاعدة البيانات على المجموعات؟\n\nصباحي: '+mo.length+' طالب\nمسائي: '+ev.length+' طالب\n\nبيانات التقييم والحضور السابقة لن تُمسح.')) return;
   studentsMorning = mo.map(function(r){ return {name:r.name}; });
   studentsEvening = ev.map(function(r){ return {name:r.name}; });
-  var prev=curGroup;
+  var prev = curGroup;
   curGroup='morning'; if(typeof saveStudents==='function') saveStudents();
   curGroup='evening'; if(typeof saveStudents==='function') saveStudents();
-  curGroup=prev;
+  curGroup = prev;
   renderList();
   toast('✅ تم تطبيق '+studentDb.length+' طالب');
 }
+
 function dbClear(){
-  if(!confirm('مسح قاعدة بيانات هذه الفترة ('+dbShift+')؟ لا تتأثر التقييمات أو الحضور.')) return;
-  studentDb = studentDb.filter(function(r){ return (r.type||'')!==dbShift; });
-  dbSave(); rebuildRosterFromDb(); dbRender();
-  toast('تم مسح قاعدة بيانات '+dbShift);
-}
-
-// ── Main render: dispatch by sub-tab ──
-function dbRender(){
-  var cont = document.getElementById('dbContent');
-  if(!cont) return;
-  if(dbSub==='students') return dbRenderStudents(cont);
-  if(dbSub==='hosp')     return dbRenderHosp(cont);
-  if(dbSub==='email')    return dbRenderEmail(cont);
-}
-
-function dbRenderStudents(cont){
-  var list = studentDb.filter(function(r){ return (r.type||'')===dbShift; });
-  var groups = {};
-  list.forEach(function(r){ var g=r.group||'(بدون)'; (groups[g]=groups[g]||[]).push(r); });
-  var gkeys = Object.keys(groups).sort();
-
-  var html = '';
-  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">';
-  html += '<button onclick="dbAddStudent()" style="background:#1e8449;color:#fff;border:none;border-radius:8px;padding:8px 15px;font-size:13px;font-weight:700;cursor:pointer">➕ إضافة طالب</button>';
-  html += '<button onclick="dbApply()" style="background:#185fa5;color:#fff;border:none;border-radius:8px;padding:8px 15px;font-size:13px;font-weight:700;cursor:pointer">✅ تطبيق على الحضور</button>';
-  html += '<button onclick="dbClear()" style="background:#fff;color:#c0392b;border:1px solid #e6b0aa;border-radius:8px;padding:8px 15px;font-size:13px;font-weight:600;cursor:pointer">🗑 مسح الفترة</button>';
-  html += '<span style="margin-right:auto;font-size:12px;color:var(--muted)">'+list.length+' طالب · '+gkeys.length+' مجموعة · فترة '+dbShift+'</span>';
-  html += '</div>';
-
-  if(!list.length){
-    html += '<div style="border:2px dashed var(--pl);border-radius:12px;padding:30px;text-align:center;background:var(--bg)">'
-      +'<div style="font-size:38px;margin-bottom:10px">👥</div>'
-      +'<div style="font-size:15px;font-weight:700;color:var(--primary);margin-bottom:6px">لا يوجد طلاب في الفترة '+dbShift+'</div>'
-      +'<div style="font-size:13px;color:var(--muted)">اضغط «➕ إضافة طالب» أو «📂 استيراد» لتعبئة القائمة</div></div>';
-    cont.innerHTML = html;
-    return;
-  }
-
-  function esc(s){ return String(s).replace(/'/g,"\\'"); }
-  function cellColor(v){ return v>=12?'#1e8449':v>=9?'#185fa5':'#c0392b'; }
-  function cellBg(v){ return v>=12?'#f3faf6':v>=9?'#eaf1fb':'#fdecea'; }
-
-  gkeys.forEach(function(g){
-    var members = groups[g];
-    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden">';
-    html += '<div style="background:#eaf1fb;padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">';
-    html += '<div style="font-size:14px;font-weight:700;color:#0c2740">👥 مجموعة '+g+' <span style="font-size:12px;color:var(--muted);font-weight:400">— '+members.length+' طالب</span></div>';
-    html += '</div>';
-    html += '<div style="padding:10px 12px;display:flex;flex-direction:column;gap:10px">';
-
-    members.forEach(function(r){
-      var nameEsc = esc(r.name);
-      var fin = dbFinalMark(r.name, dbShift);
-      var finTxt = fin.value===null ? '—' : fin.value.toFixed(2)+(fin.manual?' ✏️':'');
-      var finCol = fin.value===null ? 'var(--muted)' : cellColor(fin.value);
-
-      html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
-      // student header row
-      html += '<div style="background:#f8fafc;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--border)">';
-      html += '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:700">'+r.name+'</span>';
-      if(r.email) html += '<span style="font-size:11px;color:var(--pl)">'+r.email+'</span>';
-      html += '</div>';
-      html += '<div style="display:flex;align-items:center;gap:8px">';
-      html += '<span style="font-size:12px;color:var(--muted)">النهائي</span><span onclick="dbEditFinal(\''+nameEsc+'\')" title="تعديل النهائي يدوياً" style="cursor:pointer;font-size:15px;font-weight:800;color:'+finCol+'">'+finTxt+'</span>';
-      html += '<button onclick="dbEditStudent(\''+nameEsc+'\')" title="تعديل البيانات" style="background:none;border:none;cursor:pointer;font-size:13px">⚙️</button>';
-      html += '<button onclick="dbMoveStudent(\''+nameEsc+'\')" title="نقل" style="background:none;border:none;cursor:pointer;font-size:13px">↔️</button>';
-      html += '<button onclick="dbDeleteStudent(\''+nameEsc+'\')" title="حذف" style="background:none;border:none;cursor:pointer;font-size:13px">🗑️</button>';
-      html += '</div></div>';
-
-      // grade grid: ALWAYS 3 hospital rows (real cycle where it exists, else placeholder)
-      html += '<div style="padding:8px 12px">';
-      var slots = dbStudentSlots(r.name, dbShift); // length 3: {slotNo, cy|null, hospital}
-      html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:420px">';
-      html += '<thead><tr style="color:var(--muted)">'
-        +'<th style="padding:4px 6px;text-align:right;font-weight:600">المستشفى</th>'
-        +'<th style="padding:4px;text-align:center;font-weight:600">ي1</th>'
-        +'<th style="padding:4px;text-align:center;font-weight:600">ي2</th>'
-        +'<th style="padding:4px;text-align:center;font-weight:600">ي3</th>'
-        +'<th style="padding:4px;text-align:center;font-weight:600">ي4</th>'
-        +'<th style="padding:4px 6px;text-align:center;font-weight:700;color:#0c2740">المعدل</th>'
-        +'</tr></thead><tbody>';
-      slots.forEach(function(slot){
-        var auto = !!slot.cy;  // auto-updates from a real cycle's evaluations
-        var hospName = slot.hospital || ('مستشفى '+slot.slotNo);
-        html += '<tr style="border-top:1px solid var(--border)">';
-        html += '<td style="padding:5px 6px;font-weight:600;white-space:nowrap">🏥 '+hospName
-          + (auto?' <span title="يُحدَّث تلقائياً من الدورة" style="font-size:10px;color:#1e8449">⟳</span>':'')+'</td>';
-        for(var d=1;d<=4;d++){
-          var gd = dbSlotDayGrade(r.name, dbShift, slot, d);
-          var txt, col, bg;
-          if(gd.value===null){ txt='+'; col='var(--muted)'; bg='transparent'; }
-          else { txt = gd.value.toFixed(1)+(gd.manual?'*':''); col=cellColor(gd.value); bg=cellBg(gd.value); }
-          html += '<td style="padding:3px;text-align:center">'
-            + '<span onclick="dbSetSlotDayGrade(\''+nameEsc+'\','+slot.slotNo+','+d+')" title="انقر للإدخال اليدوي" '
-            + 'style="display:inline-block;min-width:34px;cursor:pointer;border-radius:6px;padding:4px 2px;font-weight:700;color:'+col+';background:'+bg+';border:1px solid '+(gd.value===null?'var(--border)':'transparent')+'">'+txt+'</span></td>';
-        }
-        var st = dbSlotSubtotal(r.name, dbShift, slot);
-        var stTxt = st===null?'—':st.toFixed(2);
-        var stCol = st===null?'var(--muted)':cellColor(st);
-        html += '<td style="padding:5px 6px;text-align:center;font-weight:800;color:'+stCol+'">'+stTxt+'</td>';
-        html += '</tr>';
-      });
-      html += '</tbody></table></div>';
-      html += '</div>';
-      html += '</div>';
-    });
-
-    html += '</div></div>';
-  });
-  html += '<div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.7">كل خلية = درجة يوم (٠–١٥). تُملأ تلقائياً من التقييم، وانقرها لإدخال قيمة يدوية (تظهر بنجمة *). معدل المستشفى = متوسط أيامه، والنهائي = متوسط المستشفيات الثلاثة — انقر رقم «النهائي» لتجاوزه يدوياً (✏️). «+» = خلية فارغة.</div>';
-  cont.innerHTML = html;
-}
-
-// Manual override for the overall final mark (kept separate from per-day cells).
-function dbEditFinal(name){
-  var idx = dbFindIndex(name, dbShift);
-  if(idx<0) return;
-  var r = studentDb[idx];
-  var cur = (r.manualFinal!==undefined && r.manualFinal!==null) ? r.manualFinal : '';
-  var v = prompt('الدرجة النهائية اليدوية لـ «'+name+'» (0–15) — اتركها فارغة للحساب التلقائي:', cur);
-  if(v===null) return;
-  if(String(v).trim()===''){ r.manualFinal=''; }
-  else { var nv=parseFloat(v); if(isNaN(nv)){ toast('قيمة غير صالحة'); return; } r.manualFinal=Math.min(15,Math.max(0,nv)); }
-  dbSave(); dbRender();
-  toast('تم تحديث الدرجة النهائية ✓');
-}
-
-function dbRenderHosp(cont){
-  var list = cycles.filter(function(c){ return (c.type||'')===dbShift; });
-  var html = '';
-  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">';
-  html += '<button onclick="toggleCycleFormDb()" style="background:#1e8449;color:#fff;border:none;border-radius:8px;padding:8px 15px;font-size:13px;font-weight:700;cursor:pointer">➕ إضافة دورة</button>';
-  html += '<button onclick="showTab(\'rot\')" style="background:#185fa5;color:#fff;border:none;border-radius:8px;padding:8px 15px;font-size:13px;font-weight:600;cursor:pointer">🔄 فتح تبويب الدورة</button>';
-  html += '<span style="margin-right:auto;font-size:12px;color:var(--muted)">'+list.length+' دورة · فترة '+dbShift+'</span>';
-  html += '</div>';
-
-  // inline add form (reuses cycle fields, shift fixed to dbShift)
-  html += '<div id="dbCyForm" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">';
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">';
-  html += '<div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">المستشفى</label><input id="dbCyHospital" class="hinput" style="width:100%" placeholder="اسم المستشفى"></div>';
-  html += '<div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">المجموعة</label><input id="dbCyGroup" class="hinput" style="width:100%" placeholder="A / B / C"></div>';
-  html += '<div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">تاريخ البداية</label><input id="dbCyStart" type="date" class="hinput" style="width:100%"></div>';
-  html += '</div>';
-  html += '<div style="display:flex;gap:8px;margin-top:10px"><button class="btn bp" onclick="addCycleFromDb()">✅ حفظ</button><button class="btn bo" onclick="toggleCycleFormDb()">إلغاء</button></div>';
-  html += '</div>';
-
-  if(!list.length){
-    html += '<div style="border:2px dashed var(--pl);border-radius:12px;padding:30px;text-align:center;background:var(--bg)">'
-      +'<div style="font-size:38px;margin-bottom:10px">🏥</div>'
-      +'<div style="font-size:15px;font-weight:700;color:var(--primary);margin-bottom:6px">لا توجد دورات في الفترة '+dbShift+'</div>'
-      +'<div style="font-size:13px;color:var(--muted)">أضف دورة لربط مجموعة بمستشفى لمدة أسبوعين</div></div>';
-    cont.innerHTML = html;
-    return;
-  }
-
-  html += '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:540px">';
-  html += '<thead><tr style="background:#0c2740;color:#fff">'
-    +'<th style="padding:9px 10px;text-align:right">المستشفى</th>'
-    +'<th style="padding:9px 8px;text-align:center">المجموعة</th>'
-    +'<th style="padding:9px 8px;text-align:center">يبدأ</th>'
-    +'<th style="padding:9px 8px;text-align:center">أيام مكتملة</th>'
-    +'<th style="padding:9px 8px;text-align:center;width:80px">إجراءات</th>'
-    +'</tr></thead><tbody>';
-  list.slice().sort(function(a,b){ return (a.startDate||'').localeCompare(b.startDate||''); }).forEach(function(cy, i){
-    var days = (typeof cycleDays==='function') ? cycleDays(cy) : [];
-    var done = days.filter(function(d){ return d.hasRecord; }).length;
-    var bg = i%2 ? '#fafbfc' : '#fff';
-    html += '<tr style="background:'+bg+';border-top:1px solid var(--border)">';
-    html += '<td style="padding:8px 10px;font-weight:600">🏥 '+(cy.hospital||'(مستشفى)')+'</td>';
-    html += '<td style="text-align:center"><span style="background:#eaf1fb;color:#185fa5;border-radius:12px;padding:2px 10px;font-weight:700">'+(cy.group||'—')+'</span></td>';
-    html += '<td style="text-align:center;font-size:12px">'+(cy.startDate||'—')+'</td>';
-    html += '<td style="text-align:center;font-weight:700;color:'+(done>=4?'#1e8449':'#185fa5')+'">'+done+' / 4</td>';
-    html += '<td style="text-align:center;white-space:nowrap">'
-      +'<button onclick="deleteCycle(\''+cy.id+'\')" title="حذف" style="background:none;border:none;cursor:pointer;font-size:14px">🗑️</button>'
-      +'</td>';
-    html += '</tr>';
-  });
-  html += '</tbody></table></div>';
-  html += '<div style="font-size:11px;color:var(--muted);margin-top:6px">كل صف = تخصيص مجموعة لمستشفى لدورة (٤ أيام). الإدارة الكاملة لأيام الدورة من تبويب «🔄 الدورة».</div>';
-  cont.innerHTML = html;
-}
-
-function toggleCycleFormDb(){
-  var f=document.getElementById('dbCyForm'); if(!f) return;
-  f.style.display = f.style.display==='none' ? '' : 'none';
-}
-function addCycleFromDb(){
-  var hosp=(document.getElementById('dbCyHospital').value||'').trim();
-  var grp=(document.getElementById('dbCyGroup').value||'').trim();
-  var sd=document.getElementById('dbCyStart').value||'';
-  if(!hosp){ toast('أدخل اسم المستشفى'); return; }
-  if(!sd){ toast('حدّد تاريخ البداية'); return; }
-  cycles.push({ id:newCycleId(), hospital:hosp, group:grp, type:dbShift, startDate:sd, units:['','','',''], note:'' });
-  if(typeof saveCycles==='function') saveCycles();
-  rebuildRosterFromDb();
-  document.getElementById('dbCyHospital').value='';
-  document.getElementById('dbCyGroup').value='';
-  document.getElementById('dbCyStart').value='';
-  toggleCycleFormDb();
+  if(!confirm('مسح قاعدة البيانات؟ لن تتأثر التقييمات أو الحضور.')) return;
+  studentDb = [];
+  try{ localStorage.removeItem('hsp_sdb'); }catch(e){}
   dbRender();
-  toast('🔄 تمت إضافة الدورة');
+  toast('تم مسح قاعدة البيانات');
 }
 
-function dbRenderEmail(cont){
-  var list = studentDb.filter(function(r){ return (r.type||'')===dbShift; });
-  var withEmail = list.filter(function(r){ return r.email; });
-  var html = '';
-  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">';
-  html += '<button onclick="dbCopyEmails()" style="background:#185fa5;color:#fff;border:none;border-radius:8px;padding:8px 15px;font-size:13px;font-weight:700;cursor:pointer">📋 نسخ كل العناوين</button>';
-  html += '<span style="margin-right:auto;font-size:12px;color:var(--muted)">'+withEmail.length+' / '+list.length+' لديهم بريد · فترة '+dbShift+'</span>';
-  html += '</div>';
-  if(!list.length){
-    html += '<div style="border:2px dashed var(--pl);border-radius:12px;padding:30px;text-align:center;background:var(--bg)"><div style="font-size:38px;margin-bottom:10px">✉️</div><div style="font-size:15px;font-weight:700;color:var(--primary)">لا يوجد طلاب في الفترة '+dbShift+'</div></div>';
-    cont.innerHTML=html; return;
-  }
-  html += '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:480px">';
-  html += '<thead><tr style="background:#f4f7fb;color:#0c2740"><th style="padding:8px 6px;width:30px">#</th><th style="padding:8px 8px;text-align:right">الاسم</th><th style="padding:8px 8px;text-align:center">المجموعة</th><th style="padding:8px 8px;text-align:right">البريد</th><th style="padding:8px 6px;text-align:center;width:60px"></th></tr></thead><tbody>';
-  list.forEach(function(r,i){
-    var bg=i%2?'#fafbfc':'#fff';
-    html += '<tr style="background:'+bg+';border-top:1px solid var(--border)">';
-    html += '<td style="text-align:center;color:var(--muted)">'+(i+1)+'</td>';
-    html += '<td style="padding:7px 8px;font-weight:600">'+r.name+'</td>';
-    html += '<td style="text-align:center">'+(r.group||'—')+'</td>';
-    html += '<td style="padding:7px 8px;font-size:12px;color:var(--pl)">'+(r.email?'<a href="mailto:'+r.email+'" style="color:var(--pl)">'+r.email+'</a>':'<span style="color:var(--muted)">— بدون —</span>')+'</td>';
-    html += '<td style="text-align:center"><button onclick="dbEditStudent(\''+r.name.replace(/'/g,"\\'")+'\')" style="background:none;border:none;cursor:pointer;font-size:14px">✏️</button></td>';
-    html += '</tr>';
-  });
-  html += '</tbody></table></div>';
-  cont.innerHTML = html;
-}
-function dbCopyEmails(){
-  var list = studentDb.filter(function(r){ return (r.type||'')===dbShift && r.email; });
-  if(!list.length){ toast('لا توجد عناوين بريد'); return; }
-  var txt = list.map(function(r){ return r.email; }).join('; ');
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(txt).then(function(){ toast('تم نسخ '+list.length+' عنوان ✓'); }, function(){ toast('تعذّر النسخ'); });
-  } else {
-    try{ var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('تم نسخ '+list.length+' عنوان ✓'); }catch(e){ toast('تعذّر النسخ'); }
-  }
-}
 
+// ════════════════════════════════════════════════════
 // GROUP LOADER — Load students from roster into attendance
 // Completely safe: never deletes evaluation or history data
 // ════════════════════════════════════════════════════
@@ -4970,23 +3511,412 @@ function applyGrpLoader(){
   switchGroup(targetGroup);
   renderList();
 
-  // ★ Auto-stamp rotation context from the roster group (hospital + day 1-4),
-  // but never overwrite a rotation already set for today by the supervisor.
-  var existing = getRotation();
-  if(!existing.hospital && !existing.dayNo){
-    var startDate = '';
-    for(var si=0; si<roster.length; si++){
-      var rr = roster[si];
-      if((rr.hospital||'')===hosp && (rr.group||'')===grpNum && (rr.type||'')===typ){ startDate = rr.startDate||''; break; }
-    }
-    var auto = autoDetectRotation(hosp, startDate);
-    if(auto.hospital || auto.dayNo){ setRotation(auto); renderRotBar(); }
-  }
-
   closeGrpLoader();
   toast('✅ تم تحميل ' + names.length + ' طالب من المجموعة ' + grpNum + ' (' + (typ||'') + ')');
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════
+// ★ ROTATION CYCLE SYSTEM
+//
+//   A rotation cycle is a sealed container for one teaching rotation:
+//     • meta: group name, hospital, source, start date, who started it
+//     • students: morning[] + evening[] lists for the cycle
+//     • the cycle "owns" the daily history records (date_morning / date_evening)
+//       created while it is the active cycle — these keep saving through the
+//       existing saveDay() pipeline, so attendance + marks + assessments +
+//       daily notes are never lost, day after day.
+//
+//   إنهاء الدورة (end cycle) seals the active cycle: it copies every owned
+//   history record + students + notes into the archive as one unit, then
+//   clears the active slot so a fresh cycle can begin.
+// ═══════════════════════════════════════════════════════════════════════
+
+function rotSave(){
+  if (!currentUser) return;
+  try{ localStorage.setItem('hsp_rot_'+currentUser.uid, JSON.stringify(rotations)); }catch(e){}
+  if (isOfflineMode) { cacheLocally(); return; }
+  guardedSet('rotations', rotations);
+}
+
+// Collect every history session key that belongs to a cycle's date range.
+function rotCollectHistory(cycle){
+  var out = {};
+  if (!cycle) return out;
+  var from = cycle.startDate || '0000-00-00';
+  var to   = cycle.endDate   || '9999-99-99';
+  Object.keys(history).forEach(function(k){
+    // k is "YYYY-MM-DD_morning" / "YYYY-MM-DD_evening"
+    var m = k.match(/^(\d{4}-\d{2}-\d{2})_(morning|evening)$/);
+    if(!m) return;
+    var d = m[1];
+    if (d >= from && d <= to) {
+      var rec = history[k];
+      if (rec && Object.keys(rec).length) out[k] = rec;
+    }
+  });
+  return out;
+}
+
+// Count distinct evaluated days + students etc. for an active cycle.
+function rotActiveStats(){
+  var c = rotations.active;
+  if(!c) return {days:0, evals:0, present:0, students:0};
+  var h = rotCollectHistory(c);
+  var days = {}, evals=0, present=0;
+  Object.keys(h).forEach(function(k){
+    var d = k.split('_')[0]; days[d]=true;
+    var rec = h[k];
+    Object.keys(rec).forEach(function(ix){
+      if(ix.indexOf('__')===0) return;
+      if(rec[ix] && rec[ix].evaluated) evals++;
+      if(rec[ix] && rec[ix].attendance==='present') present++;
+    });
+  });
+  var students = (c.students && c.students.morning ? c.students.morning.length : 0) +
+                 (c.students && c.students.evening ? c.students.evening.length : 0);
+  return {days:Object.keys(days).length, evals:evals, present:present, students:students};
+}
+
+// ── RENDER ───────────────────────────────────────────────────────────
+function rotRender(){
+  var cont = document.getElementById('rotContent');
+  if(!cont) return;
+  var html = '';
+
+  html += '<div class="rot-hero"><h2>🔄 نظام الدورات</h2>'+
+          '<p>استورد مجموعة لبدء دورة جديدة. تُحفظ كل بيانات الحضور والدرجات والتقييمات وملاحظات اليوم تلقائياً يوماً بعد يوم — وعند انتهاء الدورة تُؤرشف الدورة كاملةً ثم تبدأ دورة جديدة.</p></div>';
+
+  // ── ACTIVE CYCLE ──
+  if (rotations.active) {
+    var c = rotations.active;
+    var st = rotActiveStats();
+    var srcLbl = c.source==='db' ? 'قاعدة البيانات' : 'جدول المجموعات';
+    html += '<div class="rot-active-banner">';
+    html += '<div class="rt">🟢 الدورة النشطة الحالية</div>';
+    html += '<div style="font-size:15px;font-weight:600">'+ (c.title||('مجموعة '+(c.group||'—'))) +'</div>';
+    html += '<div class="rot-meta-grid">';
+    html += '<div class="rot-meta-item"><div class="l">🏥 المستشفى</div><div class="v">'+(c.hospital||'—')+'</div></div>';
+    html += '<div class="rot-meta-item"><div class="l">👥 المجموعة</div><div class="v">'+(c.group||'—')+'</div></div>';
+    html += '<div class="rot-meta-item"><div class="l">📅 بدأت في</div><div class="v">'+(c.startDate||'—')+'</div></div>';
+    html += '<div class="rot-meta-item"><div class="l">📂 المصدر</div><div class="v" style="font-size:13px">'+srcLbl+'</div></div>';
+    html += '</div></div>';
+
+    html += '<div class="rot-stat-row">';
+    html += '<div class="rot-stat"><div class="num">'+st.students+'</div><div class="lbl">إجمالي الطلاب</div></div>';
+    html += '<div class="rot-stat"><div class="num">'+st.days+'</div><div class="lbl">أيام مسجّلة</div></div>';
+    html += '<div class="rot-stat"><div class="num">'+st.evals+'</div><div class="lbl">تقييمات محفوظة</div></div>';
+    html += '<div class="rot-stat"><div class="num">'+st.present+'</div><div class="lbl">حضور مسجّل</div></div>';
+    html += '</div>';
+
+    // recorded days chips
+    var h = rotCollectHistory(c), dayMap = {};
+    Object.keys(h).forEach(function(k){ dayMap[k.split('_')[0]] = true; });
+    var days = Object.keys(dayMap).sort();
+    html += '<div class="rot-card"><div class="rot-card-hd">📆 الأيام المسجّلة في هذه الدورة</div><div class="rot-card-bd">';
+    if(days.length){
+      var dn=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+      days.forEach(function(d){
+        var dobj=new Date(d+'T00:00:00');
+        html += '<span class="rot-day-chip">📅 '+dn[dobj.getDay()]+' '+d+'</span>';
+      });
+    } else {
+      html += '<div style="color:var(--muted);font-size:13px">لم تُسجَّل أي بيانات بعد. اذهب إلى تبويب «الحضور والتقييم» وابدأ بتسجيل اليوم — كل شيء يُحفظ تلقائياً في هذه الدورة.</div>';
+    }
+    html += '</div></div>';
+
+    html += '<div class="rot-card"><div class="rot-card-bd" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+    html += '<button class="btn bp" onclick="showTab(\'att\')">👥 الذهاب إلى الحضور والتقييم</button>';
+    html += '<button class="btn ba" onclick="rotExportActive()">📥 تصدير الدورة (Excel)</button>';
+    html += '<button class="btn bred" style="margin-right:auto" onclick="rotEndCycle()">🏁 إنهاء الدورة وأرشفتها</button>';
+    html += '</div></div>';
+
+  } else {
+    // ── NO ACTIVE CYCLE ──
+    html += '<div class="rot-card"><div class="rot-card-bd"><div class="rot-empty">';
+    html += '<div class="ico">🔄</div>';
+    html += '<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">لا توجد دورة نشطة</div>';
+    html += '<div style="font-size:13px;margin-bottom:16px">ابدأ دورة جديدة باستيراد مجموعة من جدول المجموعات أو قاعدة البيانات</div>';
+    html += '<button class="btn bp" onclick="rotOpenImport()">➕ بدء دورة جديدة — استيراد مجموعة</button>';
+    html += '</div></div></div>';
+  }
+
+  // ── ARCHIVE ──
+  var archKeys = Object.keys(rotations.archive||{}).sort(function(a,b){
+    return (rotations.archive[b].endedAt||0) - (rotations.archive[a].endedAt||0);
+  });
+  html += '<div class="rot-card"><div class="rot-card-hd"><span>🗂️ الدورات المؤرشفة</span><span style="font-size:12px;color:var(--muted);font-weight:400">'+archKeys.length+' دورة</span></div><div class="rot-card-bd">';
+  if(!archKeys.length){
+    html += '<div style="color:var(--muted);font-size:13px;text-align:center;padding:8px">لا توجد دورات مؤرشفة بعد.</div>';
+  } else {
+    archKeys.forEach(function(id){
+      var a = rotations.archive[id];
+      var dCount = a.history ? Object.keys(a.history).reduce(function(acc,k){ acc[k.split('_')[0]]=1; return acc; },{}) : {};
+      var nDays = Object.keys(dCount).length;
+      var nStu = (a.students&&a.students.morning?a.students.morning.length:0)+(a.students&&a.students.evening?a.students.evening.length:0);
+      html += '<div class="rot-arch-item">';
+      html += '<div class="at">🏁 '+(a.title||('مجموعة '+(a.group||'—')))+'</div>';
+      html += '<div class="am"><span>🏥 '+(a.hospital||'—')+'</span><span>📅 '+(a.startDate||'؟')+' ← '+(a.endDate||'؟')+'</span><span>👥 '+nStu+' طالب</span><span>📆 '+nDays+' يوم</span></div>';
+      html += '<div class="rot-arch-acts">';
+      html += '<button class="btn ba" onclick="rotExportArchive(\''+id+'\')">📥 تصدير Excel</button>';
+      html += '<button class="btn bo" onclick="rotDeleteArchive(\''+id+'\')">🗑 حذف</button>';
+      html += '</div></div>';
+    });
+  }
+  html += '</div></div>';
+
+  cont.innerHTML = html;
+}
+
+// ── IMPORT MODAL ─────────────────────────────────────────────────────
+var rotImportCombined = {};
+function rotOpenImport(){
+  rotImportSel = null;
+  rotImportSource = 'roster';
+  document.getElementById('rotImportApply').style.display = 'none';
+  rotRenderImportBody();
+  document.getElementById('rotImportM').classList.add('open');
+}
+function rotCloseImport(){
+  document.getElementById('rotImportM').classList.remove('open');
+  rotImportSel = null;
+}
+function rotSetSource(src){
+  rotImportSource = src;
+  rotImportSel = null;
+  document.getElementById('rotImportApply').style.display = 'none';
+  rotRenderImportBody();
+}
+
+// Build groups list from chosen source (roster or studentDb — same fields).
+function rotGroupsFromSource(){
+  var data = rotImportSource==='db' ? studentDb : roster;
+  var groups = {};
+  for(var i=0;i<(data||[]).length;i++){
+    var r = data[i];
+    var name = r.name; if(!name) continue;
+    var type = (r.type||'').trim();
+    var key = (r.hospital||'?')+'|'+(r.group||'?')+'|'+(type||'?');
+    if(!groups[key]) groups[key] = { hospital:r.hospital||'', group:r.group||'', type:type, startDate:(r.startDate||r.date||''), students:[] };
+    groups[key].students.push({name:name, type:type});
+  }
+  return groups;
+}
+
+function rotRenderImportBody(){
+  var html = '';
+  html += '<div class="rot-src-tabs">';
+  html += '<button class="rot-src-tab'+(rotImportSource==='roster'?' active':'')+'" onclick="rotSetSource(\'roster\')">🏥 جدول المجموعات</button>';
+  html += '<button class="rot-src-tab'+(rotImportSource==='db'?' active':'')+'" onclick="rotSetSource(\'db\')">🗄️ قاعدة البيانات</button>';
+  html += '</div>';
+
+  var groups = rotGroupsFromSource();
+  var keys = Object.keys(groups);
+
+  if(!keys.length){
+    html += '<div style="text-align:center;padding:24px;color:var(--muted)">لا توجد مجموعات في هذا المصدر.<br>'+
+            (rotImportSource==='db'?'ارفع ملف Excel في تبويب «قاعدة البيانات».':'ارفع ملف Excel في تبويب «جدول المجموعات».')+'</div>';
+  } else {
+    html += '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">اختر المجموعة التي تريد بدء الدورة بها. سيُحافَظ على تقسيم صباحي/مسائي داخل الدورة.</div>';
+    // combine morning & evening of the same hospital+group under one cycle
+    var combined = {};
+    keys.forEach(function(k){
+      var g = groups[k];
+      var ck = (g.hospital||'?')+'|'+(g.group||'?');
+      if(!combined[ck]) combined[ck] = { hospital:g.hospital, group:g.group, startDate:g.startDate, morning:[], evening:[] };
+      if(g.type==='مسائي') combined[ck].evening = combined[ck].evening.concat(g.students);
+      else combined[ck].morning = combined[ck].morning.concat(g.students);
+      if(!combined[ck].startDate && g.startDate) combined[ck].startDate = g.startDate;
+    });
+    var ckeys = Object.keys(combined).sort(function(a,b){
+      var ga=combined[a], gb=combined[b];
+      if(ga.hospital!==gb.hospital) return (ga.hospital||'').localeCompare(gb.hospital||'','ar');
+      return (parseInt(ga.group)||0)-(parseInt(gb.group)||0);
+    });
+    ckeys.forEach(function(ck){
+      var g = combined[ck];
+      var total = g.morning.length + g.evening.length;
+      html += '<div class="grp-item" data-ck="'+encodeURIComponent(ck)+'" onclick="rotSelectImport(this)">';
+      html += '<div class="grp-item-title">👥 مجموعة '+(g.group||'—');
+      if(g.morning.length) html += '<span style="background:#d6eaf8;color:#1a5276;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">صباحي '+g.morning.length+'</span>';
+      if(g.evening.length) html += '<span style="background:#e8daef;color:#6c3483;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">مسائي '+g.evening.length+'</span>';
+      html += '</div>';
+      html += '<div class="grp-item-meta"><span>🏥 '+(g.hospital||'غير محدد')+'</span><span>👥 '+total+' طالب</span>';
+      if(g.startDate) html += '<span>📅 '+g.startDate+'</span>';
+      html += '</div></div>';
+    });
+    rotImportCombined = combined;
+  }
+  document.getElementById('rotImportBody').innerHTML = html;
+}
+
+function rotSelectImport(el){
+  document.querySelectorAll('#rotImportBody .grp-item').forEach(function(x){ x.classList.remove('selected'); });
+  el.classList.add('selected');
+  rotImportSel = decodeURIComponent(el.getAttribute('data-ck'));
+  document.getElementById('rotImportApply').style.display = '';
+}
+
+function rotApplyImport(){
+  if(!rotImportSel){ return; }
+  if(rotations.active){
+    toast('توجد دورة نشطة. أنهِ الدورة الحالية أولاً.');
+    return;
+  }
+  var g = rotImportCombined[rotImportSel];
+  if(!g){ toast('تعذّر العثور على المجموعة'); return; }
+
+  var cycle = {
+    id: 'cycle_'+Date.now(),
+    title: 'مجموعة '+(g.group||'—')+' — '+(g.hospital||''),
+    hospital: g.hospital||'',
+    group: g.group||'',
+    source: rotImportSource,
+    startDate: today(),       // cycle owns history from today onward
+    origStartDate: g.startDate||'',
+    endDate: '',
+    startedAt: Date.now(),
+    startedBy: currentUser ? (currentUser.displayName||currentUser.email||'') : '',
+    students: {
+      morning: g.morning.map(function(s){ return {name:s.name}; }),
+      evening: g.evening.map(function(s){ return {name:s.name}; })
+    }
+  };
+
+  rotations.active = cycle;
+  rotSave();
+
+  // Load the cycle students into the live attendance lists
+  studentsMorning = cycle.students.morning.slice();
+  studentsEvening = cycle.students.evening.slice();
+  curGroup = studentsMorning.length ? 'morning' : (studentsEvening.length ? 'evening' : 'morning');
+  if(typeof saveStudents==='function') saveStudents();
+  switchGroup(curGroup);
+
+  rotCloseImport();
+  rotRender();
+  toast('✅ بدأت الدورة: '+cycle.title+' ('+(cycle.students.morning.length+cycle.students.evening.length)+' طالب)');
+  showTab('att');
+}
+
+// ── END / ARCHIVE CYCLE ──────────────────────────────────────────────
+function rotEndCycle(){
+  var c = rotations.active;
+  if(!c){ toast('لا توجد دورة نشطة'); return; }
+  var st = rotActiveStats();
+  if(!confirm('إنهاء وأرشفة الدورة «'+(c.title||'')+'»؟\n\n'+
+              'سيتم حفظ كامل بيانات الدورة ('+st.days+' يوم، '+st.evals+' تقييم) في الأرشيف نهائياً، ثم تُفرَّغ الدورة الحالية لبدء دورة جديدة.\n\nالبيانات اليومية تبقى محفوظة في السجل التاريخي أيضاً.')) return;
+
+  c.endDate = today();
+  c.endedAt = Date.now();
+  c.endedBy = currentUser ? (currentUser.displayName||currentUser.email||'') : '';
+  // Snapshot all owned history into the archived cycle (sealed copy)
+  c.history = rotCollectHistory(c);
+  c.settings = {
+    hospitalName: document.getElementById('hName').value||'',
+    hospitalNo:   document.getElementById('hNo').value||'',
+    supervisorName: document.getElementById('supName').value||''
+  };
+
+  rotations.archive = rotations.archive || {};
+  rotations.archive[c.id] = c;
+  rotations.active = null;
+  rotSave();
+
+  // Clear live lists so a fresh cycle starts clean (history stays in السجل التاريخي)
+  studentsMorning = [];
+  studentsEvening = [];
+  if(typeof saveStudents==='function') saveStudents();
+  renderList();
+  rotRender();
+  toast('🏁 تم إنهاء الدورة وأرشفتها بنجاح');
+}
+
+function rotDeleteArchive(id){
+  var a = rotations.archive ? rotations.archive[id] : null;
+  if(!a) return;
+  if(!confirm('حذف الدورة المؤرشفة «'+(a.title||id)+'» نهائياً؟ لا يمكن التراجع.')) return;
+  delete rotations.archive[id];
+  rotSave();
+  rotRender();
+  toast('تم حذف الدورة المؤرشفة');
+}
+
+// ── EXPORT A CYCLE TO EXCEL ──────────────────────────────────────────
+function rotBuildCycleExcel(cycle, histObj){
+  var wb = XLSX.utils.book_new();
+  var allNames = [];
+  function pushNames(arr,shift){ (arr||[]).forEach(function(s){ allNames.push({name:s.name, shift:shift}); }); }
+  pushNames(cycle.students&&cycle.students.morning, 'صباحي');
+  pushNames(cycle.students&&cycle.students.evening, 'مسائي');
+
+  var dayKeys = Object.keys(histObj).sort();
+  var dates = [];
+  dayKeys.forEach(function(k){ var d=k.split('_')[0]; if(dates.indexOf(d)<0) dates.push(d); });
+  dates.sort();
+
+  // Marks sheet — one row per student, one column per day, plus total + average
+  var header = ['اسم الطالب','المجموعة'].concat(dates).concat(['المجموع','المعدل']);
+  var rows = [
+    ['الدورة: '+(cycle.title||'')],
+    ['المستشفى: '+(cycle.hospital||''), 'المشرف: '+((cycle.settings&&cycle.settings.supervisorName)||'')],
+    ['من: '+(cycle.startDate||''), 'إلى: '+(cycle.endDate||'')],
+    [],
+    header
+  ];
+  allNames.forEach(function(stu){
+    var row=[stu.name, stu.shift], sum=0, cnt=0;
+    dates.forEach(function(d){
+      var k = d+'_'+(stu.shift==='مسائي'?'evening':'morning');
+      var rec = histObj[k];
+      var val='';
+      if(rec){
+        var idxList = rec.__names__ || [];
+        var ix = idxList.indexOf(stu.name);
+        if(ix>=0 && rec[ix] && rec[ix].total!==undefined){ val=rec[ix].total; sum+=Number(val); cnt++; }
+      }
+      row.push(val===''?'':Number(val).toFixed(2));
+    });
+    row.push(cnt?sum.toFixed(2):''); row.push(cnt?(sum/cnt).toFixed(2):'');
+    rows.push(row);
+  });
+  var ws1 = XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws1, 'الدرجات');
+
+  // Daily notes sheet
+  var noteRows = [['التاريخ','المجموعة','ملاحظات اليوم']];
+  dayKeys.forEach(function(k){
+    var rec = histObj[k];
+    var note = rec && rec['__dayNotes__'] ? rec['__dayNotes__'] : '';
+    if(note){ noteRows.push([k.split('_')[0], k.indexOf('_morning')>=0?'صباحي':'مسائي', note]); }
+  });
+  var ws2 = XLSX.utils.aoa_to_sheet(noteRows);
+  XLSX.utils.book_append_sheet(wb, ws2, 'ملاحظات الأيام');
+
+  return wb;
+}
+
+function rotExportActive(){
+  var c = rotations.active;
+  if(!c){ toast('لا توجد دورة نشطة'); return; }
+  var wb = rotBuildCycleExcel(c, rotCollectHistory(c));
+  XLSX.writeFile(wb, 'دورة_'+(c.group||'')+'_'+(c.startDate||today())+'.xlsx');
+  toast('تم تصدير الدورة ✓');
+}
+
+function rotExportArchive(id){
+  var a = rotations.archive ? rotations.archive[id] : null;
+  if(!a){ return; }
+  var wb = rotBuildCycleExcel(a, a.history||{});
+  XLSX.writeFile(wb, 'دورة_'+(a.group||'')+'_'+(a.startDate||'')+'_'+(a.endDate||'')+'.xlsx');
+  toast('تم تصدير الدورة المؤرشفة ✓');
+}
+
+// Close rotation import modal on backdrop click
+document.addEventListener('DOMContentLoaded', function(){
+  var mo = document.getElementById('rotImportM');
+  if(mo) mo.addEventListener('click', function(e){ if(e.target===this) rotCloseImport(); });
+});
 
 tick(); setInterval(tick, 1000);
 curDate = today(); // Always start on today
@@ -5014,6 +3944,7 @@ function optimisticRestore(sess){
       history = c.h || {};
       roster  = c.r || [];
       if (c.sdb && c.sdb.length) studentDb = c.sdb;
+      if (c.rot) rotations = { active: c.rot.active || null, archive: c.rot.archive || {} };
       if (c.hn) document.getElementById('hName').value   = c.hn;
       if (c.ho) document.getElementById('hNo').value     = c.ho;
       if (c.sn) document.getElementById('supName').value = c.sn;
@@ -5065,11 +3996,11 @@ if (_sess && navigator.onLine) {
 }
 
 // ★ Flush pending cloud writes whenever the connection returns
-window.addEventListener('online', function(){ setTimeout(function(){ flushQueue(); flushAudit(); }, 800); });
+window.addEventListener('online', function(){ setTimeout(flushQueue, 800); });
 // ★ Final cache write before the page closes — nothing is ever lost mid-action
 window.addEventListener('beforeunload', function(){ try{ cacheLocally(); }catch(e){} });
 // Periodic queue retry (covers flaky connections)
-setInterval(function(){ if (pendingCount() > 0) flushQueue(); flushAudit(); }, 30000);
+setInterval(function(){ if (pendingCount() > 0) flushQueue(); }, 30000);
 
 // Setup connectivity listeners
 window.addEventListener('online',  onNetworkOnline);
