@@ -724,11 +724,11 @@ window.addEventListener('load', function() {
       <div class="tab-panel" id="pcyc">
         <div class="hist-hdr">
           <h2>🎯 الدورة التقييمية</h2>
-          <div style="font-size:12px;color:var(--muted)">استورد مجموعة → ٤ أيام منفصلة → لكل يوم (مجموع التقييم + درجة الورقة بالبيت) → تُحفظ تلقائياً في حسابك · كل دورة محفوظة وقابلة للتعديل</div>
+          <div style="font-size:12px;color:var(--muted)">لكل طالب ٣ مستشفيات × ٤ أيام = ١٢ درجة · استيراد مجموعة يملأ عمود مستشفاها فقط · يُحفظ تلقائياً في حسابك</div>
         </div>
         <div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap">
-          <button class="btn bp" onclick="cycImportPrompt()">📥 استيراد مجموعة (بدء دورة)</button>
-          <button class="btn bo" onclick="cycRenderList()">📋 الدورات المحفوظة</button>
+          <button class="btn bp" onclick="cycImportPrompt()">📥 استيراد مجموعة</button>
+          <button class="btn bo" onclick="cycRender()">🔄 تحديث العرض</button>
           <input type="text" id="cycSearch" class="sbox" placeholder="🔍 ابحث عن طالب..." oninput="cycSearchRender()" style="max-width:240px">
         </div>
         <div id="cycContent"></div>
@@ -4360,34 +4360,38 @@ function applyGrpLoader(){
 
 
 // ═══════════════════════════════════════════════════════════════════════
-// ★ EVALUATION CYCLE SYSTEM (new, separate, per-instructor)
-//   cycleStore = [ { id, status:'active'|'done', group, type, hospital,
-//                    startDate, finishedDate, students:[ { name, slots:[
-//                      {day, subtotal, paper, final, date}, x4 ] } ] } ]
-//   Auto-saved to users/{uid}/cycleStore. Each cycle editable anytime.
+// ★ EVALUATION GRADEBOOK (per-instructor) — 12-cell model
+//   For each student: 3 hospitals × 4 days = 12 grade placeholders.
+//   Importing a group fills ONLY that group's hospital column (4 cells);
+//   the other 2 hospital columns stay as placeholders for later imports.
+//   cycleStore = [ { sid, name, group, type,
+//        hospitals:[ {name, days:[g1,g2,g3,g4]} , {…}, {…} ] } ]   // 3 slots
+//   Auto-saved to users/{uid}/cycleStore. Editable anytime.
 // ═══════════════════════════════════════════════════════════════════════
-var CYC_DAYS = 4;
-function cycBlankSlots(){ var s=[]; for(var i=1;i<=CYC_DAYS;i++) s.push({day:i,subtotal:'',paper:'',final:'',date:''}); return s; }
-function cycNormalize(c){
-  c=c||{};
-  var st=Array.isArray(c.students)?c.students:[];
-  st=st.map(function(s){ s=s||{}; var sl=Array.isArray(s.slots)?s.slots:[];
-    while(sl.length<CYC_DAYS) sl.push({day:sl.length+1,subtotal:'',paper:'',final:'',date:''});
-    sl=sl.slice(0,CYC_DAYS).map(function(x,i){ x=x||{}; return {day:i+1,
-      subtotal:(x.subtotal!==undefined&&x.subtotal!==null)?String(x.subtotal):'',
-      paper:(x.paper!==undefined&&x.paper!==null)?String(x.paper):'',
-      final:(x.final!==undefined&&x.final!==null)?String(x.final):'',
-      date:x.date||''}; });
-    return {name:s.name||'',slots:sl};
-  });
-  return {id:c.id||('cyc_'+Date.now()+'_'+Math.floor(Math.random()*9999)),
-    status:c.status==='done'?'done':'active', group:c.group!==undefined?String(c.group):'',
-    type:c.type||'', hospital:c.hospital||'', startDate:c.startDate||today(),
-    finishedDate:c.finishedDate||'', students:st};
+var CYC_DAYS = 4, CYC_HOSPITALS = 3;
+function cycBlankHospitals(){
+  var h=[]; for(var i=0;i<CYC_HOSPITALS;i++){ h.push({name:'',days:['','','','']}); } return h;
 }
-function cycLocalLoad(){ try{var r=localStorage.getItem('hsp_cyc'); if(r){var d=JSON.parse(r); if(Array.isArray(d)) cycleStore=d.map(cycNormalize);}}catch(e){} }
+function cycNormalizeStudent(s){
+  s=s||{};
+  var hs=Array.isArray(s.hospitals)?s.hospitals:[];
+  while(hs.length<CYC_HOSPITALS) hs.push({name:'',days:['','','','']});
+  hs=hs.slice(0,CYC_HOSPITALS).map(function(h){
+    h=h||{}; var d=Array.isArray(h.days)?h.days:[];
+    while(d.length<CYC_DAYS) d.push('');
+    d=d.slice(0,CYC_DAYS).map(function(x){ return (x!==undefined&&x!==null)?String(x):''; });
+    return {name:h.name||'',days:d};
+  });
+  return {
+    sid: s.sid || ('st_'+Date.now()+'_'+Math.floor(Math.random()*99999)),
+    name: s.name||'', group: (s.group!==undefined?String(s.group):''), type: s.type||'',
+    hospitals: hs
+  };
+}
+function cycNormalize(arr){ return (Array.isArray(arr)?arr:[]).map(cycNormalizeStudent); }
+function cycLocalLoad(){ try{var r=localStorage.getItem('hsp_cyc'); if(r){var d=JSON.parse(r); if(Array.isArray(d)) cycleStore=cycNormalize(d);}}catch(e){} }
 function cycSave(){
-  cycleStore=cycleStore.map(cycNormalize);
+  cycleStore=cycNormalize(cycleStore);
   try{ localStorage.setItem('hsp_cyc', JSON.stringify(cycleStore)); }catch(e){}
   if (!isOfflineMode && currentUser && db) guardedSet('cycleStore', cycleStore);
   else cacheLocally();
@@ -4408,7 +4412,7 @@ function cycGroupsInDb(){
     .sort(function(a,b){ return (parseInt(a.group)||999)-(parseInt(b.group)||999) || (a.type||'').localeCompare(b.type||'','ar'); });
 }
 
-// ── import a group → start a new cycle (warns if one is active) ──────
+// ── import a group → fill ONLY that group's hospital column ──────────
 function cycImportPrompt(){
   if(!studentDb || !studentDb.length){
     if(typeof Swal!=='undefined'){ Swal.fire({icon:'info',title:'قاعدة البيانات فارغة',text:'استورد ملف الطلاب في تبويب قاعدة البيانات أولاً',confirmButtonColor:'#0E7C86'}); }
@@ -4416,164 +4420,168 @@ function cycImportPrompt(){
   }
   var groups=cycGroupsInDb();
   if(!groups.length){ toast('لا توجد مجموعات في قاعدة البيانات'); return; }
-  var active=cycleStore.filter(function(c){return c.status==='active';});
-  function doPick(){
-    var opts={};
-    groups.forEach(function(g,i){ opts[i]='مجموعة '+g.group+' · '+(g.type||'')+(g.hospital?(' · '+g.hospital):'')+' ('+g.count+' طالب)'; });
-    if(typeof Swal!=='undefined'){
-      Swal.fire({title:'اختر المجموعة لبدء دورة',input:'select',inputOptions:opts,inputPlaceholder:'اختر مجموعة',
-        showCancelButton:true,confirmButtonText:'بدء الدورة',cancelButtonText:'إلغاء',confirmButtonColor:'#0E7C86'
-      }).then(function(res){ if(res.isConfirmed && res.value!==''){ cycStartCycle(groups[parseInt(res.value)]); } });
-    } else {
-      var idx=prompt('اكتب رقم المجموعة:\n'+groups.map(function(g,i){return i+': مجموعة '+g.group+' '+(g.type||'');}).join('\n'));
-      if(idx!==null && groups[parseInt(idx)]) cycStartCycle(groups[parseInt(idx)]);
-    }
+  var opts={};
+  groups.forEach(function(g,i){ opts[i]='مجموعة '+g.group+' · '+(g.type||'')+(g.hospital?(' · '+g.hospital):'')+' ('+g.count+' طالب)'; });
+  if(typeof Swal!=='undefined'){
+    Swal.fire({title:'اختر المجموعة لاستيرادها',input:'select',inputOptions:opts,inputPlaceholder:'اختر مجموعة',
+      showCancelButton:true,confirmButtonText:'استيراد',cancelButtonText:'إلغاء',confirmButtonColor:'#0E7C86'
+    }).then(function(res){ if(res.isConfirmed && res.value!==''){ cycImportGroup(groups[parseInt(res.value)]); } });
+  } else {
+    var idx=prompt('اكتب رقم المجموعة:\n'+groups.map(function(g,i){return i+': مجموعة '+g.group+' '+(g.type||'')+' '+(g.hospital||'');}).join('\n'));
+    if(idx!==null && groups[parseInt(idx)]) cycImportGroup(groups[parseInt(idx)]);
   }
-  if(active.length && typeof Swal!=='undefined'){
-    Swal.fire({icon:'warning',title:'لديك دورة نشطة غير منتهية',
-      text:'يمكنك بدء دورة جديدة (ستبقى الدورة الحالية محفوظة)، أو إنهاؤها أولاً.',
-      showCancelButton:true,confirmButtonText:'بدء دورة جديدة على أي حال',cancelButtonText:'تراجع',confirmButtonColor:'#0E7C86'
-    }).then(function(r){ if(r.isConfirmed) doPick(); });
-  } else { doPick(); }
 }
-function cycStartCycle(g){
-  var students=(studentDb||[]).filter(function(r){
+// Each student carries up to 3 hospitals. On import we find/assign the
+// hospital COLUMN for this group's hospital and activate it (set its name).
+// Existing columns/grades for other hospitals are never touched.
+function cycImportGroup(g){
+  var members=(studentDb||[]).filter(function(r){
     return String(r.group).trim()===g.group && (r.type||'')===(g.type||'') && (r.hospital||'')===(g.hospital||'');
-  }).map(function(r){ return {name:r.name||'', slots:cycBlankSlots()}; });
-  var cyc=cycNormalize({status:'active',group:g.group,type:g.type,hospital:g.hospital,startDate:today(),students:students});
-  cycleStore.push(cyc);
+  });
+  var added=0;
+  members.forEach(function(r){
+    var nm=(r.name||'').trim(); if(!nm) return;
+    var st=null;
+    for(var i=0;i<cycleStore.length;i++){
+      var c=cycleStore[i];
+      if((c.name||'').trim()===nm && String(c.group)===g.group && (c.type||'')===(g.type||'')){ st=c; break; }
+    }
+    if(!st){ st=cycNormalizeStudent({name:nm,group:g.group,type:g.type,hospitals:cycBlankHospitals()}); cycleStore.push(st); added++; }
+    var hcol = -1;
+    for(var h=0;h<st.hospitals.length;h++){ if(g.hospital && (st.hospitals[h].name||'')===g.hospital){ hcol=h; break; } }
+    if(hcol<0){ for(var h2=0;h2<st.hospitals.length;h2++){ if(!st.hospitals[h2].name){ hcol=h2; break; } } }
+    if(hcol<0) hcol=0;
+    if(g.hospital) st.hospitals[hcol].name = g.hospital;
+  });
   cycSave();
-  cycActiveId=cyc.id; cycActiveDay=1;
-  cycRender();
-  toast('بدأت دورة المجموعة '+g.group+' ('+students.length+' طالب) ✓','success');
+  cycRender(g.hospital);
+  toast('تم استيراد المجموعة '+g.group+' — عُيّن مستشفى '+(g.hospital||'')+' ('+members.length+' طالب) ✓','success');
 }
 
 // ── view state ──────────────────────────────────────────────────────
-var cycActiveId=null, cycActiveDay=1, cycViewMode='active';
-function cycFind(id){ for(var i=0;i<cycleStore.length;i++) if(cycleStore[i].id===id) return cycleStore[i]; return null; }
+var cycActiveHospital = 0;
+function cycHospitalNames(){
+  var names=['','',''];
+  cycleStore.forEach(function(s){ s.hospitals.forEach(function(h,i){ if(h.name && !names[i]) names[i]=h.name; }); });
+  return names;
+}
 
-function cycRender(){
+function cycRender(jumpToHospitalName){
   var cont=document.getElementById('cycContent'); if(!cont) return;
-  // default to the active cycle if none selected
-  if(!cycActiveId){ var a=cycleStore.filter(function(c){return c.status==='active';}); if(a.length) cycActiveId=a[a.length-1].id; }
-  var cyc=cycFind(cycActiveId);
-  if(!cyc){
-    if(cycleStore.length){ cycRenderList(); return; }
+  if(!cycleStore.length){
     cont.innerHTML='<div style="border:2px dashed var(--primary);border-radius:12px;padding:30px;text-align:center;background:#eef7f6">'
       +'<div style="font-size:40px;margin-bottom:10px">🎯</div>'
-      +'<div style="font-size:16px;font-weight:700;color:var(--primary);margin-bottom:8px">لا توجد دورات بعد</div>'
-      +'<div style="font-size:13px;color:var(--muted);line-height:1.9">اضغط «استيراد مجموعة (بدء دورة)» لإنشاء أول دورة تقييمية.</div></div>';
+      +'<div style="font-size:16px;font-weight:700;color:var(--primary);margin-bottom:8px">لا يوجد طلاب بعد</div>'
+      +'<div style="font-size:13px;color:var(--muted);line-height:1.9">اضغط «استيراد مجموعة» لجلب طلاب مجموعة وتعبئة عمود مستشفاها.<br>لكل طالب ٣ مستشفيات × ٤ أيام = ١٢ درجة.</div></div>';
     return;
   }
+  var hnames=cycHospitalNames();
+  if(jumpToHospitalName){ var ji=hnames.indexOf(jumpToHospitalName); if(ji>=0) cycActiveHospital=ji; }
+  if(cycActiveHospital>=CYC_HOSPITALS) cycActiveHospital=0;
+
   var html='';
-  // header card
-  html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
-  html+='<div><div style="font-size:15px;font-weight:700;color:var(--primary)">دورة المجموعة '+cyc.group+' · '+(cyc.type||'')+'</div>';
-  html+='<div style="font-size:12px;color:var(--muted)">'+(cyc.hospital||'بدون مستشفى')+' · بدأت '+cyc.startDate+' · '+cyc.students.length+' طالب · '+(cyc.status==='done'?'<span style="color:#27ae60">منتهية</span>':'<span style="color:#e67e22">نشطة</span>')+'</div></div>';
-  html+='<div style="display:flex;gap:6px">';
-  if(cyc.status==='active') html+='<button class="btn bp" style="font-size:12px" onclick="cycFinish(\''+cyc.id+'\')">🏁 إنهاء الدورة</button>';
-  else html+='<button class="btn bo" style="font-size:12px" onclick="cycReopen(\''+cyc.id+'\')">↩️ إعادة فتح</button>';
-  html+='<button class="btn bo" style="font-size:12px" onclick="cycRenderList()">📋 كل الدورات</button>';
-  html+='</div></div>';
-  // day tabs (4 separate)
   html+='<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">';
-  for(var d=1;d<=CYC_DAYS;d++){
-    var on=(cycActiveDay===d);
-    html+='<button onclick="cycSetDay('+d+')" style="border:1px solid '+(on?'#0E7C86':'var(--border)')+';background:'+(on?'#0E7C86':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">اليوم '+d+'</button>';
+  for(var hc=0; hc<CYC_HOSPITALS; hc++){
+    var on=(cycActiveHospital===hc);
+    var label=hnames[hc]? hnames[hc] : ('مستشفى '+(hc+1)+' (فارغ)');
+    html+='<button onclick="cycSetHospital('+hc+')" style="border:1px solid '+(on?'#0E7C86':'var(--border)')+';background:'+(on?'#0E7C86':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">'+label+'</button>';
   }
   html+='</div>';
-  // student rows for the active day
+
   var q=(document.getElementById('cycSearch')&&document.getElementById('cycSearch').value||'').trim();
-  var students=cyc.students;
+  var students=cycleStore.slice();
   if(q && typeof Fuse!=='undefined'){
-    var fuse=new Fuse(cyc.students,{keys:['name'],threshold:0.4}); students=fuse.search(q).map(function(r){return r.item;});
-  } else if(q){ students=cyc.students.filter(function(s){return (s.name||'').indexOf(q)>=0;}); }
+    var fuse=new Fuse(cycleStore,{keys:['name'],threshold:0.4}); students=fuse.search(q).map(function(r){return r.item;});
+  } else if(q){ students=cycleStore.filter(function(s){return (s.name||'').indexOf(q)>=0;}); }
+
+  var anyName=hnames[cycActiveHospital]||'';
+  html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
+  html+='<span style="font-size:13px;color:var(--muted)">اسم المستشفى لهذا العمود:</span>';
+  html+='<input value="'+anyName.replace(/"/g,'&quot;')+'" placeholder="مستشفى '+(cycActiveHospital+1)+'" oninput="cycSetColumnName('+cycActiveHospital+',this.value)" style="flex:1;min-width:160px;border:1px solid #cfe0de;border-radius:7px;padding:6px 10px;font-size:13px;background:#f7fbfa">';
+  html+='</div>';
+
   html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">';
-  html+='<div style="display:grid;grid-template-columns:1fr 90px 90px 80px;gap:8px;padding:10px 14px;background:#eef7f6;font-size:12px;color:var(--primary);font-weight:700;border-bottom:1px solid var(--border)">'
-    +'<div>الطالب</div><div style="text-align:center">مجموع التقييم</div><div style="text-align:center">الورقة (بالبيت)</div><div style="text-align:center">النهائي</div></div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 70px 70px 70px 70px;gap:6px;padding:10px 14px;background:#eef7f6;font-size:12px;color:var(--primary);font-weight:700;border-bottom:1px solid var(--border)">'
+    +'<div>الطالب</div><div style="text-align:center">يوم ١</div><div style="text-align:center">يوم ٢</div><div style="text-align:center">يوم ٣</div><div style="text-align:center">يوم ٤</div></div>';
   students.forEach(function(s){
-    var realIdx=cyc.students.indexOf(s);
-    var slot=s.slots[cycActiveDay-1];
-    var fin = cycCalcFinal(slot);
-    html+='<div style="display:grid;grid-template-columns:1fr 90px 90px 80px;gap:8px;padding:9px 14px;align-items:center;border-bottom:1px solid #f0f4f4">';
-    html+='<div style="font-weight:600;font-size:13px">'+s.name+(slot.date?(' <span style="font-size:10px;color:var(--muted)">('+slot.date+')</span>'):'')+'</div>';
-    html+='<div style="text-align:center"><input value="'+(slot.subtotal||'')+'" placeholder="—" inputmode="decimal" oninput="cycSetField('+realIdx+',\'subtotal\',this.value)" style="width:64px;text-align:center;border:1px solid #cfe0de;border-radius:6px;padding:4px;font-size:13px"></div>';
-    html+='<div style="text-align:center"><input value="'+(slot.paper||'')+'" placeholder="—" inputmode="decimal" oninput="cycSetField('+realIdx+',\'paper\',this.value)" style="width:64px;text-align:center;border:1px solid #cfe0de;border-radius:6px;padding:4px;font-size:13px"></div>';
-    html+='<div style="text-align:center;font-weight:700;color:'+(fin!==''?'#0E7C86':'#bbb')+'">'+(fin!==''?fin:'—')+'</div>';
+    var realIdx=cycleStore.indexOf(s);
+    var col=s.hospitals[cycActiveHospital];
+    html+='<div style="display:grid;grid-template-columns:1fr 70px 70px 70px 70px;gap:6px;padding:8px 14px;align-items:center;border-bottom:1px solid #f0f4f4">';
+    html+='<div style="font-weight:600;font-size:13px">'+s.name+' <span style="font-size:10px;color:var(--muted)">(م'+(s.group||'?')+')</span></div>';
+    for(var d=0; d<CYC_DAYS; d++){
+      html+='<div style="text-align:center"><input value="'+(col.days[d]||'')+'" placeholder="—" inputmode="decimal" oninput="cycSetGrade('+realIdx+','+cycActiveHospital+','+d+',this.value)" style="width:56px;text-align:center;border:1px solid #cfe0de;border-radius:6px;padding:4px;font-size:13px"></div>';
+    }
     html+='</div>';
   });
   html+='</div>';
-  // per-student 4-day summary
-  html+='<div style="margin-top:14px;font-size:13px;font-weight:700;color:var(--text)">📊 ملخص الأيام الأربعة (الدرجات النهائية لكل طالب)</div>';
-  html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow-x:auto;margin-top:6px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:480px">';
-  html+='<thead><tr style="background:var(--primary);color:#fff"><th style="padding:8px;text-align:right">الطالب</th><th style="padding:8px">يوم ١</th><th style="padding:8px">يوم ٢</th><th style="padding:8px">يوم ٣</th><th style="padding:8px">يوم ٤</th></tr></thead><tbody>';
-  cyc.students.forEach(function(s,i){
-    html+='<tr style="background:'+(i%2?'#f8fafc':'#fff')+'"><td style="padding:7px 10px;font-weight:600">'+s.name+'</td>';
-    s.slots.forEach(function(sl){ var f=cycCalcFinal(sl); html+='<td style="padding:7px;text-align:center;font-weight:700;color:'+(f!==''?'#0E7C86':'#ccc')+'">'+(f!==''?f:'—')+'</td>'; });
+
+  html+='<div style="margin-top:14px;font-size:13px;font-weight:700;color:var(--text)">📊 السجل الكامل لكل طالب (٣ مستشفيات × ٤ أيام)</div>';
+  html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow-x:auto;margin-top:6px"><table style="border-collapse:collapse;font-size:12px;min-width:760px;width:100%">';
+  html+='<thead><tr style="background:var(--primary);color:#fff"><th rowspan="2" style="padding:6px 10px;text-align:right;position:sticky;right:0;background:var(--primary)">الطالب</th>';
+  for(var hh=0; hh<CYC_HOSPITALS; hh++){ html+='<th colspan="4" style="padding:6px;border-right:1px solid rgba(255,255,255,.25)">'+(hnames[hh]||('مستشفى '+(hh+1)))+'</th>'; }
+  html+='<th rowspan="2" style="padding:6px">المجموع</th></tr><tr style="background:var(--primary);color:#fff">';
+  for(var hh2=0; hh2<CYC_HOSPITALS; hh2++){ html+='<th style="padding:4px;font-weight:400">١</th><th style="padding:4px;font-weight:400">٢</th><th style="padding:4px;font-weight:400">٣</th><th style="padding:4px;font-weight:400">٤</th>'; }
+  html+='</tr></thead><tbody>';
+  cycleStore.forEach(function(s,i){
+    html+='<tr style="background:'+(i%2?'#f8fafc':'#fff')+'"><td style="padding:6px 10px;font-weight:600;position:sticky;right:0;background:'+(i%2?'#f8fafc':'#fff')+'">'+s.name+'</td>';
+    var tot=0, any=false;
+    s.hospitals.forEach(function(h){ h.days.forEach(function(g){ var n=parseFloat(g); var has=!isNaN(n); if(has){tot+=n;any=true;} html+='<td style="padding:5px;text-align:center;color:'+(has?'#0E7C86':'#ccc')+'">'+(has?g:'—')+'</td>'; }); });
+    html+='<td style="padding:5px;text-align:center;font-weight:700;color:'+(any?'#0A6068':'#ccc')+'">'+(any?Math.round(tot*100)/100:'—')+'</td>';
     html+='</tr>';
   });
   html+='</tbody></table></div>';
-  cont.innerHTML=html;
-}
-function cycCalcFinal(slot){
-  var a=parseFloat(slot.subtotal), b=parseFloat(slot.paper);
-  var hasA=!isNaN(a), hasB=!isNaN(b);
-  if(!hasA && !hasB) return '';
-  var v=(hasA?a:0)+(hasB?b:0);
-  return Math.round(v*100)/100;
-}
-function cycSetDay(d){ cycActiveDay=d; cycRender(); }
-function cycSetField(idx,field,val){
-  var cyc=cycFind(cycActiveId); if(!cyc) return;
-  // clamp numeric 0–15 softly (allow empty + decimals while typing)
-  if(val!==''){ var n=parseFloat(val); if(!isNaN(n)){ if(n<0)n=0; if(n>15)n=15; } }
-  var slot=cyc.students[idx].slots[cycActiveDay-1];
-  slot[field]=val;
-  slot.final=String(cycCalcFinal(slot));
-  if((field==='paper'||field==='subtotal') && val!=='' && !slot.date) slot.date=today();
-  cycSaveDebounced();
-  // light refresh of just the final column would need re-render; debounce a full render
-  clearTimeout(window.__cycRR); window.__cycRR=setTimeout(cycRender,400);
-}
-function cycSetDayDate(){ /* date auto-set on first entry */ }
-function cycFinish(id){
-  var doF=function(){ var c=cycFind(id); if(!c) return; c.status='done'; c.finishedDate=today(); cycSave(); cycRender(); toast('تم إنهاء الدورة ✓ (تبقى قابلة للتعديل)','success'); };
-  if(typeof Swal!=='undefined'){
-    Swal.fire({icon:'question',title:'إنهاء الدورة؟',text:'ستُعلَّم كمنتهية لكنها تبقى محفوظة وقابلة للتعديل وإعادة التقييم لاحقاً.',
-      showCancelButton:true,confirmButtonText:'نعم، إنهاء',cancelButtonText:'إلغاء',confirmButtonColor:'#0E7C86'
-    }).then(function(r){ if(r.isConfirmed) doF(); });
-  } else if(confirm('إنهاء الدورة؟ تبقى قابلة للتعديل لاحقاً.')) doF();
-}
-function cycReopen(id){ var c=cycFind(id); if(!c) return; c.status='active'; c.finishedDate=''; cycSave(); cycRender(); toast('أُعيد فتح الدورة','info'); }
-function cycSearchRender(){ if(document.getElementById('pcyc').classList.contains('active')) cycRender(); }
 
-// ── saved cycles list ────────────────────────────────────────────────
-function cycRenderList(){
-  var cont=document.getElementById('cycContent'); if(!cont) return;
-  if(!cycleStore.length){ cycActiveId=null; cycRender(); return; }
-  var html='<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px">📋 كل الدورات المحفوظة ('+cycleStore.length+')</div>';
-  var sorted=cycleStore.slice().sort(function(a,b){ return (a.status==='active'?0:1)-(b.status==='active'?0:1); });
-  sorted.forEach(function(c){
-    var done=c.students.reduce(function(acc,s){ return acc + (s.slots.filter(function(sl){return cycCalcFinal(sl)!=='';}).length); },0);
-    var total=c.students.length*CYC_DAYS;
-    html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;cursor:pointer" onclick="cycOpen(\''+c.id+'\')">';
-    html+='<div><div style="font-weight:700;font-size:14px">'+(c.status==='active'?'🟢 ':'✓ ')+'مجموعة '+c.group+' · '+(c.type||'')+'</div>';
-    html+='<div style="font-size:12px;color:var(--muted)">'+(c.hospital||'—')+' · '+c.students.length+' طالب · '+done+'/'+total+' درجة مُدخلة'+(c.finishedDate?(' · انتهت '+c.finishedDate):'')+'</div></div>';
-    html+='<div style="display:flex;gap:6px" onclick="event.stopPropagation()">';
-    html+='<button class="btn bo" style="font-size:12px" onclick="cycOpen(\''+c.id+'\')">فتح / تعديل</button>';
-    html+='<button class="btn" style="font-size:12px;background:#fdecea;color:#c0392b;border-color:#f5b7b1" onclick="cycDelete(\''+c.id+'\')">🗑️</button>';
-    html+='</div></div>';
-  });
+  html+='<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">';
+  html+='<button class="btn ba" onclick="cycExportExcel()">📊 تصدير السجل (Excel)</button>';
+  html+='<button class="btn" style="background:#fdecea;color:#c0392b;border-color:#f5b7b1" onclick="cycResetAll()">🗑️ مسح كل السجل</button>';
+  html+='</div>';
+
   cont.innerHTML=html;
 }
-function cycOpen(id){ cycActiveId=id; cycActiveDay=1; cycRender(); }
-function cycDelete(id){
-  var doD=function(){ cycleStore=cycleStore.filter(function(c){return c.id!==id;}); if(cycActiveId===id) cycActiveId=null; cycSave(); cycRenderList(); toast('تم حذف الدورة','info'); };
+function cycSetHospital(hc){ cycActiveHospital=hc; cycRender(); }
+function cycSetColumnName(hc, val){
+  cycleStore.forEach(function(s){ s.hospitals[hc].name = val; });
+  cycSaveDebounced();
+}
+function cycSetGrade(idx, hc, d, val){
+  if(val!==''){ var n=parseFloat(val); if(!isNaN(n)){ if(n<0)n=0; if(n>15)n=15; } }
+  cycleStore[idx].hospitals[hc].days[d]=val;
+  cycSaveDebounced();
+  clearTimeout(window.__cycRR); window.__cycRR=setTimeout(function(){ cycRender(); }, 700);
+}
+function cycSearchRender(){ if(document.getElementById('pcyc').classList.contains('active')) cycRender(); }
+function cycRenderList(){ cycRender(); }
+
+function cycResetAll(){
+  var doD=function(){ cycleStore=[]; cycSave(); cycRender(); toast('تم مسح السجل','info'); };
   if(typeof Swal!=='undefined'){
-    Swal.fire({icon:'warning',title:'حذف هذه الدورة نهائياً؟',text:'لا يمكن التراجع — ستُفقد كل درجات هذه الدورة.',
-      showCancelButton:true,confirmButtonText:'نعم، احذف',cancelButtonText:'إلغاء',confirmButtonColor:'#c0392b',cancelButtonColor:'#7f8c8d'
+    Swal.fire({icon:'warning',title:'مسح كل السجل نهائياً؟',text:'سيُحذف كل الطلاب وكل الدرجات في هذا السجل. لا يمكن التراجع.',
+      showCancelButton:true,confirmButtonText:'نعم، امسح الكل',cancelButtonText:'إلغاء',confirmButtonColor:'#c0392b',cancelButtonColor:'#7f8c8d'
     }).then(function(r){ if(r.isConfirmed) doD(); });
-  } else if(confirm('حذف هذه الدورة نهائياً؟')) doD();
+  } else if(confirm('مسح كل السجل نهائياً؟')) doD();
+}
+
+// ── export the full gradebook to Excel ───────────────────────────────
+function cycExportExcel(){
+  if(!cycleStore.length){ toast('لا توجد بيانات للتصدير'); return; }
+  if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
+  var hnames=cycHospitalNames();
+  var top=['اسم الطالب','المجموعة','نوع الدراسة'];
+  var sub=['','',''];
+  for(var h=0;h<CYC_HOSPITALS;h++){ top.push(hnames[h]||('مستشفى '+(h+1))); for(var k=0;k<3;k++) top.push(''); for(var d=1;d<=CYC_DAYS;d++) sub.push('ي'+d); }
+  top.push('المجموع'); sub.push('');
+  var rows=[top,sub];
+  cycleStore.slice().sort(function(a,b){ return (parseInt(a.group)||999)-(parseInt(b.group)||999); }).forEach(function(s){
+    var row=[s.name,s.group||'',s.type||''], tot=0, any=false;
+    s.hospitals.forEach(function(h){ h.days.forEach(function(g){ var n=parseFloat(g); if(!isNaN(n)){tot+=n;any=true;} row.push(g||''); }); });
+    row.push(any?Math.round(tot*100)/100:'');
+    rows.push(row);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:24},{wch:9},{wch:11}].concat(Array(CYC_HOSPITALS*CYC_DAYS).fill({wch:6})).concat([{wch:9}]);
+  var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'سجل الدرجات');
+  XLSX.writeFile(wb,'سجل_درجات_الطلاب.xlsx');
+  toast('تم تصدير السجل ✓','success');
 }
 
 // ── guided tour (Driver.js) ──────────────────────────────────────────
