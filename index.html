@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <!-- Firebase loads dynamically in JS only when online mode is chosen -->
 <style>
-:root{--bg:#f5f6fa;--surface:#fff;--border:#e2e6ea;--primary:#1a5276;--pl:#2980b9;--accent:#16a085;--danger:#c0392b;--warn:#e67e22;--success:#27ae60;--text:#2c3e50;--muted:#7f8c8d;--r:10px}
+:root{--bg:#f1f6f7;--surface:#fff;--border:#dde8e8;--primary:#0E7C86;--pdark:#0A6068;--pl:#1D9E8C;--accent:#16a085;--danger:#c0392b;--warn:#e67e22;--success:#27ae60;--text:#1f3a3a;--muted:#6b8585;--r:10px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;direction:rtl}
 
@@ -65,6 +65,49 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .tab-btn:not(.active):hover{background:var(--bg);color:var(--text)}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
+
+/* ── STYLE-10 TWO-LEVEL DESKTOP NAV ───────────────────────────── */
+.navwrap{margin-bottom:16px;border-radius:var(--r);overflow:hidden;box-shadow:0 1px 3px rgba(15,110,134,.08)}
+.nav-groups{display:flex;gap:2px;background:var(--primary);padding:0 6px}
+.navgrp{border:none;background:transparent;color:#bfe5df;font-size:14px;font-weight:600;padding:12px 18px;cursor:pointer;transition:color .25s}
+.navgrp.active{color:#fff;background:var(--pdark);border-radius:8px 8px 0 0;margin-top:5px;font-weight:700}
+.nav-subs{position:relative;display:flex;gap:6px;background:var(--pdark);padding:8px 12px;flex-wrap:wrap}
+.subpill{position:absolute;top:8px;height:32px;background:#fff;border-radius:7px;z-index:0;transition:right .42s cubic-bezier(.22,1,.36,1),width .42s cubic-bezier(.22,1,.36,1)}
+.navsub{position:relative;z-index:1;border:none;background:transparent;color:#fff;font-size:13px;padding:7px 14px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:color .3s}
+.navsub.active{color:var(--pdark);font-weight:700}
+
+/* ── GENIE TRANSITION (content unfurls from lower-left corner) ─── */
+.tab-panel{transform-origin:0% 100%}
+.tab-panel.genie{animation:genieUnfurl .82s cubic-bezier(.34,1.15,.32,1)}
+@keyframes genieUnfurl{
+  0%{opacity:0;transform:scale(.03,.06) skewX(30deg);clip-path:polygon(0% 100%,9% 100%,2% 0%,0% 0%);border-bottom-left-radius:34px}
+  18%{opacity:.85;transform:scale(.12,.46) skewX(24deg);clip-path:polygon(0% 100%,28% 100%,11% 0%,0% 0%)}
+  44%{opacity:1;transform:scale(.48,.88) skewX(14deg);clip-path:polygon(0% 100%,64% 100%,36% 0%,0% 0%)}
+  70%{transform:scale(.85,1.02) skewX(6deg);clip-path:polygon(0% 100%,94% 100%,80% 0%,0% 0%);border-bottom-left-radius:8px}
+  86%{transform:scale(1.02,.99) skewX(2deg);clip-path:polygon(0% 100%,100% 100%,100% 0%,0% 0%)}
+  100%{opacity:1;transform:scale(1,1) skewX(0deg);clip-path:polygon(0% 100%,100% 100%,100% 0%,0% 0%);border-bottom-left-radius:0}
+}
+@media (prefers-reduced-motion: reduce){ .tab-panel.genie{animation:genieFade .2s ease} @keyframes genieFade{from{opacity:0}to{opacity:1}} }
+
+/* ── MOBILE BOTTOM BAR (Nav 6) ────────────────────────────────── */
+.bottombar{display:none}
+.more-overlay{display:none}
+@media (max-width:700px){
+  .navwrap{display:none}
+  .bottombar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:60;background:var(--surface);border-top:1px solid var(--border);padding:6px 4px env(safe-area-inset-bottom,6px);justify-content:space-around;box-shadow:0 -2px 12px rgba(0,0,0,.06)}
+  .bb-item{flex:1;border:none;background:transparent;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted);font-size:10px;cursor:pointer;padding:4px 0;transition:color .25s}
+  .bb-item .bb-ic{font-size:20px;font-style:normal;transition:transform .3s cubic-bezier(.34,1.56,.64,1);display:block}
+  .bb-item.active{color:var(--primary)}
+  .bb-item.active .bb-ic{transform:translateY(-3px)}
+  .main{padding-bottom:72px}
+  .more-overlay.open{display:flex;position:fixed;inset:0;z-index:70;background:rgba(15,40,40,.45);align-items:flex-end}
+  .more-sheet{background:var(--surface);width:100%;border-radius:18px 18px 0 0;padding:10px 16px 24px;animation:sheetUp .3s cubic-bezier(.22,1,.36,1)}
+  @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .more-grab{width:40px;height:4px;border-radius:2px;background:var(--border);margin:6px auto 14px}
+  .more-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .more-cell{border:1px solid var(--border);border-radius:12px;padding:14px 8px;text-align:center;font-size:12px;color:var(--text);cursor:pointer;background:var(--surface)}
+  .more-cell .mc-ic{font-size:22px;display:block;margin-bottom:5px}
+}
 
 /* BUTTONS */
 .btn{cursor:pointer;border:none;border-radius:var(--r);padding:7px 12px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
@@ -548,16 +591,37 @@ window.addEventListener('load', function() {
 
   <div class="app-body" id="appBody">
     <div class="main">
-      <div class="tab-nav">
-        <button class="tab-btn active" id="tba" onclick="showTab('att')">👥 الحضور والتقييم</button>
-        <button class="tab-btn" id="tbrot" onclick="showTab('rot')">🔄 الدورة</button>
-        <button class="tab-btn" id="tbp" onclick="showTab('paper')">📄 الورقة اليومية</button>
-        <button class="tab-btn" id="tbr" onclick="showTab('roster')">🏥 جدول المجموعات</button>
-        <button class="tab-btn" id="tbh" onclick="showTab('hist')">📅 السجل التاريخي</button>
-        <button class="tab-btn" id="tbdb" onclick="showTab('db')">🗄️ قاعدة البيانات</button>
-        <button class="tab-btn" id="tbtm" onclick="showTab('teach')">📚 المواد التعليمية</button>
-        <button class="tab-btn" id="tbal" onclick="showTab('audit')">📋 سجل التغييرات</button>
-        <button class="tab-btn" id="tbpg" onclick="showTab('prog')">📈 متابعة الطلاب</button>
+      <div class="navwrap" id="navWrap">
+        <div class="nav-groups" id="navGroups">
+          <button class="navgrp active" data-g="daily" onclick="selectGroup('daily')">العمل اليومي</button>
+          <button class="navgrp" data-g="records" onclick="selectGroup('records')">السجلات</button>
+          <button class="navgrp" data-g="admin" onclick="selectGroup('admin')">الإدارة</button>
+        </div>
+        <div class="nav-subs" id="navSubs"></div>
+      </div>
+      <div class="bottombar" id="bottomBar">
+        <button class="bb-item active" data-t="att" onclick="showTab('att')"><i class="bb-ic">👥</i><span>الحضور</span></button>
+        <button class="bb-item" data-t="rot" onclick="showTab('rot')"><i class="bb-ic">🔄</i><span>الدورة</span></button>
+        <button class="bb-item" data-t="hist" onclick="showTab('hist')"><i class="bb-ic">📅</i><span>السجل</span></button>
+        <button class="bb-item" data-t="prog" onclick="showTab('prog')"><i class="bb-ic">📈</i><span>المتابعة</span></button>
+        <button class="bb-item" data-t="__more" onclick="openMoreSheet()"><i class="bb-ic">⋯</i><span>المزيد</span></button>
+      </div>
+      <div class="more-overlay" id="moreOverlay" onclick="if(event.target===this)closeMoreSheet()">
+        <div class="more-sheet" id="moreSheet">
+          <div class="more-grab"></div>
+          <div class="more-grid" id="moreGrid"></div>
+        </div>
+      </div>
+      <div style="display:none">
+        <button id="tba" onclick="showTab('att')"></button>
+        <button id="tbrot" onclick="showTab('rot')"></button>
+        <button id="tbp" onclick="showTab('paper')"></button>
+        <button id="tbr" onclick="showTab('roster')"></button>
+        <button id="tbh" onclick="showTab('hist')"></button>
+        <button id="tbdb" onclick="showTab('db')"></button>
+        <button id="tbtm" onclick="showTab('teach')"></button>
+        <button id="tbal" onclick="showTab('audit')"></button>
+        <button id="tbpg" onclick="showTab('prog')"></button>
       </div>
 
       <!-- TAB: ATTENDANCE -->
@@ -921,18 +985,6 @@ window.addEventListener('load', function() {
   </div>
 </div>
 
-<!-- ROTATION CYCLE IMPORT MODAL -->
-<div class="overlay" id="rotImportM">
-  <div class="modal" style="max-width:520px">
-    <div class="mhdr" style="background:#0f6e56"><h2>🔄 بدء دورة جديدة — استيراد مجموعة</h2><button class="mcl" onclick="rotCloseImport()">✕</button></div>
-    <div class="mbody" id="rotImportBody" style="max-height:60vh;overflow-y:auto"></div>
-    <div class="mftr">
-      <button class="btn bo" onclick="rotCloseImport()">إلغاء</button>
-      <button class="btn bp" id="rotImportApply" onclick="rotApplyImport()" style="display:none;background:#0f6e56">✅ بدء الدورة بهذه المجموعة</button>
-    </div>
-  </div>
-</div>
-
 <!-- CALENDAR MODAL -->
 <div class="overlay" id="calM">
   <div class="cal-modal">
@@ -1073,10 +1125,6 @@ var studentsEvening = [];
 var history  = {};   // keyed by "YYYY-MM-DD_morning" or "YYYY-MM-DD_evening"
 var roster   = [];
 var studentDb = [];  // master DB — isolated from daily workflow
-var rotCycles = { active: null, archive: {} };  // ★ rotation cycle system
-var rotImportSel = null;
-var rotImportSource = 'roster';
-var rotImportCombined = {};
 var curDate  = today();
 var curGroup = 'morning';  // 'morning' | 'evening'
 var curSt    = null;
@@ -1311,356 +1359,74 @@ function buildRotationGroups(){
   return groups;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// ★ ROTATION CYCLE SYSTEM (cycle-based)
-//   Import a group → it becomes the ACTIVE cycle. Every day's attendance,
-//   marks, assessments and daily notes keep saving through the normal
-//   saveDay() pipeline (never lost), day after day. "إنهاء الدورة" seals the
-//   whole cycle into the archive, then a fresh cycle can start.
-//   The existing per-day tagging/lock functions (rotationOf, closeDay,
-//   reopenDay, openDayDetail) are reused unchanged so history & progress
-//   tabs are unaffected.
-// ═══════════════════════════════════════════════════════════════════════
-
-function rotSaveCycles(){
-  if (!currentUser) return;
-  try{ localStorage.setItem('hsp_rc_'+currentUser.uid, JSON.stringify(rotCycles)); }catch(e){}
-  if (isOfflineMode || !db || !currentUser) { cacheLocally(); return; }
-  guardedSet('rotCycles', rotCycles);
-}
-
-// History session keys whose date falls in this cycle's [startDate, endDate].
-function rotCollectHistory(cycle){
-  var out = {};
-  if(!cycle) return out;
-  var from = cycle.startDate || '0000-00-00';
-  var to   = cycle.endDate   || '9999-99-99';
-  Object.keys(history).forEach(function(k){
-    var m = k.match(/^(\d{4}-\d{2}-\d{2})_(morning|evening)$/);
-    if(!m) return;
-    if(m[1] >= from && m[1] <= to){
-      var rec = history[k];
-      if(rec && Object.keys(rec).length) out[k] = rec;
-    }
-  });
-  return out;
-}
-
-function rotCycleStats(cycle, histObj){
-  var h = histObj || rotCollectHistory(cycle);
-  var days={}, evals=0, present=0;
-  Object.keys(h).forEach(function(k){
-    days[k.split('_')[0]]=1;
-    var rec=h[k];
-    Object.keys(rec).forEach(function(ix){
-      if(/^\d+$/.test(ix)){
-        if(rec[ix] && rec[ix].evaluated) evals++;
-        if(rec[ix] && rec[ix].attendance==='present') present++;
-      }
-    });
-  });
-  var students = (cycle && cycle.students ? ((cycle.students.morning||[]).length + (cycle.students.evening||[]).length) : 0);
-  return {days:Object.keys(days).length, evals:evals, present:present, students:students};
-}
-
 function renderRotationTab(){
   var cont = document.getElementById('rotTabContent');
   if(!cont) return;
+  var cur = getRotation();
   var html = '';
 
-  html += '<div style="background:linear-gradient(135deg,#0f6e56,#16a085);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:16px">'
-        + '<div style="font-size:17px;font-weight:700;margin-bottom:4px">🔄 نظام الدورات</div>'
-        + '<div style="font-size:13px;opacity:.92;line-height:1.7">استورد مجموعة لبدء دورة جديدة. تُحفظ كل بيانات الحضور والدرجات والتقييمات وملاحظات اليوم تلقائياً يوماً بعد يوم — وعند انتهاء الدورة تُؤرشف الدورة كاملةً ثم تبدأ دورة جديدة.</div></div>';
-
-  // ── ACTIVE CYCLE ──
-  if(rotCycles.active){
-    var c = rotCycles.active;
-    var hist = rotCollectHistory(c);
-    var st = rotCycleStats(c, hist);
-    var srcLbl = c.source==='db' ? 'قاعدة البيانات' : 'جدول المجموعات';
-
-    html += '<div style="background:linear-gradient(135deg,#1a5276,#2980b9);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:16px">';
-    html += '<div style="font-size:15px;font-weight:700;margin-bottom:8px">🟢 الدورة النشطة الحالية</div>';
-    html += '<div style="font-size:15px;font-weight:600;margin-bottom:6px">'+(c.title||('مجموعة '+(c.group||'—')))+'</div>';
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">';
-    html += '<div style="background:rgba(255,255,255,.12);border-radius:8px;padding:8px 11px"><div style="font-size:11px;opacity:.8">🏥 المستشفى</div><div style="font-size:14px;font-weight:700;margin-top:2px">'+(c.hospital||'—')+'</div></div>';
-    html += '<div style="background:rgba(255,255,255,.12);border-radius:8px;padding:8px 11px"><div style="font-size:11px;opacity:.8">👥 المجموعة</div><div style="font-size:14px;font-weight:700;margin-top:2px">'+(c.group||'—')+'</div></div>';
-    html += '<div style="background:rgba(255,255,255,.12);border-radius:8px;padding:8px 11px"><div style="font-size:11px;opacity:.8">📅 بدأت في</div><div style="font-size:14px;font-weight:700;margin-top:2px">'+(c.startDate||'—')+'</div></div>';
-    html += '<div style="background:rgba(255,255,255,.12);border-radius:8px;padding:8px 11px"><div style="font-size:11px;opacity:.8">📂 المصدر</div><div style="font-size:13px;font-weight:700;margin-top:2px">'+srcLbl+'</div></div>';
-    html += '</div></div>';
-
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-bottom:14px">';
-    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px;text-align:center"><div style="font-size:22px;font-weight:700;color:var(--primary)">'+st.students+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">إجمالي الطلاب</div></div>';
-    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px;text-align:center"><div style="font-size:22px;font-weight:700;color:var(--primary)">'+st.days+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">أيام مسجّلة</div></div>';
-    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px;text-align:center"><div style="font-size:22px;font-weight:700;color:var(--primary)">'+st.evals+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">تقييمات محفوظة</div></div>';
-    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px;text-align:center"><div style="font-size:22px;font-weight:700;color:var(--primary)">'+st.present+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">حضور مسجّل</div></div>';
-    html += '</div>';
-
-    // Per-day cards (reuse existing buildRotationGroups → closeDay/reopenDay/openDayDetail)
-    var groups = buildRotationGroups();
-    var hkeys = Object.keys(groups).sort();
-    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">';
-    html += '<div style="background:#f8fafc;border-bottom:1px solid var(--border);padding:12px 16px;font-size:14px;font-weight:700;color:var(--primary)">📆 الأيام المسجّلة في هذه الدورة</div><div style="padding:14px 16px">';
-    if(!hkeys.length){
-      html += '<div style="color:var(--muted);font-size:13px">لم تُسجَّل أي بيانات بعد. اذهب إلى تبويب «الحضور والتقييم» وابدأ بتسجيل اليوم — كل شيء يُحفظ تلقائياً في هذه الدورة.</div>';
-    } else {
-      hkeys.forEach(function(hk){
-        var g = groups[hk];
-        html += '<div style="margin-bottom:14px">';
-        html += '<div style="font-size:14px;font-weight:700;color:#0f6e56;margin-bottom:8px">🏥 '+g.hospital+(g.block?' <span style="font-size:12px;color:var(--muted);font-weight:400">— فترة '+g.block+'</span>':'')+'</div>';
-        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">';
-        g.days.forEach(function(d){
-          var allLocked = d.evaluated>0 && d.locked>=d.evaluated;
-          var statusCol = d.closed||allLocked ? 'var(--success)' : '#b7770d';
-          var statusTxt = d.closed||allLocked ? '🔒 مغلق' : '🟡 مفتوح';
-          var avgTxt = d.avg!==null ? d.avg.toFixed(2)+'/15' : '—';
-          html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
-          html += '<div style="background:#f8fafc;padding:9px 11px;border-bottom:1px solid var(--border)">';
-          html += '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:14px;font-weight:700;color:var(--primary)">'+(d.dayNo?('اليوم '+d.dayNo):d.date)+'</span><span style="font-size:11px;font-weight:700;color:'+statusCol+'">'+statusTxt+'</span></div>';
-          html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+d.date+' • '+d.group+(d.unit?(' • '+d.unit):'')+'</div></div>';
-          html += '<div style="padding:9px 11px;font-size:12px;color:var(--text);display:flex;flex-wrap:wrap;gap:8px">';
-          html += '<span style="color:#1e8449">✓ '+d.present+'</span><span style="color:#c0392b">✗ '+d.absent+'</span><span style="color:var(--pl)">📝 '+d.evaluated+'</span><span style="margin-right:auto;font-weight:700">معدل '+avgTxt+'</span></div>';
-          html += '<div style="padding:0 11px 11px;display:flex;gap:6px;flex-wrap:wrap">';
-          html += '<button class="btn bo" style="font-size:11px;padding:5px 9px;flex:1" onclick="openDayDetail(\''+d.key+'\')">👁️ عرض</button>';
-          if(d.closed||allLocked){ html += '<button class="btn bo" style="font-size:11px;padding:5px 9px" onclick="reopenDay(\''+d.key+'\')">🔓 فتح</button>'; }
-          else { html += '<button class="btn" style="background:#117a65;color:#fff;font-size:11px;padding:5px 9px;flex:1" onclick="closeDay(\''+d.key+'\')">🔒 إغلاق اليوم</button>'; }
-          html += '</div></div>';
-        });
-        html += '</div></div>';
-      });
-    }
-    html += '</div></div>';
-
-    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
-    html += '<button class="btn bp" onclick="showTab(\'att\')">👥 الذهاب إلى الحضور والتقييم</button>';
-    html += '<button class="btn ba" onclick="rotExportActive()">📥 تصدير الدورة (Excel)</button>';
-    html += '<button class="btn bred" style="margin-right:auto" onclick="rotEndCycle()">🏁 إنهاء الدورة وأرشفتها</button>';
-    html += '</div>';
-
-  } else {
-    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:30px 16px;text-align:center;margin-bottom:16px">';
-    html += '<div style="font-size:48px;margin-bottom:10px">🔄</div>';
-    html += '<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">لا توجد دورة نشطة</div>';
-    html += '<div style="font-size:13px;color:var(--muted);margin-bottom:16px">ابدأ دورة جديدة باستيراد مجموعة من جدول المجموعات أو قاعدة البيانات</div>';
-    html += '<button class="btn bp" onclick="rotOpenImport()">➕ بدء دورة جديدة — استيراد مجموعة</button>';
-    html += '</div>';
-  }
-
-  // ── ARCHIVE ──
-  var archKeys = Object.keys(rotCycles.archive||{}).sort(function(a,b){
-    return (rotCycles.archive[b].endedAt||0) - (rotCycles.archive[a].endedAt||0);
-  });
-  html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">';
-  html += '<div style="background:#f8fafc;border-bottom:1px solid var(--border);padding:12px 16px;font-size:14px;font-weight:700;color:var(--primary);display:flex;justify-content:space-between;align-items:center"><span>🗂️ الدورات المؤرشفة</span><span style="font-size:12px;color:var(--muted);font-weight:400">'+archKeys.length+' دورة</span></div><div style="padding:14px 16px">';
-  if(!archKeys.length){
-    html += '<div style="color:var(--muted);font-size:13px;text-align:center;padding:8px">لا توجد دورات مؤرشفة بعد.</div>';
-  } else {
-    archKeys.forEach(function(id){
-      var a = rotCycles.archive[id];
-      var dCount = a.history ? Object.keys(a.history).reduce(function(acc,k){ acc[k.split('_')[0]]=1; return acc; },{}) : {};
-      var nDays = Object.keys(dCount).length;
-      var nStu = (a.students&&a.students.morning?a.students.morning.length:0)+(a.students&&a.students.evening?a.students.evening.length:0);
-      html += '<div style="border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:10px">';
-      html += '<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:5px">🏁 '+(a.title||('مجموعة '+(a.group||'—')))+'</div>';
-      html += '<div style="font-size:12px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px"><span>🏥 '+(a.hospital||'—')+'</span><span>📅 '+(a.startDate||'؟')+' ← '+(a.endDate||'؟')+'</span><span>👥 '+nStu+' طالب</span><span>📆 '+nDays+' يوم</span></div>';
-      html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
-      html += '<button class="btn ba" onclick="rotExportArchive(\''+id+'\')">📥 تصدير Excel</button>';
-      html += '<button class="btn bo" onclick="rotDeleteArchive(\''+id+'\')">🗑 حذف</button>';
-      html += '</div></div>';
-    });
-  }
-  html += '</div></div>';
-
-  cont.innerHTML = html;
-}
-
-// ── IMPORT MODAL ─────────────────────────────────────────────────────
-function rotOpenImport(){
-  rotImportSel = null; rotImportSource = 'roster';
-  var ap = document.getElementById('rotImportApply'); if(ap) ap.style.display='none';
-  rotRenderImportBody();
-  document.getElementById('rotImportM').classList.add('open');
-}
-function rotCloseImport(){ document.getElementById('rotImportM').classList.remove('open'); rotImportSel=null; }
-function rotSetSource(src){
-  rotImportSource = src; rotImportSel = null;
-  var ap = document.getElementById('rotImportApply'); if(ap) ap.style.display='none';
-  rotRenderImportBody();
-}
-function rotGroupsFromSource(){
-  var data = rotImportSource==='db' ? studentDb : roster;
-  var groups = {};
-  for(var i=0;i<(data||[]).length;i++){
-    var r = data[i]; var name = r.name; if(!name) continue;
-    var type = (r.type||'').trim();
-    var key = (r.hospital||'?')+'|'+(r.group||'?')+'|'+(type||'?');
-    if(!groups[key]) groups[key] = { hospital:r.hospital||'', group:r.group||'', type:type, startDate:(r.startDate||r.date||''), students:[] };
-    groups[key].students.push({name:name, type:type});
-  }
-  return groups;
-}
-function rotRenderImportBody(){
-  var html = '';
-  html += '<div style="display:flex;gap:0;background:var(--bg);border-radius:8px;overflow:hidden;margin-bottom:14px;border:1px solid var(--border)">';
-  html += '<button class="btn" style="flex:1;border-radius:0;'+(rotImportSource==='roster'?'background:var(--primary);color:#fff':'background:transparent;color:var(--muted)')+'" onclick="rotSetSource(\'roster\')">🏥 جدول المجموعات</button>';
-  html += '<button class="btn" style="flex:1;border-radius:0;'+(rotImportSource==='db'?'background:var(--primary);color:#fff':'background:transparent;color:var(--muted)')+'" onclick="rotSetSource(\'db\')">🗄️ قاعدة البيانات</button>';
+  // --- Setup panel: today's rotation ---
+  html += '<div style="background:linear-gradient(135deg,#0f6e56,#16a085);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:18px">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">';
+  html += '<div><div style="font-size:15px;font-weight:700">🔄 إعداد دورة اليوم</div>';
+  var setup=[];
+  if(cur.hospital) setup.push('🏥 '+cur.hospital);
+  if(cur.dayNo)    setup.push('📅 اليوم '+cur.dayNo+'/4');
+  if(cur.unit)     setup.push('🩺 '+cur.unit);
+  html += '<div style="font-size:13px;opacity:.95;margin-top:4px">'+(setup.length?setup.join('  •  '):'لم تُحدَّد دورة لليوم الحالي بعد')+'</div></div>';
+  html += '<button class="btn" style="background:rgba(255,255,255,.22);color:#fff" onclick="openRotModal()">✏️ تحديد المستشفى واليوم</button>';
+  html += '</div>';
+  html += '<div style="font-size:12px;opacity:.85;margin-top:8px">المجموعة الحالية: '+(curGroup==='morning'?'صباحية':'مسائية')+' — انتقل لتبويب الحضور لإجراء التقييم، ثم أغلق اليوم من هنا.</div>';
   html += '</div>';
 
-  var groups = rotGroupsFromSource();
-  var keys = Object.keys(groups);
-  if(!keys.length){
-    html += '<div style="text-align:center;padding:24px;color:var(--muted)">لا توجد مجموعات في هذا المصدر.<br>'+
-            (rotImportSource==='db'?'ارفع ملف Excel في تبويب «قاعدة البيانات».':'ارفع ملف Excel في تبويب «جدول المجموعات».')+'</div>';
-    rotImportCombined = {};
-  } else {
-    html += '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">اختر المجموعة التي تريد بدء الدورة بها. سيُحافَظ على تقسيم صباحي/مسائي داخل الدورة.</div>';
-    var combined = {};
-    keys.forEach(function(k){
-      var g = groups[k];
-      var ck = (g.hospital||'?')+'|'+(g.group||'?');
-      if(!combined[ck]) combined[ck] = { hospital:g.hospital, group:g.group, startDate:g.startDate, morning:[], evening:[] };
-      if(g.type==='مسائي') combined[ck].evening = combined[ck].evening.concat(g.students);
-      else combined[ck].morning = combined[ck].morning.concat(g.students);
-      if(!combined[ck].startDate && g.startDate) combined[ck].startDate = g.startDate;
-    });
-    var ckeys = Object.keys(combined).sort(function(a,b){
-      var ga=combined[a], gb=combined[b];
-      if(ga.hospital!==gb.hospital) return (ga.hospital||'').localeCompare(gb.hospital||'','ar');
-      return (parseInt(ga.group)||0)-(parseInt(gb.group)||0);
-    });
-    ckeys.forEach(function(ck){
-      var g = combined[ck], total = g.morning.length+g.evening.length;
-      html += '<div class="grp-item" data-ck="'+encodeURIComponent(ck)+'" onclick="rotSelectImport(this)">';
-      html += '<div class="grp-item-title">👥 مجموعة '+(g.group||'—');
-      if(g.morning.length) html += '<span style="background:#d6eaf8;color:#1a5276;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">صباحي '+g.morning.length+'</span>';
-      if(g.evening.length) html += '<span style="background:#e8daef;color:#6c3483;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">مسائي '+g.evening.length+'</span>';
-      html += '</div><div class="grp-item-meta"><span>🏥 '+(g.hospital||'غير محدد')+'</span><span>👥 '+total+' طالب</span>'+(g.startDate?'<span>📅 '+g.startDate+'</span>':'')+'</div></div>';
-    });
-    rotImportCombined = combined;
+  // --- Review: hospitals -> days ---
+  var groups = buildRotationGroups();
+  var hkeys = Object.keys(groups).sort();
+  if(!hkeys.length){
+    html += '<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">🔄</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد أيام محفوظة بعد</div><div style="font-size:13px;color:var(--muted)">ستظهر هنا أيام كل مستشفى بمجرد تسجيل الحضور أو التقييم</div></div>';
+    cont.innerHTML = html;
+    return;
   }
-  document.getElementById('rotImportBody').innerHTML = html;
-}
-function rotSelectImport(el){
-  var b = document.getElementById('rotImportBody');
-  b.querySelectorAll('.grp-item').forEach(function(x){ x.classList.remove('selected'); });
-  el.classList.add('selected');
-  rotImportSel = decodeURIComponent(el.getAttribute('data-ck'));
-  document.getElementById('rotImportApply').style.display = '';
-}
-function rotApplyImport(){
-  if(!rotImportSel) return;
-  if(rotCycles.active){ toast('توجد دورة نشطة. أنهِ الدورة الحالية أولاً.'); return; }
-  var g = rotImportCombined[rotImportSel];
-  if(!g){ toast('تعذّر العثور على المجموعة'); return; }
-  var cycle = {
-    id: 'cycle_'+Date.now(),
-    title: 'مجموعة '+(g.group||'—')+' — '+(g.hospital||''),
-    hospital: g.hospital||'', group: g.group||'', source: rotImportSource,
-    startDate: today(), origStartDate: g.startDate||'', endDate: '',
-    startedAt: Date.now(), startedBy: currentUser?(currentUser.displayName||currentUser.email||''):'',
-    students: {
-      morning: g.morning.map(function(s){ return {name:s.name}; }),
-      evening: g.evening.map(function(s){ return {name:s.name}; })
-    }
-  };
-  rotCycles.active = cycle;
-  rotSaveCycles();
-  studentsMorning = cycle.students.morning.slice();
-  studentsEvening = cycle.students.evening.slice();
-  curGroup = studentsMorning.length ? 'morning' : (studentsEvening.length ? 'evening' : 'morning');
-  if(typeof saveStudents==='function') saveStudents();
-  if(typeof switchGroup==='function') switchGroup(curGroup);
-  rotCloseImport();
-  renderRotationTab();
-  toast('✅ بدأت الدورة: '+cycle.title+' ('+(cycle.students.morning.length+cycle.students.evening.length)+' طالب)');
-  showTab('att');
-}
 
-// ── END / ARCHIVE ────────────────────────────────────────────────────
-function rotEndCycle(){
-  var c = rotCycles.active;
-  if(!c){ toast('لا توجد دورة نشطة'); return; }
-  var st = rotCycleStats(c);
-  if(!confirm('إنهاء وأرشفة الدورة «'+(c.title||'')+'»؟\n\nسيتم حفظ كامل بيانات الدورة ('+st.days+' يوم، '+st.evals+' تقييم) في الأرشيف نهائياً، ثم تُفرَّغ الدورة الحالية لبدء دورة جديدة.\n\nالبيانات اليومية تبقى محفوظة في السجل التاريخي أيضاً.')) return;
-  c.endDate = today(); c.endedAt = Date.now();
-  c.endedBy = currentUser?(currentUser.displayName||currentUser.email||''):'';
-  c.history = rotCollectHistory(c);
-  c.settings = {
-    hospitalName: document.getElementById('hName').value||'',
-    hospitalNo:   document.getElementById('hNo').value||'',
-    supervisorName: document.getElementById('supName').value||''
-  };
-  rotCycles.archive = rotCycles.archive || {};
-  rotCycles.archive[c.id] = c;
-  rotCycles.active = null;
-  rotSaveCycles();
-  studentsMorning = []; studentsEvening = [];
-  if(typeof saveStudents==='function') saveStudents();
-  renderList();
-  renderRotationTab();
-  toast('🏁 تم إنهاء الدورة وأرشفتها بنجاح');
-}
-function rotDeleteArchive(id){
-  var a = rotCycles.archive ? rotCycles.archive[id] : null;
-  if(!a) return;
-  if(!confirm('حذف الدورة المؤرشفة «'+(a.title||id)+'» نهائياً؟ لا يمكن التراجع.')) return;
-  delete rotCycles.archive[id];
-  rotSaveCycles();
-  renderRotationTab();
-  toast('تم حذف الدورة المؤرشفة');
-}
-
-// ── EXPORT ───────────────────────────────────────────────────────────
-function rotBuildCycleExcel(cycle, histObj){
-  var wb = XLSX.utils.book_new();
-  var allNames = [];
-  (cycle.students&&cycle.students.morning||[]).forEach(function(s){ allNames.push({name:s.name, shift:'صباحي'}); });
-  (cycle.students&&cycle.students.evening||[]).forEach(function(s){ allNames.push({name:s.name, shift:'مسائي'}); });
-  var dayKeys = Object.keys(histObj).sort();
-  var dates = [];
-  dayKeys.forEach(function(k){ var d=k.split('_')[0]; if(dates.indexOf(d)<0) dates.push(d); });
-  dates.sort();
-  var header = ['اسم الطالب','المجموعة'].concat(dates).concat(['المجموع','المعدل']);
-  var rows = [
-    ['الدورة: '+(cycle.title||'')],
-    ['المستشفى: '+(cycle.hospital||''), 'المشرف: '+((cycle.settings&&cycle.settings.supervisorName)||'')],
-    ['من: '+(cycle.startDate||''), 'إلى: '+(cycle.endDate||'')],
-    [], header
-  ];
-  allNames.forEach(function(stu){
-    var row=[stu.name, stu.shift], sum=0, cnt=0;
-    dates.forEach(function(d){
-      var k = d+'_'+(stu.shift==='مسائي'?'evening':'morning');
-      var rec = histObj[k], val='';
-      if(rec){
-        var idxList = rec.__names__ || [];
-        var ix = idxList.indexOf(stu.name);
-        if(ix>=0 && rec[ix] && rec[ix].total!==undefined){ val=rec[ix].total; sum+=Number(val); cnt++; }
+  html += '<div style="font-size:14px;font-weight:700;color:var(--primary);margin-bottom:10px">📚 الأيام المحفوظة حسب المستشفى</div>';
+  hkeys.forEach(function(hk){
+    var g = groups[hk];
+    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden">';
+    html += '<div style="background:#eef7f4;padding:11px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
+    html += '<div style="font-size:15px;font-weight:700;color:#0f6e56">🏥 '+g.hospital+(g.block?' <span style="font-size:12px;color:var(--muted);font-weight:400">— فترة '+g.block+'</span>':'')+'</div>';
+    html += '<span style="font-size:12px;color:var(--muted)">'+g.days.length+' / 4 أيام</span>';
+    html += '</div>';
+    html += '<div style="padding:12px 15px;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">';
+    g.days.forEach(function(d){
+      var allLocked = d.evaluated>0 && d.locked>=d.evaluated;
+      var statusCol = d.closed||allLocked ? 'var(--success)' : '#b7770d';
+      var statusTxt = d.closed||allLocked ? '🔒 مغلق' : '🟡 مفتوح';
+      var avgTxt = d.avg!==null ? d.avg.toFixed(2)+'/15' : '—';
+      html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
+      html += '<div style="background:#f8fafc;padding:9px 11px;border-bottom:1px solid var(--border)">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:14px;font-weight:700;color:var(--primary)">'+(d.dayNo?('اليوم '+d.dayNo):d.date)+'</span><span style="font-size:11px;font-weight:700;color:'+statusCol+'">'+statusTxt+'</span></div>';
+      html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+d.date+' • '+d.group+(d.unit?(' • '+d.unit):'')+'</div>';
+      html += '</div>';
+      html += '<div style="padding:9px 11px;font-size:12px;color:var(--text);display:flex;flex-wrap:wrap;gap:8px">';
+      html += '<span style="color:#1e8449">✓ '+d.present+'</span>';
+      html += '<span style="color:#c0392b">✗ '+d.absent+'</span>';
+      html += '<span style="color:var(--pl)">📝 '+d.evaluated+'</span>';
+      html += '<span style="margin-right:auto;font-weight:700">معدل '+avgTxt+'</span>';
+      html += '</div>';
+      html += '<div style="padding:0 11px 11px;display:flex;gap:6px;flex-wrap:wrap">';
+      html += '<button class="btn bo" style="font-size:11px;padding:5px 9px;flex:1" onclick="openDayDetail(\''+d.key+'\')">👁️ عرض</button>';
+      if(d.closed||allLocked){
+        html += '<button class="btn bo" style="font-size:11px;padding:5px 9px" onclick="reopenDay(\''+d.key+'\')">🔓 فتح</button>';
+      } else {
+        html += '<button class="btn" style="background:#117a65;color:#fff;font-size:11px;padding:5px 9px;flex:1" onclick="closeDay(\''+d.key+'\')">🔒 إغلاق اليوم</button>';
       }
-      row.push(val===''?'':Number(val).toFixed(2));
+      html += '</div>';
+      html += '</div>';
     });
-    row.push(cnt?sum.toFixed(2):''); row.push(cnt?(sum/cnt).toFixed(2):'');
-    rows.push(row);
+    html += '</div></div>';
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'الدرجات');
-  var noteRows = [['التاريخ','المجموعة','ملاحظات اليوم']];
-  dayKeys.forEach(function(k){
-    var rec = histObj[k];
-    var note = rec && rec['__dayNotes__'] ? rec['__dayNotes__'] : '';
-    if(note) noteRows.push([k.split('_')[0], k.indexOf('_morning')>=0?'صباحي':'مسائي', note]);
-  });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(noteRows), 'ملاحظات الأيام');
-  return wb;
-}
-function rotExportActive(){
-  var c = rotCycles.active; if(!c){ toast('لا توجد دورة نشطة'); return; }
-  XLSX.writeFile(rotBuildCycleExcel(c, rotCollectHistory(c)), 'دورة_'+(c.group||'')+'_'+(c.startDate||today())+'.xlsx');
-  toast('تم تصدير الدورة ✓');
-}
-function rotExportArchive(id){
-  var a = rotCycles.archive ? rotCycles.archive[id] : null; if(!a) return;
-  XLSX.writeFile(rotBuildCycleExcel(a, a.history||{}), 'دورة_'+(a.group||'')+'_'+(a.startDate||'')+'_'+(a.endDate||'')+'.xlsx');
-  toast('تم تصدير الدورة المؤرشفة ✓');
+
+  cont.innerHTML = html;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2032,7 +1798,6 @@ function loadFromCache(uid) {
     history         = c.h   || {};
     roster          = c.r   || [];
     if (c.sdb && c.sdb.length) studentDb = c.sdb;
-    if (c.rc) rotCycles = { active: c.rc.active || null, archive: c.rc.archive || {} };
     if (c.hn) document.getElementById('hName').value   = c.hn;
     if (c.ho) document.getElementById('hNo').value     = c.ho;
     if (c.sn) document.getElementById('supName').value = c.sn;
@@ -2125,18 +1890,6 @@ function startListeners() {
     }
   });
   dbListeners.push({ ref: sdbRef, event: 'value' });
-
-  // ★ Rotation cycle system — synced to the Google account
-  var rcRef = dbRef('rotCycles');
-  rcRef.on('value', function(snap) {
-    if (!isStillMe()) return;
-    var val = snap.val();
-    rotCycles = val ? { active: val.active || null, archive: val.archive || {} } : { active: null, archive: {} };
-    try{ localStorage.setItem('hsp_rc_'+myUid, JSON.stringify(rotCycles)); }catch(e){}
-    var prot = document.getElementById('prot');
-    if (prot && prot.classList.contains('active')) renderRotationTab();
-  });
-  dbListeners.push({ ref: rcRef, event: 'value' });
 
   var rRef = dbRef('roster');
   rRef.on('value', function(snap) {
@@ -2277,7 +2030,6 @@ function cacheLocally() {
       se: studentsEvening,
       h: history, r: roster,
       sdb: studentDb,
-      rc: rotCycles,
       hn: document.getElementById('hName').value,
       ho: document.getElementById('hNo').value,
       sn: document.getElementById('supName').value
@@ -2322,15 +2074,16 @@ var FIELDS=[
 // TABS
 // ═══════════════════════════════════════════
 function showTab(n){
-  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
+  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');p.classList.remove('genie')});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
   var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',rot:'prot'};
   var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',rot:'tbrot'};
   var panel=document.getElementById(panels[n]);
   panel.classList.add('active');
-  // restart the entrance animation so every switch feels alive
-  panel.style.animation='none'; void panel.offsetWidth; panel.style.animation='';
-  document.getElementById(btns[n]).classList.add('active');
+  // ★ genie unfurl from lower-left corner on every switch
+  panel.classList.remove('genie'); void panel.offsetWidth; panel.classList.add('genie');
+  var hidden=document.getElementById(btns[n]); if(hidden) hidden.classList.add('active');
+  syncNav(n);
   // Attendance tab always shows TODAY — never shows historical data
   if(n==='att'){ curDate=today(); renderList(); }
   if(n==='paper')  renderPaper();
@@ -2342,6 +2095,55 @@ function showTab(n){
   if(n==='prog')   renderProgress();
   if(n==='rot')    renderRotationTab();
 }
+
+// ── STYLE-10 NAV CONFIG + CONTROLLERS ─────────────────────────────────
+var NAV_GROUPS={
+  daily:   [['att','الحضور والتقييم'],['paper','الورقة اليومية'],['rot','الدورة']],
+  records: [['hist','السجل التاريخي'],['prog','متابعة الطلاب'],['audit','سجل التغييرات']],
+  admin:   [['roster','جدول المجموعات'],['db','قاعدة البيانات'],['teach','المواد التعليمية']]
+};
+var NAV_ICON={att:'👥',paper:'📄',rot:'🔄',hist:'📅',prog:'📈',audit:'📋',roster:'🏥',db:'🗄️',teach:'📚'};
+function groupOf(tab){ for(var g in NAV_GROUPS){ if(NAV_GROUPS[g].some(function(x){return x[0]===tab;})) return g; } return 'daily'; }
+
+function selectGroup(g){
+  document.querySelectorAll('#navGroups .navgrp').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-g')===g); });
+  var subs=document.getElementById('navSubs');
+  var html='<span class="subpill" id="subPill"></span>';
+  NAV_GROUPS[g].forEach(function(x){ html+='<button class="navsub" data-t="'+x[0]+'" onclick="showTab(\''+x[0]+'\')">'+x[1]+'</button>'; });
+  subs.innerHTML=html;
+}
+function moveSubPill(){
+  var pill=document.getElementById('subPill'); if(!pill) return;
+  var active=document.querySelector('#navSubs .navsub.active'); if(!active){ pill.style.width='0'; return; }
+  var bar=document.getElementById('navSubs');
+  var r=active.getBoundingClientRect(), br=bar.getBoundingClientRect();
+  pill.style.width=r.width+'px';
+  pill.style.right=(r.right-br.right)*-1+'px';
+}
+function syncNav(n){
+  // Desktop two-level: ensure the right group is shown, then mark + glide pill
+  var g=groupOf(n);
+  var curActiveGrp=document.querySelector('#navGroups .navgrp.active');
+  if(!curActiveGrp || curActiveGrp.getAttribute('data-g')!==g || !document.querySelector('#navSubs .navsub[data-t="'+n+'"]')){
+    selectGroup(g);
+  }
+  document.querySelectorAll('#navSubs .navsub').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-t')===n); });
+  setTimeout(moveSubPill,20);
+  // Mobile bottom bar: mark primary item, or "more" if n is a secondary tab
+  var primary=['att','rot','hist','prog'];
+  document.querySelectorAll('#bottomBar .bb-item').forEach(function(b){
+    var t=b.getAttribute('data-t');
+    b.classList.toggle('active', t===n || (t==='__more' && primary.indexOf(n)<0));
+  });
+}
+function openMoreSheet(){
+  var grid=document.getElementById('moreGrid');
+  var more=[['paper','الورقة اليومية'],['roster','جدول المجموعات'],['db','قاعدة البيانات'],['teach','المواد التعليمية'],['audit','سجل التغييرات']];
+  grid.innerHTML=more.map(function(x){ return '<div class="more-cell" onclick="showTab(\''+x[0]+'\');closeMoreSheet()"><span class="mc-ic">'+(NAV_ICON[x[0]]||'•')+'</span>'+x[1]+'</div>'; }).join('');
+  document.getElementById('moreOverlay').classList.add('open');
+}
+function closeMoreSheet(){ document.getElementById('moreOverlay').classList.remove('open'); }
+window.addEventListener('resize', function(){ setTimeout(moveSubPill,30); });
 
 function switchGroup(g){
   curGroup = g;
@@ -3664,7 +3466,6 @@ function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.c
 
 document.getElementById('evalM').addEventListener('click',function(e){if(e.target===this)closeMod();});
 document.getElementById('rotModal').addEventListener('click',function(e){if(e.target===this)closeRotModal();});
-(function(){var m=document.getElementById('rotImportM');if(m)m.addEventListener('click',function(e){if(e.target===this)rotCloseImport();});})();
 document.getElementById('tmModal').addEventListener('click',function(e){if(e.target===this)tmCloseModal();});
 document.getElementById('emailModal').addEventListener('click',function(e){if(e.target===this)closeEmailModal();});
 document.getElementById('grpLoaderM').addEventListener('click',function(e){if(e.target===this)closeGrpLoader();});
@@ -4638,7 +4439,6 @@ function optimisticRestore(sess){
       history = c.h || {};
       roster  = c.r || [];
       if (c.sdb && c.sdb.length) studentDb = c.sdb;
-      if (c.rc) rotCycles = { active: c.rc.active || null, archive: c.rc.archive || {} };
       if (c.hn) document.getElementById('hName').value   = c.hn;
       if (c.ho) document.getElementById('hNo').value     = c.ho;
       if (c.sn) document.getElementById('supName').value = c.sn;
@@ -5349,6 +5149,11 @@ document.addEventListener('keydown', function(e){
 document.addEventListener('DOMContentLoaded', function(){
   var mo = document.getElementById('tmModal');
   if(mo) mo.addEventListener('click', function(e){ if(e.target===this) tmCloseModal(); });
+  // ★ Initialize Style-10 two-level nav: show daily group + mark active tab
+  if(typeof selectGroup==='function'){
+    selectGroup('daily');
+    if(typeof syncNav==='function') syncNav('att');
+  }
 });
 
 
