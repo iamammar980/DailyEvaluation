@@ -730,7 +730,11 @@ window.addEventListener('load', function() {
       <div class="tab-panel" id="ppg">
         <div class="hist-hdr">
           <h2>📈 متابعة تطور الطلاب</h2>
-          <div style="font-size:12px;color:var(--muted)">المتوسط، الحضور، وتطور الدرجات لكل طالب عبر كل الجلسات — مع تنبيه للطلاب المتعثرين</div>
+          <div style="font-size:12px;color:var(--muted)">المتوسط، الحضور، وتطور الدرجات لكل طالب — عرض شامل أو حسب الدورة (٤ أيام)</div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <button id="pgModeAllBtn" class="btn bp" onclick="pgSetMode('all')" style="font-size:13px">📋 كل الجلسات</button>
+          <button id="pgModeCycBtn" class="btn bo" onclick="pgSetMode('cycle')" style="font-size:13px">🎯 حسب الدورة (٤ أيام)</button>
         </div>
         <div id="progContent"></div>
       </div>
@@ -2832,7 +2836,15 @@ function buildStudentProfiles(){
 
 var progSelected = null;
 
+var pgMode='all'; // 'all' | 'cycle'
+function pgSetMode(m){
+  pgMode=m;
+  var bA=document.getElementById('pgModeAllBtn'), bC=document.getElementById('pgModeCycBtn');
+  if(bA&&bC){ bA.className = m==='all'?'btn bp':'btn bo'; bC.className = m==='cycle'?'btn bp':'btn bo'; }
+  renderProgress();
+}
 function renderProgress(){
+  if(pgMode==='cycle'){ renderProgressCycle(); return; }
   var prof = buildStudentProfiles();
   var names = Object.keys(prof).sort(function(a,b){ return a.localeCompare(b,'ar'); });
   var atRisk = names.filter(function(n){ return prof[n].risk.length>0; });
@@ -2894,7 +2906,91 @@ function renderProgress(){
   cont.innerHTML = html;
 }
 
-// Per-student longitudinal detail (trend of the 5 sections over sessions)
+// ── CYCLE-AWARE progress: per student, 4-day trajectory within each cycle ──
+// Reads the 4-day cycle assessment mode sessions: history['cyc_<g>_<type>_d<N>_morning']
+function pgCycleData(){
+  // groups present in the gradebook = the cycles
+  var groups={};
+  (cycleStore||[]).forEach(function(s){
+    var g=String(s.group||''); if(!g) return;
+    if(!groups[g]) groups[g]={group:g,type:s.type||'',names:[]};
+    if(groups[g].names.indexOf(s.name)<0) groups[g].names.push(s.name);
+  });
+  var out=[];
+  Object.keys(groups).sort(function(a,b){return (parseInt(a)||999)-(parseInt(b)||999);}).forEach(function(g){
+    var grp=groups[g];
+    var days=[]; for(var d=1; d<=4; d++){ days.push(history['cyc_'+grp.group+'_'+(grp.type||'')+'_d'+d+'_morning']||{}); }
+    var students=grp.names.map(function(nm,idx){
+      var dayScores=[], present=0, absent=0, missingPaper=0;
+      for(var d=0; d<4; d++){
+        var rec=days[d][idx]||{};
+        if(rec.attendance==='present') present++;
+        if(rec.attendance==='absent') absent++;
+        if(rec.paperDelivered===false) missingPaper++;
+        var t=(rec.total!==undefined && rec.attendance!=='absent')? +(Math.round(rec.total*100)/100) : null;
+        dayScores.push(t);
+      }
+      var vals=dayScores.filter(function(x){return x!=null;});
+      var avg=vals.length? +(vals.reduce(function(a,b){return a+b;},0)/vals.length).toFixed(2) : null;
+      // trend: compare first vs last recorded score
+      var trend='—', trendCol='#888';
+      if(vals.length>=2){
+        var diff=vals[vals.length-1]-vals[0];
+        if(diff>0.5){ trend='▲ تحسّن'; trendCol='#1e8449'; }
+        else if(diff<-0.5){ trend='▼ تراجع'; trendCol='#c0392b'; }
+        else { trend='▬ ثابت'; trendCol='#2980b9'; }
+      }
+      // risk: low avg, declining, or 2+ absences in the cycle
+      var risk=[];
+      if(avg!=null && avg<RISK_AVG) risk.push('متوسط منخفض');
+      if(vals.length>=2 && (vals[vals.length-1]-vals[0])<-1.5) risk.push('تراجع واضح');
+      if(absent>=RISK_ABSENCES) risk.push(absent+' غياب');
+      return {name:nm, days:dayScores, avg:avg, present:present, absent:absent, missingPaper:missingPaper, trend:trend, trendCol:trendCol, risk:risk};
+    });
+    out.push({group:grp.group, type:grp.type, students:students});
+  });
+  return out;
+}
+
+function renderProgressCycle(){
+  var cont=document.getElementById('progContent'); if(!cont) return;
+  var cycles=pgCycleData();
+  var hasAny=cycles.some(function(c){ return c.students.some(function(s){ return s.days.some(function(d){return d!=null;}); }); });
+  if(!cycles.length || !hasAny){
+    cont.innerHTML='<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">🎯</div>'
+      +'<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد بيانات دورات بعد</div>'
+      +'<div style="font-size:13px;color:var(--muted);line-height:1.8">قيّم مجموعة عبر «التقييم اليومي ← دورة ٤ أيام» وستظهر هنا متابعة تطورهم خلال الأيام الأربعة.</div></div>';
+    return;
+  }
+  var q=(document.getElementById('pgCycSearch')&&document.getElementById('pgCycSearch').value||'').toLowerCase();
+  var html='';
+  html+='<input type="text" class="sbox" id="pgCycSearch" placeholder="🔍 ابحث عن طالب..." oninput="renderProgressCycle()" value="'+(document.getElementById('pgCycSearch')?document.getElementById('pgCycSearch').value:'')+'" style="max-width:280px;margin-bottom:12px">';
+
+  cycles.forEach(function(c){
+    var studs=c.students.filter(function(s){ return !q || s.name.toLowerCase().indexOf(q)>=0; });
+    if(!studs.length) return;
+    var atRisk=studs.filter(function(s){return s.risk.length;}).length;
+    html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:6px 0 8px;border-right:4px solid var(--primary);padding-right:8px">دورة '+c.group+' · '+(c.type||'')+' <span style="font-size:12px;font-weight:400;color:var(--muted)">('+studs.length+' طالب'+(atRisk?(' · ⚠️ '+atRisk+' بحاجة متابعة'):'')+')</span></div>';
+    html+='<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:18px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:620px">';
+    html+='<thead><tr style="background:var(--primary);color:#fff">';
+    ['الطالب','يوم ١','يوم ٢','يوم ٣','يوم ٤','المتوسط','التطور','حضور','الحالة'].forEach(function(h){ html+='<th style="padding:9px 8px;font-size:12px;white-space:nowrap">'+h+'</th>'; });
+    html+='</tr></thead><tbody>';
+    studs.forEach(function(s,i){
+      var avgCol=s.avg==null?'#aaa':s.avg>=12?'#1e8449':s.avg>=RISK_AVG?'#2980b9':'#c0392b';
+      html+='<tr style="background:'+(i%2?'#f8fafc':'#fff')+'">';
+      html+='<td style="padding:8px 10px;font-weight:600;text-align:right">'+s.name+(s.risk.length?' <span style="font-size:11px">⚠️</span>':'')+'</td>';
+      for(var d=0; d<4; d++){ var v=s.days[d]; html+='<td style="padding:8px;text-align:center;color:'+(v==null?'#ccc':'#0E7C86')+'">'+(v==null?'—':v)+'</td>'; }
+      html+='<td style="padding:8px;text-align:center;font-weight:700;color:'+avgCol+'">'+(s.avg==null?'—':s.avg)+'</td>';
+      html+='<td style="padding:8px;text-align:center;font-weight:700;color:'+s.trendCol+';white-space:nowrap">'+s.trend+'</td>';
+      html+='<td style="padding:8px;text-align:center;color:var(--muted)">'+s.present+'/4</td>';
+      html+='<td style="padding:8px;text-align:center">'+(s.risk.length?'<span style="color:var(--danger);font-weight:700">'+s.risk.join(' · ')+'</span>':'<span style="color:var(--success)">جيد</span>')+'</td>';
+      html+='</tr>';
+    });
+    html+='</tbody></table></div>';
+  });
+  cont.innerHTML=html;
+}
+
 function openProgressDetail(encName){
   var name = decodeURIComponent(encName);
   var prof = buildStudentProfiles();
