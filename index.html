@@ -4789,6 +4789,17 @@ function statGather(){
     c.dayAvg=dayAvg;
     c.avg = all.length ? +(all.reduce(function(a,b){return a+b;},0)/all.length).toFixed(2) : null;
     c.count = c.students.length;
+    // ★ simple stats: highest/lowest single grade, and pass/fail by student 4-day average
+    c.hi = all.length ? Math.max.apply(null, all) : null;
+    c.lo = all.length ? Math.min.apply(null, all) : null;
+    var pass=0, fail=0, graded=0;
+    c.students.forEach(function(st){
+      var v=st.days.filter(function(x){return x!=null;});
+      if(!v.length) return; graded++;
+      var m=v.reduce(function(a,b){return a+b;},0)/v.length;
+      if(m>=RISK_AVG) pass++; else fail++;
+    });
+    c.pass=pass; c.fail=fail; c.graded=graded;
   });
   // daily-evaluation source (kept for KPIs/attendance)
   var daily = [];
@@ -4839,6 +4850,22 @@ function statRender(){
 
   // ===== ACROSS-CYCLE section =====
   html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:6px 0 10px;border-right:4px solid var(--primary);padding-right:8px">المقارنة عبر الدورات</div>';
+
+  // simple per-cycle stats table
+  html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow-x:auto;margin-bottom:16px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:480px">';
+  html+='<thead><tr style="background:var(--primary);color:#fff"><th style="padding:8px 10px;text-align:right">الدورة</th><th style="padding:8px">المتوسط</th><th style="padding:8px">أعلى</th><th style="padding:8px">أدنى</th><th style="padding:8px">ناجح</th><th style="padding:8px">متعثر</th></tr></thead><tbody>';
+  data.cycles.forEach(function(c,i){
+    html+='<tr style="background:'+(i%2?'#f8fafc':'#fff')+'">'
+      +'<td style="padding:7px 10px;font-weight:700">دورة '+c.group+'</td>'
+      +'<td style="padding:7px;text-align:center;font-weight:700;color:#0E7C86">'+(c.avg!=null?c.avg:'—')+'</td>'
+      +'<td style="padding:7px;text-align:center;color:#1e8449">'+(c.hi!=null?c.hi:'—')+'</td>'
+      +'<td style="padding:7px;text-align:center;color:#c0392b">'+(c.lo!=null?c.lo:'—')+'</td>'
+      +'<td style="padding:7px;text-align:center;font-weight:700;color:#1e8449">'+c.pass+'</td>'
+      +'<td style="padding:7px;text-align:center;font-weight:700;color:'+(c.fail?'#c0392b':'#1e8449')+'">'+c.fail+'</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table></div>';
+
   html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';
   html+=statCard('متوسط كل دورة (مجموعة)', 'cCycAvg');
   html+=statCard('تطور الأيام لكل دورة (٣ خطوط)', 'cCycDays');
