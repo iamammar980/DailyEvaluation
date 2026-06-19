@@ -559,7 +559,7 @@ window.addEventListener('load', function() {
     <div class="main">
       <div class="tab-nav">
         <button class="tab-btn active" id="tba" onclick="showTab('att')">👥 الحضور والتقييم</button>
-        <button class="tab-btn" id="tbrot" onclick="showTab('rot')">🔄 الدورة</button>
+        <button class="tab-btn" id="tbrot" onclick="showTab('rot')">🔄 نظام التناوب</button>
         <button class="tab-btn" id="tbp" onclick="showTab('paper')">📄 الورقة اليومية</button>
         <button class="tab-btn" id="tbr" onclick="showTab('roster')">🏥 جدول المجموعات</button>
         <button class="tab-btn" id="tbh" onclick="showTab('hist')">📅 السجل التاريخي</button>
@@ -764,7 +764,7 @@ window.addEventListener('load', function() {
 
       <div class="tab-panel" id="prot">
         <div class="hist-hdr">
-          <h2>🔄 نظام الدورة</h2>
+          <h2>🔄 نظام التناوب</h2>
           <div style="font-size:12px;color:var(--muted)">حدّد مستشفى ويوم الدورة، وراجع أيام كل مستشفى المحفوظة — وأغلق اليوم عند انتهاء تقييمه</div>
         </div>
         <div id="rotTabContent"></div>
@@ -1981,7 +1981,10 @@ function saveStudents() {
 }
 
 function saveDay(sessionK) {
-  if (!dataLoaded || !currentUser) return;
+  if (!currentUser) return;
+  // ★ Bug 5 fix: if data isn't fully loaded yet, don't drop the write —
+  //   cache it locally so it survives, instead of silently discarding.
+  if (!dataLoaded) { try{ cacheLocally(); }catch(e){} return; }
   if (isOfflineMode) { cacheLocally(); return; }
   var dayData = history[sessionK] || {};
   if (!Object.keys(dayData).length) return;
@@ -2231,7 +2234,14 @@ function clearDay(){
 // ═══════════════════════════════════════════
 function openEval(idx){
   curSt=idx;
-  curDate=today(); // Evaluation always works on today
+  // ★ In cycle mode, keep the day-specific session (set by paLoadCycleDay).
+  //   Only the classic day-view forces "today".
+  if(paMode==='cycle' && paCycGroup){
+    curGroup='morning';
+    curDate='cyc_'+paCycGroup.group+'_'+(paCycGroup.type||'')+'_d'+paCycDay;
+  } else {
+    curDate=today(); // classic view always works on today
+  }
   var s=getStudents()[idx], day=getSession(), rec=day[idx]||{}, sc=rec.scores||{};
   var pd=rec.paperDelivered;
   document.getElementById('mSN').textContent=s.name+' — '+curDate;
@@ -4638,13 +4648,20 @@ function cycImportGroup(g){
   var added=0;
   members.forEach(function(r){
     var nm=(r.name||'').trim(); if(!nm) return;
-    var exists=cycleStore.some(function(s){ return (s.name||'').trim()===nm && String(s.group)===g.group && (s.type||'')===(g.type||''); });
+    // ★ Bug 1 fix (partial): compare on NORMALIZED names so trailing/double
+    //   spaces and tatweel don't spawn duplicate students.
+    var key=cycNormName(nm)+'||'+g.group+'||'+(g.type||'');
+    var exists=cycleStore.some(function(s){ return cycNormName(s.name)+'||'+String(s.group)+'||'+(s.type||'')===key; });
     if(!exists){ cycleStore.push(cycNormalizeStudent({name:nm,group:g.group,type:g.type,days:cycBlankDays()})); added++; }
   });
   cycSave();
   cycActiveGroup=g.group;
   cycRender();
   toast('تم استيراد المجموعة '+g.group+' ('+members.length+' طالب) ✓','success');
+}
+// normalize an Arabic name for matching: trim, collapse spaces, strip tatweel
+function cycNormName(s){
+  return String(s||'').replace(/\u0640/g,'').replace(/\s+/g,' ').trim();
 }
 
 // ── view state ──────────────────────────────────────────────────────
@@ -4720,9 +4737,23 @@ function cycRender(){
 }
 function cycSetHospital(val){ cycHospital=val; cycSaveDebounced(); }
 function cycSetGroup(g){ cycActiveGroup=g; cycRender(); }
+function cycSanitizeGrade(val){
+  // keep only digits and a single decimal point; clamp 0..15
+  var s=String(val).replace(/[^0-9.]/g,'');
+  var firstDot=s.indexOf('.');
+  if(firstDot>=0){
+    var secondDot=s.indexOf('.', firstDot+1);
+    if(secondDot>=0) s=s.slice(0, secondDot);          // drop everything from the 2nd dot on
+    var parts=s.split('.'); s=parts[0]+'.'+(parts[1]||'').slice(0,2); // ≤2 decimals
+  }
+  if(s===''||s==='.') return '';
+  var n=parseFloat(s); if(isNaN(n)) return '';
+  if(n<0)n=0; if(n>15)n=15;
+  return String(n);
+}
 function cycSetGrade(idx, d, val){
-  if(val!==''){ var n=parseFloat(val); if(!isNaN(n)){ if(n<0)n=0; if(n>15)n=15; } }
-  cycleStore[idx].days[d]=val;
+  var clean=cycSanitizeGrade(val);
+  cycleStore[idx].days[d]=clean;
   cycSaveDebounced();
   clearTimeout(window.__cycRR); window.__cycRR=setTimeout(function(){ cycRender(); }, 700);
 }
