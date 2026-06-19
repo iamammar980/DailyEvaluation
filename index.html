@@ -21,7 +21,7 @@
 body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;direction:rtl}
 
 /* LOGIN SCREEN */
-.login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0f7a6a,#0a5d50)}
+.login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#eceae3;padding:20px}
 .login-card{background:#fff;border-radius:18px;padding:40px 36px;width:100%;max-width:400px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 .login-card .logo{font-size:48px;margin-bottom:12px}
 .login-card h2{font-size:22px;font-weight:700;color:var(--primary);margin-bottom:8px}
@@ -422,10 +422,18 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .ab:active,.pb:active{transform:scale(.9)}
 .user-info{transition:background .22s,transform .2s}
 .user-info:hover{background:rgba(255,255,255,.26);transform:translateY(-1px)}
-.login-screen{background:linear-gradient(-45deg,#0f7a6a,#13a08a,#0a5d50,#0f7a6a);background-size:380% 380%;animation:gradFlow 14s ease infinite}
-@keyframes gradFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.login-screen{background:#eceae3}
 @keyframes loginCardIn{from{opacity:0;transform:translateY(26px) scale(.97)}to{opacity:1;transform:none}}
 .login-card{animation:loginCardIn .55s cubic-bezier(.22,1,.36,1)}
+/* ★ split login: form panel + illustration panel */
+.login-card{display:flex;flex-direction:row-reverse;padding:0;max-width:880px;width:100%;border-radius:20px;overflow:hidden;box-shadow:0 30px 80px rgba(20,40,30,.18);text-align:right;background:#f4f2ec}
+.login-form{flex:1;padding:48px 44px;display:flex;flex-direction:column;justify-content:center;min-width:280px}
+.login-art{flex:1;position:relative;min-height:480px;background:#dfe7e0;overflow:hidden}
+.login-art svg{position:absolute;inset:0;width:100%;height:100%}
+.login-mark{font-family:Georgia,'Times New Roman',serif;font-size:18px;letter-spacing:1px;color:#0f7a6a;margin-bottom:auto}
+.login-welcome{font-family:Georgia,'Times New Roman',serif;font-size:34px;font-weight:700;color:#2a3a33;margin:0 0 6px}
+.login-sub{font-size:14px;color:#7c8a83;margin:0 0 28px}
+@media(max-width:720px){.login-card{flex-direction:column}.login-art{min-height:170px;flex:none}.login-form{padding:32px 26px}}
 .hinput,.sbox{transition:background .22s,border-color .22s,box-shadow .22s}
 .sbox:focus{box-shadow:0 0 0 3px rgba(41,128,185,.15)}
 .ei{transition:transform .18s}
@@ -491,8 +499,10 @@ window.addEventListener('load', function() {
 <!-- LOGIN — UNIFIED: auto-detects connectivity, both options always available -->
 <div class="login-screen" id="loginScreen" style="display:none">
   <div class="login-card">
-    <div class="logo">🏥</div>
-    <h2>تقييم الممارسة اليومية</h2>
+    <div class="login-form">
+    <div class="login-mark">● تقييم المستشفى</div>
+    <h2 class="login-welcome">أهلاً بعودتك</h2>
+    <p class="login-sub">حيث تبدأ متابعة طلابك من جديد.</p>
 
     <!-- Shown while detecting connectivity -->
     <div id="checkingSection" style="padding:10px 0;color:var(--muted);font-size:14px">
@@ -529,6 +539,18 @@ window.addEventListener('load', function() {
       <div style="margin-top:14px;font-size:12px;color:#888;text-align:center;line-height:1.7">
         عند عودة الاتصال، أعد تحميل الصفحة لتسجيل الدخول بـ Google<br>
         <a href="/offline.html" style="color:var(--pl);text-decoration:none;font-weight:600">📱 أو افتح النسخة المحلية الكاملة</a>
+      </div>
+    </div>
+    </div>
+
+    <div class="login-art" aria-hidden="true" style="background:#fff;display:flex;align-items:center;justify-content:center">
+      <div style="display:flex;align-items:flex-end;gap:10px">
+        <div style="display:flex;align-items:flex-end;gap:5px">
+          <span style="width:11px;height:26px;background:#a8e0d6;border-radius:3px"></span>
+          <span style="width:11px;height:44px;background:#5dcaa5;border-radius:3px"></span>
+          <span style="width:11px;height:64px;background:#0f7a6a;border-radius:3px"></span>
+        </div>
+        <span style="font-family:system-ui,'Segoe UI',sans-serif;font-size:34px;font-weight:700;color:#27332e;letter-spacing:-.5px">Evaluate</span>
       </div>
     </div>
   </div>
