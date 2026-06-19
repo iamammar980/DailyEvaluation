@@ -74,6 +74,27 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .tab-panel{display:none}
 .tab-panel.active{display:block}
 
+/* ★ STAGE 1: green SaaS sidebar layout */
+:root{--green:#1d7a4d;--green-soft:#e8f5ee;--green-dim:#bde6cd}
+.shell{display:flex;gap:0;max-width:1180px;margin:0 auto;align-items:flex-start}
+.sidebar{width:212px;flex:0 0 212px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 10px;margin:14px 14px 14px 0;display:flex;flex-direction:column;gap:3px;position:sticky;top:14px}
+.sb-sec{font-size:10px;color:var(--muted);letter-spacing:1px;padding:12px 10px 4px}
+.snav{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:10px;font-size:13px;font-weight:600;color:var(--muted);background:transparent;border:none;cursor:pointer;position:relative;width:100%;text-align:right;font-family:inherit;transition:background .15s,color .15s}
+.snav:hover{background:var(--bg);color:var(--text)}
+.snav.active{background:var(--green-soft);color:var(--green)}
+.snav.active::before{content:'';position:absolute;right:-10px;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--green)}
+.snav .si{font-size:17px;line-height:1}
+.snav .sct{margin-right:auto;font-size:10px;background:var(--green-soft);color:var(--green);border-radius:10px;padding:1px 8px;font-weight:700}
+.content{flex:1;min-width:0;padding:14px 4px}
+@media(max-width:760px){
+  .shell{flex-direction:column}
+  .sidebar{width:auto;flex:none;margin:10px;position:static;flex-direction:row;flex-wrap:wrap;gap:6px}
+  .sb-sec{display:none}
+  .snav{width:auto;flex:0 0 auto;padding:8px 10px}
+  .snav .stxt{display:none}
+  .snav.active::before{display:none}
+}
+
 /* BUTTONS */
 .btn{cursor:pointer;border:none;border-radius:var(--r);padding:7px 12px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
 .btn:active{transform:scale(.97)}
@@ -556,20 +577,28 @@ window.addEventListener('load', function() {
   </div>
 
   <div class="app-body" id="appBody">
-    <div class="main">
-      <div class="tab-nav">
-        <button class="tab-btn active" id="tba" onclick="showTab('att')">👥 الحضور والتقييم</button>
-        <button class="tab-btn" id="tbrot" onclick="showTab('rot')">🔄 نظام التناوب</button>
-        <button class="tab-btn" id="tbp" onclick="showTab('paper')">📄 الورقة اليومية</button>
-        <button class="tab-btn" id="tbr" onclick="showTab('roster')">🏥 جدول المجموعات</button>
-        <button class="tab-btn" id="tbh" onclick="showTab('hist')">📅 السجل التاريخي</button>
-        <button class="tab-btn" id="tbdb" onclick="showTab('db')">🗄️ قاعدة البيانات</button>
-        <button class="tab-btn" id="tbtm" onclick="showTab('teach')">📚 المواد التعليمية</button>
-        <button class="tab-btn" id="tbal" onclick="showTab('audit')">📋 سجل التغييرات</button>
-        <button class="tab-btn" id="tbpg" onclick="showTab('prog')">📈 متابعة الطلاب</button>
-        <button class="tab-btn" id="tbcyc" onclick="showTab('cycle')">🎯 الدورة التقييمية</button>
-        <button class="tab-btn" id="tbstat" onclick="showTab('stat')">📊 الإحصائيات</button>
-      </div>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="sb-sec">العمل اليومي</div>
+        <button class="snav active" id="tba" onclick="showTab('att')"><span class="si">👥</span><span class="stxt">الحضور والتقييم</span></button>
+        <button class="snav" id="tbp" onclick="showTab('paper')"><span class="si">📄</span><span class="stxt">الورقة اليومية</span></button>
+        <button class="snav" id="tbcyc" onclick="showTab('cycle')"><span class="si">🎯</span><span class="stxt">الدورة التقييمية</span></button>
+        <button class="snav" id="tbrot" onclick="showTab('rot')"><span class="si">🔄</span><span class="stxt">نظام التناوب</span></button>
+
+        <div class="sb-sec">التحليل</div>
+        <button class="snav" id="tbpg" onclick="showTab('prog')"><span class="si">📈</span><span class="stxt">متابعة الطلاب</span></button>
+        <button class="snav" id="tbstat" onclick="showTab('stat')"><span class="si">📊</span><span class="stxt">الإحصائيات</span></button>
+
+        <div class="sb-sec">البيانات والإعداد</div>
+        <button class="snav" id="tbdb" onclick="showTab('db')"><span class="si">🗄️</span><span class="stxt">قاعدة البيانات</span></button>
+        <button class="snav" id="tbr" onclick="showTab('roster')"><span class="si">🏥</span><span class="stxt">جدول المجموعات</span></button>
+        <button class="snav" id="tbh" onclick="showTab('hist')"><span class="si">📅</span><span class="stxt">السجل التاريخي</span></button>
+
+        <div class="sb-sec">مرجع</div>
+        <button class="snav" id="tbtm" onclick="showTab('teach')"><span class="si">📚</span><span class="stxt">المواد التعليمية</span></button>
+        <button class="snav" id="tbal" onclick="showTab('audit')"><span class="si">📋</span><span class="stxt">سجل التغييرات</span></button>
+      </aside>
+      <div class="content">
 
       <!-- TAB: ATTENDANCE -->
       <div class="tab-panel active" id="pa">
@@ -828,7 +857,8 @@ window.addEventListener('load', function() {
         </div>
       </div>
 
-    </div><!-- /main -->
+    </div><!-- /content -->
+    </div><!-- /shell -->
   </div><!-- /appBody -->
 </div><!-- /appRoot -->
 
@@ -2090,7 +2120,7 @@ var FIELDS=[
 // ═══════════════════════════════════════════
 function showTab(n){
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
-  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
+  document.querySelectorAll('.tab-btn, .snav').forEach(function(b){b.classList.remove('active')});
   var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',rot:'prot',cycle:'pcyc',stat:'pstat'};
   var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',rot:'tbrot',cycle:'tbcyc',stat:'tbstat'};
   var panel=document.getElementById(panels[n]);
