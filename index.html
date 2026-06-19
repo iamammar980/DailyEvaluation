@@ -2302,6 +2302,13 @@ function openEval(idx){
   document.getElementById('mBody').innerHTML=html;
   recalc();
   applyLockState(rec.locked); // ★ disable inputs + footer when locked
+  // ★ if a newer unsaved draft exists for this student/day, restore it
+  evalDirty=false;
+  if(!rec.locked){
+    var had=restoreEvalDraft();
+    if(had) toast('تمت استعادة تقييم غير محفوظ');
+  }
+  evalDirty=false; // opening is not itself an unsaved edit
   document.getElementById('evalM').classList.add('open');
 }
 
@@ -2429,6 +2436,7 @@ function recalc(){
     if(sel) sel.textContent=sec.toFixed(2);
   }
   var el=document.getElementById('mTot'); if(el)el.textContent=Math.min(t,15).toFixed(2);
+  saveEvalDraftDebounced(); // ★ mirror in-progress edits to a draft
 }
 
 function saveEval(){
@@ -2456,9 +2464,72 @@ function saveEval(){
   rec.notes=document.getElementById('eNotes').value;
   rec.evaluated=true;
   logChange(sessionKey(), curSt, getStudents()[curSt].name, oldRec, rec); // ★ audit trail
+  clearEvalDraft(); // ★ committed — discard the in-progress draft
   saveDay(sessionKey()); closeMod(); renderList(); toast('تم حفظ التقييم ✓');
 }
-function closeMod(){document.getElementById('evalM').classList.remove('open');}
+function closeMod(){
+  document.getElementById('evalM').classList.remove('open');
+  evalDirty=false; // leaving the modal clears the "unsaved" warning state
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ★ UNSAVED-EVALUATION PROTECTION
+//   While the eval modal is open and edited, mirror the form to a draft in
+//   localStorage (survives refresh/accidental close). Restored on reopen,
+//   cleared on save. A beforeunload warning fires only if a draft is dirty.
+// ═══════════════════════════════════════════════════════════════════════
+var evalDirty=false;          // has the open modal been edited but not saved?
+var evalDraftSaveTimer=null;
+function evalDraftKey(){
+  // unique per student + session (date+group), per signed-in user when known
+  var uid=(typeof currentUser!=='undefined' && currentUser)?currentUser.uid:'local';
+  return 'hsp_evaldraft_'+uid+'_'+sessionKey()+'_'+curSt;
+}
+function captureEvalForm(){
+  var sc={};
+  for(var fi=0;fi<FIELDS.length;fi++){
+    for(var ii=0;ii<FIELDS[fi].items.length;ii++){
+      var it=FIELDS[fi].items[ii];
+      var el=document.getElementById('f_'+it.k);
+      if(el){
+        if(it.m===0.25) sc[it.k]=el.checked?0.25:0;
+        else sc[it.k]=parseFloat(el.value)||0;
+      }
+    }
+  }
+  var nEl=document.getElementById('eNotes');
+  return { scores:sc, notes:nEl?nEl.value:'', ts:Date.now() };
+}
+function saveEvalDraft(){
+  if(curSt===null || curSt===undefined) return;
+  try{ localStorage.setItem(evalDraftKey(), JSON.stringify(captureEvalForm())); }catch(e){}
+}
+function saveEvalDraftDebounced(){
+  evalDirty=true;
+  clearTimeout(evalDraftSaveTimer);
+  evalDraftSaveTimer=setTimeout(saveEvalDraft, 400);
+}
+function clearEvalDraft(){
+  try{ localStorage.removeItem(evalDraftKey()); }catch(e){}
+  evalDirty=false;
+}
+// apply a saved draft's values back into the open form
+function restoreEvalDraft(){
+  if(curSt===null) return false;
+  var raw; try{ raw=localStorage.getItem(evalDraftKey()); }catch(e){ return false; }
+  if(!raw) return false;
+  var d; try{ d=JSON.parse(raw); }catch(e){ return false; }
+  if(!d || !d.scores) return false;
+  Object.keys(d.scores).forEach(function(k){
+    var el=document.getElementById('f_'+k); if(!el) return;
+    if(el.type==='checkbox') el.checked = parseFloat(d.scores[k])===0.25;
+    else el.value = d.scores[k];
+  });
+  var nEl=document.getElementById('eNotes'); if(nEl && d.notes!==undefined) nEl.value=d.notes;
+  recalc();
+  evalDirty=true; // restored but still unsaved
+  return true;
+}
 
 // ═══════════════════════════════════════════
 // ★ AUDIT LOG — append-only record of every assessment change
@@ -4679,7 +4750,11 @@ function paRenderCycleMode(){
   html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
   html+='<div><div style="font-size:15px;font-weight:700;color:var(--primary)">دورة المجموعة '+g.group+' · '+(g.type||'')+'</div>';
   html+='<div style="font-size:12px;color:var(--muted)">'+(g.hospital||'')+' · '+(g.names?g.names.length:0)+' طالب · يُحفظ كل يوم بشكل منفصل</div></div>';
+  html+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  html+='<button class="btn ba" style="font-size:12px" onclick="paExportDay()">📄 تصدير اليوم الحالي</button>';
+  html+='<button class="btn bp" style="font-size:12px" onclick="paExportCycle()">📊 تصدير الدورة كاملة (٤ أيام)</button>';
   html+='<button class="btn bo" style="font-size:12px" onclick="paReimportCycle()">🔄 إعادة استيراد المجموعة</button>';
+  html+='</div>';
   html+='</div>';
   // 4 day sub-tabs
   html+='<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">';
@@ -4753,6 +4828,89 @@ function paReimportCycle(){
   if(!g){ toast('لا توجد مجموعة في الدورة'); return; }
   paCycGroup=g; paLoadCycleDay(paCycDay);
   toast('أُعيد استيراد المجموعة '+g.group+' ✓','success');
+}
+
+// ── cycle-mode Excel export (per-day detail + 4-day summary) ──────────
+// per-axis subtotal for one student record (sums the items of each FIELDS group)
+function paAxisTotals(rec){
+  var sc=(rec&&rec.scores)||{}, out=[];
+  for(var fi=0; fi<FIELDS.length; fi++){
+    var t=0, hasAny=false;
+    FIELDS[fi].items.forEach(function(it){ if(sc[it.k]!==undefined){ t+=sc[it.k]; hasAny=true; } });
+    out.push(hasAny? +(Math.round(t*100)/100) : '');
+  }
+  return out; // [dailyNote/5, discussion/7, attitude/1, punctuality/1, appearance/1]
+}
+// build the session key + day object for a given day number in the active cycle
+function paDaySession(dayNo){
+  if(!paCycGroup) return {};
+  var key='cyc_'+paCycGroup.group+'_'+(paCycGroup.type||'')+'_d'+dayNo+'_morning';
+  return history[key]||{};
+}
+function paDayRows(dayNo){
+  var day=paDaySession(dayNo);
+  var names=(paCycGroup&&paCycGroup.names)||[];
+  var header=['#','الطالب','الحضور',
+    FIELDS[0].s+' ('+FIELDS[0].max+')',
+    FIELDS[1].s+' ('+FIELDS[1].max+')',
+    FIELDS[2].s+' ('+FIELDS[2].max+')',
+    FIELDS[3].s+' ('+FIELDS[3].max+')',
+    FIELDS[4].s+' ('+FIELDS[4].max+')',
+    'المجموع (15)','الورقة','ملاحظات'];
+  var rows=[header];
+  names.forEach(function(nm,i){
+    var rec=day[i]||{};
+    var att = rec.attendance==='present'?'حاضر':(rec.attendance==='absent'?'غائب':'—');
+    var ax = (rec.attendance==='absent')?['','','','','']:paAxisTotals(rec);
+    var tot = (rec.total!==undefined && rec.attendance!=='absent')? +(Math.round(rec.total*100)/100) : '';
+    var paper = rec.paperDelivered===true?'سلّم':(rec.paperDelivered===false?'لم يسلّم':'—');
+    rows.push([i+1, nm, att, ax[0],ax[1],ax[2],ax[3],ax[4], tot, paper, rec.notes||'']);
+  });
+  return rows;
+}
+function paExportDay(){
+  if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
+  if(!paCycGroup){ toast('لا توجد مجموعة محمّلة'); return; }
+  var rows=paDayRows(paCycDay);
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:4},{wch:24},{wch:8},{wch:16},{wch:14},{wch:10},{wch:10},{wch:10},{wch:11},{wch:9},{wch:20}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'اليوم '+paCycDay);
+  XLSX.writeFile(wb,'دورة_مجموعة_'+paCycGroup.group+'_اليوم_'+paCycDay+'.xlsx');
+  toast('تم تصدير اليوم '+paCycDay+' ✓','success');
+}
+function paExportCycle(){
+  if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
+  if(!paCycGroup){ toast('لا توجد مجموعة محمّلة'); return; }
+  var wb=XLSX.utils.book_new();
+  // 4 day sheets
+  for(var d=1; d<=4; d++){
+    var ws=XLSX.utils.aoa_to_sheet(paDayRows(d));
+    ws['!cols']=[{wch:4},{wch:24},{wch:8},{wch:16},{wch:14},{wch:10},{wch:10},{wch:10},{wch:11},{wch:9},{wch:20}];
+    XLSX.utils.book_append_sheet(wb,ws,'اليوم '+d);
+  }
+  // summary sheet
+  var names=(paCycGroup.names)||[];
+  var sumHeader=['#','الطالب','يوم ١','يوم ٢','يوم ٣','يوم ٤','متوسط الدورة','أيام الحضور','الحالة'];
+  var sum=[sumHeader];
+  var days=[paDaySession(1),paDaySession(2),paDaySession(3),paDaySession(4)];
+  names.forEach(function(nm,i){
+    var totals=[], present=0, vals=[];
+    for(var d=0; d<4; d++){
+      var rec=days[d][i]||{};
+      if(rec.attendance==='present') present++;
+      var t=(rec.total!==undefined && rec.attendance!=='absent')? +(Math.round(rec.total*100)/100) : '';
+      totals.push(t); if(t!=='') vals.push(t);
+    }
+    var avg = vals.length? +(vals.reduce(function(a,b){return a+b;},0)/vals.length).toFixed(2) : '';
+    var status = (avg!=='' && avg<RISK_AVG)?'متابعة':(avg!==''?'جيد':'—');
+    sum.push([i+1, nm, totals[0],totals[1],totals[2],totals[3], avg, present+'/4', status]);
+  });
+  var sws=XLSX.utils.aoa_to_sheet(sum);
+  sws['!cols']=[{wch:4},{wch:24},{wch:8},{wch:8},{wch:8},{wch:8},{wch:13},{wch:11},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,sws,'ملخص الدورة');
+  XLSX.writeFile(wb,'دورة_مجموعة_'+paCycGroup.group+'_كاملة.xlsx');
+  toast('تم تصدير الدورة كاملة ✓','success');
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -5099,7 +5257,16 @@ if (_sess && navigator.onLine) {
 // ★ Flush pending cloud writes whenever the connection returns
 window.addEventListener('online', function(){ setTimeout(function(){ flushQueue(); flushAudit(); }, 800); });
 // ★ Final cache write before the page closes — nothing is ever lost mid-action
-window.addEventListener('beforeunload', function(){ try{ cacheLocally(); }catch(e){} });
+window.addEventListener('beforeunload', function(e){
+  try{ cacheLocally(); }catch(err){}
+  var modalOpen = document.getElementById('evalM') && document.getElementById('evalM').classList.contains('open');
+  if(modalOpen && evalDirty){ try{ saveEvalDraft(); }catch(err){} } // ★ flush draft immediately
+  if(evalDirty && modalOpen){
+    e.preventDefault();
+    e.returnValue = 'لديك تقييم غير محفوظ. هل تريد المغادرة؟';
+    return e.returnValue;
+  }
+});
 // Periodic queue retry (covers flaky connections)
 setInterval(function(){ if (pendingCount() > 0) flushQueue(); flushAudit(); }, 30000);
 
