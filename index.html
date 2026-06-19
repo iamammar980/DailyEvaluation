@@ -4768,87 +4768,115 @@ function statDestroyCharts(){ __statCharts.forEach(function(c){ try{c.destroy();
 
 // gather a flat list of graded "/15" data points from BOTH sources
 function statGather(){
-  var daily = [];   // {name, group, total, att, paper}
-  var prof = (typeof buildStudentProfiles==='function') ? buildStudentProfiles() : {};
-  Object.keys(prof).forEach(function(nm){
-    var p = prof[nm];
-    p.sessions.forEach(function(s){
-      daily.push({ name:nm, group:s.group, total:(s.total!=null?s.total:null), att:s.att, paper:s.paper });
-    });
-  });
-  // cycle gradebook: each entered day-grade is a /15 point, grouped by numbered group
-  var cyc = [];     // {name, group, total}
+  // Each GROUP in cycleStore is a CYCLE (one group = 4 days).
+  // cycles = [ { group, type, students:[{name, days:[g1..g4]}], dayAvg:[..], avg } ]
+  var cycles = [];
+  var byG = {};
   (cycleStore||[]).forEach(function(s){
-    (s.days||[]).forEach(function(g){
-      var n=parseFloat(g); if(!isNaN(n)) cyc.push({ name:s.name, group:String(s.group), total:n });
-    });
+    var g = String(s.group||'');
+    if(!byG[g]){ byG[g] = { group:g, type:s.type||'', students:[] }; cycles.push(byG[g]); }
+    byG[g].students.push({ name:s.name, days:(s.days||[]).map(function(x){var n=parseFloat(x);return isNaN(n)?null:n;}) });
   });
-  return { daily:daily, cyc:cyc };
+  cycles.sort(function(a,b){ return (parseInt(a.group)||999)-(parseInt(b.group)||999); });
+  // compute per-day averages and overall average for each cycle
+  cycles.forEach(function(c){
+    var dayAvg=[null,null,null,null], all=[];
+    for(var d=0; d<4; d++){
+      var vals=[]; c.students.forEach(function(st){ if(st.days[d]!=null) vals.push(st.days[d]); });
+      if(vals.length){ dayAvg[d]=+(vals.reduce(function(a,b){return a+b;},0)/vals.length).toFixed(2); }
+      vals.forEach(function(v){ all.push(v); });
+    }
+    c.dayAvg=dayAvg;
+    c.avg = all.length ? +(all.reduce(function(a,b){return a+b;},0)/all.length).toFixed(2) : null;
+    c.count = c.students.length;
+  });
+  // daily-evaluation source (kept for KPIs/attendance)
+  var daily = [];
+  var prof = (typeof buildStudentProfiles==='function') ? buildStudentProfiles() : {};
+  Object.keys(prof).forEach(function(nm){ prof[nm].sessions.forEach(function(s){
+    daily.push({ name:nm, shift:s.group, total:(s.total!=null?s.total:null), att:s.att, paper:s.paper, date:s.date });
+  }); });
+  return { cycles:cycles, daily:daily };
 }
+
+var statSelCycle = null; // which group/cycle is shown in the within-cycle view
 
 function statRender(){
   var cont=document.getElementById('statContent'); if(!cont) return;
   statDestroyCharts();
   var data = statGather();
-  var hasDaily = data.daily.length>0, hasCyc = data.cyc.length>0;
-  if(!hasDaily && !hasCyc){
+  var hasCyc = data.cycles.length>0, hasDaily = data.daily.length>0;
+  if(!hasCyc && !hasDaily){
     cont.innerHTML='<div style="border:2px dashed var(--primary);border-radius:12px;padding:30px;text-align:center;background:#eef7f6">'
       +'<div style="font-size:40px;margin-bottom:10px">📊</div>'
       +'<div style="font-size:16px;font-weight:700;color:var(--primary);margin-bottom:8px">لا توجد بيانات بعد</div>'
-      +'<div style="font-size:13px;color:var(--muted);line-height:1.9">ستظهر الإحصائيات بعد إجراء تقييمات في التقييم اليومي أو إدخال درجات في الدورة التقييمية.</div></div>';
+      +'<div style="font-size:13px;color:var(--muted);line-height:1.9">ستظهر الإحصائيات بعد إدخال درجات في الدورة التقييمية (كل مجموعة = دورة من ٤ أيام).</div></div>';
     return;
   }
+  // pick the active within-cycle selection
+  var groups = data.cycles.map(function(c){return c.group;});
+  if(statSelCycle===null || groups.indexOf(statSelCycle)<0) statSelCycle = groups[0]||null;
 
-  // ---- compute KPIs across both sources ----
-  var allScores = data.daily.filter(function(d){return d.total!=null;}).map(function(d){return d.total;})
-                   .concat(data.cyc.map(function(d){return d.total;}));
-  var students = {}; data.daily.forEach(function(d){students[d.name]=1;}); data.cyc.forEach(function(d){students[d.name]=1;});
-  var totalStudents = Object.keys(students).length;
-  var overallAvg = allScores.length ? (allScores.reduce(function(a,b){return a+b;},0)/allScores.length) : null;
-  var pres=0, abs=0; data.daily.forEach(function(d){ if(d.att==='present')pres++; if(d.att==='absent')abs++; });
-  var attRate = (pres+abs)>0 ? Math.round(pres/(pres+abs)*100) : null;
-  var atRiskCount = 0;
-  // at-risk by student avg < RISK_AVG across combined scores
-  var byStud = {}; allScores.length; 
-  data.daily.forEach(function(d){ if(d.total!=null){ (byStud[d.name]=byStud[d.name]||[]).push(d.total);} });
-  data.cyc.forEach(function(d){ (byStud[d.name]=byStud[d.name]||[]).push(d.total); });
-  Object.keys(byStud).forEach(function(n){ var arr=byStud[n]; var a=arr.reduce(function(x,y){return x+y;},0)/arr.length; if(a<RISK_AVG) atRiskCount++; });
+  // ---- KPIs ----
+  var allCyc=[]; data.cycles.forEach(function(c){ c.students.forEach(function(st){ st.days.forEach(function(v){ if(v!=null) allCyc.push(v); }); }); });
+  var students={}; data.cycles.forEach(function(c){ c.students.forEach(function(st){ students[st.name]=1; }); });
+  var totalStudents=Object.keys(students).length;
+  var overallAvg=allCyc.length?(allCyc.reduce(function(a,b){return a+b;},0)/allCyc.length):null;
+  var pres=0,abs=0; data.daily.forEach(function(d){ if(d.att==='present')pres++; if(d.att==='absent')abs++; });
+  var attRate=(pres+abs)>0?Math.round(pres/(pres+abs)*100):null;
+  // at-risk: student combined cycle avg < RISK_AVG
+  var byStud={}; data.cycles.forEach(function(c){ c.students.forEach(function(st){ st.days.forEach(function(v){ if(v!=null)(byStud[st.name]=byStud[st.name]||[]).push(v); }); }); });
+  var atRisk=0; Object.keys(byStud).forEach(function(n){ var a=byStud[n]; if(a.reduce(function(x,y){return x+y;},0)/a.length < RISK_AVG) atRisk++; });
 
   var html='';
-  // KPI cards
   html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px">';
-  html+=statKpi('إجمالي الطلاب', totalStudents, '#0E7C86');
-  html+=statKpi('المتوسط العام', overallAvg!=null?overallAvg.toFixed(2)+' /15':'—', '#185FA5');
+  html+=statKpi('عدد الطلاب', totalStudents, '#0E7C86');
+  html+=statKpi('عدد الدورات', data.cycles.length, '#185FA5');
+  html+=statKpi('المتوسط العام', overallAvg!=null?overallAvg.toFixed(2)+' /15':'—', '#534AB7');
   html+=statKpi('نسبة الحضور', attRate!=null?attRate+'%':'—', '#1e8449');
-  html+=statKpi('بحاجة متابعة', atRiskCount, atRiskCount?'#c0392b':'#1e8449');
+  html+=statKpi('بحاجة متابعة', atRisk, atRisk?'#c0392b':'#1e8449');
   html+='</div>';
 
-  // source note
-  html+='<div style="font-size:12px;color:var(--muted);margin-bottom:14px;background:#f7fbfa;border:1px solid var(--border);border-radius:8px;padding:8px 12px">'
-    +'المصادر: '+(hasDaily?('التقييم اليومي ('+data.daily.filter(function(d){return d.total!=null;}).length+' تقييم)'):'')
-    +(hasDaily&&hasCyc?' · ':'')+(hasCyc?('الدورة ('+data.cyc.length+' درجة)'):'')+'</div>';
+  // ===== ACROSS-CYCLE section =====
+  html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:6px 0 10px;border-right:4px solid var(--primary);padding-right:8px">المقارنة عبر الدورات</div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';
+  html+=statCard('متوسط كل دورة (مجموعة)', 'cCycAvg');
+  html+=statCard('تطور الأيام لكل دورة (٣ خطوط)', 'cCycDays');
+  html+='</div>';
 
-  // chart canvases (2-col responsive)
+  // ===== WITHIN-CYCLE section =====
+  html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:18px 0 10px;border-right:4px solid var(--primary);padding-right:8px">داخل دورة واحدة</div>';
+  html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><span style="font-size:13px;color:var(--muted);align-self:center">اختر الدورة:</span>';
+  data.cycles.forEach(function(c){
+    var on=(statSelCycle===c.group);
+    html+='<button onclick="statPickCycle(\''+c.group+'\')" style="border:1px solid '+(on?'#0E7C86':'var(--border)')+';background:'+(on?'#0E7C86':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">دورة '+c.group+'</button>';
+  });
+  html+='</div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';
+  html+=statCard('تطور الأيام ١→٤ (هذه الدورة)', 'cInDays');
+  html+=statCard('درجات الطلاب (متوسط ٤ أيام)', 'cInStud');
+  html+='</div>';
+
+  // ===== distribution + pass (overall, from cycles) =====
+  html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:18px 0 10px;border-right:4px solid var(--primary);padding-right:8px">نظرة عامة</div>';
   html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';
   html+=statCard('توزيع الدرجات', 'cDist');
   html+=statCard('ناجح مقابل متعثر', 'cPass');
-  html+=statCard('مقارنة المجموعات (المتوسط)', 'cGroup');
-  html+=statCard('الحضور وتسليم الورقة', 'cAtt');
-  html+=statCard('تطور المتوسط عبر الجلسات', 'cTrend');
+  if(hasDaily) html+=statCard('الحضور وتسليم الورقة (التقييم اليومي)', 'cAtt');
   html+='</div>';
 
-  // export
   html+='<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">';
   html+='<button class="btn ba" onclick="statExportExcel()">📊 تصدير ملخص Excel</button>';
   html+='<button class="btn bo" onclick="statRender()">🔄 تحديث</button>';
   html+='</div>';
 
   cont.innerHTML=html;
-
   if(typeof Chart==='undefined'){ toast('تعذّر تحميل مكتبة الرسوم'); return; }
-  Chart.defaults.font.family = 'Tahoma, Arial, sans-serif';
+  Chart.defaults.font.family='Tahoma, Arial, sans-serif';
   setTimeout(function(){ statDrawCharts(data); }, 30);
 }
+
+function statPickCycle(g){ statSelCycle=g; statRender(); }
 
 function statKpi(label, val, color){
   return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center">'
@@ -4858,60 +4886,60 @@ function statKpi(label, val, color){
 function statCard(title, canvasId){
   return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px">'
     +'<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">'+title+'</div>'
-    +'<div style="position:relative;height:220px"><canvas id="'+canvasId+'"></canvas></div></div>';
+    +'<div style="position:relative;height:230px"><canvas id="'+canvasId+'"></canvas></div></div>';
 }
 
 function statDrawCharts(data){
   var TEAL='#0E7C86', BLUE='#185FA5', GREEN='#1e8449', AMBER='#BA7517', RED='#c0392b', PURPLE='#534AB7';
-  var allScores = data.daily.filter(function(d){return d.total!=null;}).map(function(d){return d.total;})
-                   .concat(data.cyc.map(function(d){return d.total;}));
+  var PALETTE=[BLUE,AMBER,PURPLE,TEAL,RED,GREEN];
 
-  // 1) grade distribution (bins of /15)
-  var bins=[0,0,0,0,0]; var labels=['0–3','3–6','6–9','9–12','12–15'];
-  allScores.forEach(function(v){ var idx=Math.min(4,Math.floor(v/3)); bins[idx]++; });
-  statMake('cDist','bar',{labels:labels,datasets:[{label:'عدد الدرجات',data:bins,backgroundColor:TEAL}]},
+  // ===== ACROSS CYCLES =====
+  // overall average per cycle
+  var cl=data.cycles.map(function(c){return 'دورة '+c.group;});
+  var cAvgVals=data.cycles.map(function(c){return c.avg;});
+  statMake('cCycAvg','bar',{labels:cl,datasets:[{label:'المتوسط /15',data:cAvgVals,
+      backgroundColor:data.cycles.map(function(_,i){return PALETTE[i%PALETTE.length];})}]},
+    {scales:{y:{beginAtZero:true,max:15}},plugins:{legend:{display:false}}});
+  // day progression overlaid: one line per cycle
+  statMake('cCycDays','line',{labels:['يوم ١','يوم ٢','يوم ٣','يوم ٤'],
+    datasets:data.cycles.map(function(c,i){ return {label:'دورة '+c.group,data:c.dayAvg,
+      borderColor:PALETTE[i%PALETTE.length],backgroundColor:'transparent',tension:.3,spanGaps:true}; })},
+    {scales:{y:{beginAtZero:true,max:15}},plugins:{legend:{position:'bottom'}}});
+
+  // ===== WITHIN ONE CYCLE =====
+  var cyc=null; data.cycles.forEach(function(c){ if(c.group===statSelCycle) cyc=c; });
+  if(cyc){
+    // day progression for this cycle
+    statMake('cInDays','line',{labels:['يوم ١','يوم ٢','يوم ٣','يوم ٤'],datasets:[{label:'متوسط الدورة '+cyc.group,
+        data:cyc.dayAvg,borderColor:TEAL,backgroundColor:'rgba(14,124,134,.12)',fill:true,tension:.3,spanGaps:true}]},
+      {scales:{y:{beginAtZero:true,max:15}},plugins:{legend:{display:false}}});
+    // student breakdown: each student's 4-day average, sorted
+    var studs=cyc.students.map(function(st){ var v=st.days.filter(function(x){return x!=null;}); return {name:st.name, avg:v.length?+(v.reduce(function(a,b){return a+b;},0)/v.length).toFixed(2):0}; })
+                .sort(function(a,b){return b.avg-a.avg;});
+    statMake('cInStud','bar',{labels:studs.map(function(s){return s.name;}),datasets:[{label:'متوسط /15',
+        data:studs.map(function(s){return s.avg;}),
+        backgroundColor:studs.map(function(s){return s.avg>=RISK_AVG?GREEN:RED;})}]},
+      {indexAxis:'y',scales:{x:{beginAtZero:true,max:15}},plugins:{legend:{display:false}}});
+  }
+
+  // ===== OVERALL =====
+  var allCyc=[]; data.cycles.forEach(function(c){ c.students.forEach(function(st){ st.days.forEach(function(v){ if(v!=null)allCyc.push(v); }); }); });
+  var bins=[0,0,0,0,0], blab=['0–3','3–6','6–9','9–12','12–15'];
+  allCyc.forEach(function(v){ bins[Math.min(4,Math.floor(v/3))]++; });
+  statMake('cDist','bar',{labels:blab,datasets:[{label:'عدد الدرجات',data:bins,backgroundColor:TEAL}]},
     {scales:{y:{beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{display:false}}});
 
-  // 2) pass vs at-risk (by student combined avg)
-  var byStud={}; data.daily.forEach(function(d){ if(d.total!=null)(byStud[d.name]=byStud[d.name]||[]).push(d.total);});
-  data.cyc.forEach(function(d){ (byStud[d.name]=byStud[d.name]||[]).push(d.total);});
-  var pass=0,risk=0; Object.keys(byStud).forEach(function(n){var a=byStud[n].reduce(function(x,y){return x+y;},0)/byStud[n].length; if(a>=RISK_AVG)pass++; else risk++;});
+  var byStud={}; data.cycles.forEach(function(c){ c.students.forEach(function(st){ st.days.forEach(function(v){ if(v!=null)(byStud[st.name]=byStud[st.name]||[]).push(v); }); }); });
+  var pass=0,risk=0; Object.keys(byStud).forEach(function(n){var a=byStud[n];var m=a.reduce(function(x,y){return x+y;},0)/a.length; if(m>=RISK_AVG)pass++; else risk++;});
   statMake('cPass','doughnut',{labels:['ناجح (≥9)','متعثر (<9)'],datasets:[{data:[pass,risk],backgroundColor:[GREEN,RED]}]},
     {plugins:{legend:{position:'bottom'}}});
 
-  // 3) group comparison — averages per group, both sources side by side
-  var dgroups={}, cgroups={};
-  data.daily.forEach(function(d){ if(d.total!=null){ (dgroups[d.group]=dgroups[d.group]||[]).push(d.total); } });
-  data.cyc.forEach(function(d){ (cgroups[d.group]=cgroups[d.group]||[]).push(d.total); });
-  var gset={}; Object.keys(dgroups).forEach(function(g){gset[g]=1;}); Object.keys(cgroups).forEach(function(g){gset[g]=1;});
-  var glabels=Object.keys(gset).sort();
-  var dAvg=glabels.map(function(g){var a=dgroups[g];return a?+(a.reduce(function(x,y){return x+y;},0)/a.length).toFixed(2):null;});
-  var cAvg=glabels.map(function(g){var a=cgroups[g];return a?+(a.reduce(function(x,y){return x+y;},0)/a.length).toFixed(2):null;});
-  statMake('cGroup','bar',{labels:glabels.map(function(g){return 'مجموعة '+g;}),datasets:[
-      {label:'التقييم اليومي',data:dAvg,backgroundColor:BLUE},
-      {label:'الدورة',data:cAvg,backgroundColor:AMBER}
-    ]},{scales:{y:{beginAtZero:true,max:15}},plugins:{legend:{position:'bottom'}}});
-
-  // 4) attendance + paper (daily source only)
-  var pres=0,abs=0,pap=0,nopap=0;
-  data.daily.forEach(function(d){ if(d.att==='present')pres++; if(d.att==='absent')abs++; if(d.paper===true)pap++; if(d.paper===false)nopap++; });
-  statMake('cAtt','bar',{labels:['حاضر','غائب','سلّم الورقة','لم يسلّم'],datasets:[{label:'عدد',
-      data:[pres,abs,pap,nopap],backgroundColor:[GREEN,RED,TEAL,AMBER]}]},
-    {scales:{y:{beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{display:false}}});
-
-  // 5) trend over sessions (daily history, chronological avg per date)
-  var byDate={};
-  data.daily.forEach(function(d){ /* no date here */ });
-  var prof=(typeof buildStudentProfiles==='function')?buildStudentProfiles():{};
-  var dateAgg={};
-  Object.keys(prof).forEach(function(nm){ prof[nm].sessions.forEach(function(s){ if(s.total!=null){ (dateAgg[s.date]=dateAgg[s.date]||[]).push(s.total); } }); });
-  var dlabels=Object.keys(dateAgg).sort();
-  var dvals=dlabels.map(function(dt){var a=dateAgg[dt];return +(a.reduce(function(x,y){return x+y;},0)/a.length).toFixed(2);});
-  if(dlabels.length){
-    statMake('cTrend','line',{labels:dlabels,datasets:[{label:'متوسط الجلسة',data:dvals,borderColor:PURPLE,backgroundColor:'rgba(83,74,183,.12)',fill:true,tension:.3}]},
-      {scales:{y:{beginAtZero:true,max:15}},plugins:{legend:{display:false}}});
-  } else {
-    var cv=document.getElementById('cTrend'); if(cv) cv.parentNode.innerHTML='<div style="text-align:center;color:var(--muted);font-size:12px;padding-top:80px">يحتاج تقييمات يومية مؤرّخة لعرض التطور</div>';
+  if(document.getElementById('cAtt')){
+    var pres=0,abs=0,pap=0,nopap=0;
+    data.daily.forEach(function(d){ if(d.att==='present')pres++; if(d.att==='absent')abs++; if(d.paper===true)pap++; if(d.paper===false)nopap++; });
+    statMake('cAtt','bar',{labels:['حاضر','غائب','سلّم الورقة','لم يسلّم'],datasets:[{label:'عدد',
+        data:[pres,abs,pap,nopap],backgroundColor:[GREEN,RED,TEAL,AMBER]}]},
+      {scales:{y:{beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{display:false}}});
   }
 }
 
@@ -4926,18 +4954,22 @@ function statMake(id,type,data,opts){
 function statExportExcel(){
   if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
   var data=statGather();
-  var byStud={};
-  data.daily.forEach(function(d){ if(d.total!=null){ var o=byStud[d.name]=byStud[d.name]||{name:d.name,group:d.group,scores:[],pres:0,abs:0}; o.scores.push(d.total); if(d.att==='present')o.pres++; if(d.att==='absent')o.abs++; } });
-  data.cyc.forEach(function(d){ var o=byStud[d.name]=byStud[d.name]||{name:d.name,group:d.group,scores:[],pres:0,abs:0}; o.scores.push(d.total); if(!o.group)o.group=d.group; });
-  var rows=[['الطالب','المجموعة','عدد الدرجات','المتوسط /15','حاضر','غائب','الحالة']];
-  Object.keys(byStud).forEach(function(n){
-    var o=byStud[n]; var avg=o.scores.length?(o.scores.reduce(function(a,b){return a+b;},0)/o.scores.length):null;
-    rows.push([o.name,o.group||'',o.scores.length,avg!=null?+avg.toFixed(2):'',o.pres,o.abs,(avg!=null&&avg<RISK_AVG)?'متابعة':'جيد']);
+  var rows=[['الدورة (مجموعة)','الطالب','يوم ١','يوم ٢','يوم ٣','يوم ٤','المتوسط /15','الحالة']];
+  data.cycles.forEach(function(c){
+    c.students.forEach(function(st){
+      var v=st.days.filter(function(x){return x!=null;});
+      var avg=v.length?+(v.reduce(function(a,b){return a+b;},0)/v.length).toFixed(2):'';
+      rows.push(['دورة '+c.group, st.name,
+        st.days[0]!=null?st.days[0]:'', st.days[1]!=null?st.days[1]:'',
+        st.days[2]!=null?st.days[2]:'', st.days[3]!=null?st.days[3]:'',
+        avg, (avg!==''&&avg<RISK_AVG)?'متابعة':'جيد']);
+    });
+    if(c.avg!=null) rows.push(['دورة '+c.group,'— متوسط الدورة —','','','','',c.avg,'']);
   });
   var ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[{wch:24},{wch:9},{wch:11},{wch:11},{wch:7},{wch:7},{wch:10}];
-  var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'إحصائيات');
-  XLSX.writeFile(wb,'إحصائيات_الطلاب.xlsx');
+  ws['!cols']=[{wch:14},{wch:24},{wch:7},{wch:7},{wch:7},{wch:7},{wch:11},{wch:10}];
+  var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'إحصائيات الدورات');
+  XLSX.writeFile(wb,'إحصائيات_الدورات.xlsx');
   toast('تم تصدير الملخص ✓','success');
 }
 
