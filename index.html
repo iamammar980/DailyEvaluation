@@ -576,6 +576,7 @@ window.addEventListener('load', function() {
         <button class="tab-btn" id="tbtm" onclick="showTab('teach')">📚 المواد التعليمية</button>
         <button class="tab-btn" id="tbal" onclick="showTab('audit')">📋 سجل التغييرات</button>
         <button class="tab-btn" id="tbpg" onclick="showTab('prog')">📈 متابعة الطلاب</button>
+        <button class="tab-btn" id="tbcrs" onclick="showTab('course')">🌳 الدورة (شجرة)</button>
         <button class="tab-btn" id="tbcyc" onclick="showTab('cycle')">🎯 الدورة التقييمية</button>
         <button class="tab-btn" id="tbstat" onclick="showTab('stat')">📊 الإحصائيات</button>
       </div>
@@ -756,6 +757,16 @@ window.addEventListener('load', function() {
           <input type="text" id="cycSearch" class="sbox" placeholder="🔍 ابحث عن طالب..." oninput="cycSearchRender()" style="max-width:240px">
         </div>
         <div id="cycContent"></div>
+      </div>
+
+      <!-- TAB: THE COURSE (tree navigator — period → hospital → group → 4 days) -->
+      <div class="tab-panel" id="pcrs">
+        <div class="hist-hdr">
+          <h2>🌳 الدورة (شجرة)</h2>
+          <div style="font-size:12px;color:var(--muted)">تصفّح: الفترة ← المستشفى ← المجموعة ← ٤ أيام · يقرأ من جدول المجموعات · كل يوم يفتح الحضور والتقييم والتنزيل</div>
+        </div>
+        <div id="crsCrumb" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0;font-size:13px"></div>
+        <div id="crsContent"></div>
       </div>
 
       <!-- TAB: STATISTICS DASHBOARD -->
@@ -1017,6 +1028,23 @@ window.addEventListener('load', function() {
       </div>
     </div>
     <div class="dm-body" id="dmBody"></div>
+  </div>
+</div>
+
+<!-- COURSE DAY MODAL (attendance + evaluation + download for one group-day) -->
+<div class="overlay" id="crsDayModal">
+  <div class="dmodal">
+    <div class="dm-hdr">
+      <h2 id="crsDayTitle">يوم الدورة</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn ba" style="padding:5px 10px;font-size:12px" onclick="crsDayExcel()">📥 Excel</button>
+        <button class="mcl" onclick="crsCloseDay()">✕</button>
+      </div>
+    </div>
+    <div style="padding:8px 14px;background:#fef9ec;border-bottom:1px solid #f0c040;font-size:12px;color:#7d5a00">
+      الحضور والدرجات هنا محفوظة بشكل مستقل لهذه المجموعة — لا تتداخل مع تبويب الحضور اليومي.
+    </div>
+    <div class="dm-body" id="crsDayBody"></div>
   </div>
 </div>
 
@@ -1961,6 +1989,18 @@ function startListeners() {
   });
   dbListeners.push({ ref: cycRef, event: 'value' });
 
+  // ★ The Course — isolated per-group day records, synced to the account
+  var crsRef = dbRef('courseHistory');
+  crsRef.on('value', function(snap) {
+    if (!isStillMe()) return;
+    var val = snap.val();
+    courseHistory = val ? val : {};
+    try{ localStorage.setItem('hsp_course', JSON.stringify(courseHistory)); }catch(e){}
+    var pcrs = document.getElementById('pcrs');
+    if (pcrs && pcrs.classList.contains('active')) crsRender();
+  });
+  dbListeners.push({ ref: crsRef, event: 'value' });
+
   var cycHRef = dbRef('cycleHospital');
   cycHRef.on('value', function(snap){
     if (!isStillMe()) return;
@@ -2156,8 +2196,8 @@ var FIELDS=[
 function showTab(n){
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',rot:'prot',cycle:'pcyc',stat:'pstat'};
-  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',rot:'tbrot',cycle:'tbcyc',stat:'tbstat'};
+  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',rot:'prot',cycle:'pcyc',stat:'pstat',course:'pcrs'};
+  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',rot:'tbrot',cycle:'tbcyc',stat:'tbstat',course:'tbcrs'};
   var panel=document.getElementById(panels[n]);
   panel.classList.add('active');
   // restart the entrance animation so every switch feels alive
@@ -2174,6 +2214,7 @@ function showTab(n){
   if(n==='prog')   renderProgress();
   if(n==='rot')    renderRotationTab();
   if(n==='cycle')  cycRender();
+  if(n==='course') crsRender();
   if(n==='stat')   statRender();
 }
 
@@ -2535,6 +2576,16 @@ function saveEval(){
   rec.total=Math.min(t,15);
   rec.notes=document.getElementById('eNotes').value;
   rec.evaluated=true;
+  // ★ Course tab: capture into the isolated course namespace and restore globals
+  if(typeof crsEvalActive!=='undefined' && crsEvalActive){
+    history[sessionKey()][curSt]=rec;
+    clearEvalDraft();
+    crsCaptureAndRestore();   // reads history[sk], writes course record, restores globals
+    document.getElementById('evalM').classList.remove('open');
+    evalDirty=false;
+    toast('تم حفظ التقييم ✓');
+    return;
+  }
   logChange(sessionKey(), curSt, getStudents()[curSt].name, oldRec, rec); // ★ audit trail
   clearEvalDraft(); // ★ committed — discard the in-progress draft
   saveDay(sessionKey()); closeMod(); renderList(); toast('تم حفظ التقييم ✓');
@@ -2542,6 +2593,14 @@ function saveEval(){
 function closeMod(){
   document.getElementById('evalM').classList.remove('open');
   evalDirty=false; // leaving the modal clears the "unsaved" warning state
+  // ★ Course tab: if a course eval was open and not saved, restore main globals
+  if(typeof crsEvalActive!=='undefined' && crsEvalActive && typeof crsSaved!=='undefined' && crsSaved){
+    curDate=crsSaved.curDate; curGroup=crsSaved.curGroup;
+    studentsMorning=crsSaved.sm; studentsEvening=crsSaved.se;
+    history=crsSaved.hist; curSt=crsSaved.curSt;
+    crsSaved=null; crsEvalActive=false;
+    if(typeof crsDayRender==='function') crsDayRender();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -5250,6 +5309,7 @@ tick(); setInterval(tick, 1000);
 curDate = today(); // Always start on today
 dbLoad();
 cycLocalLoad();
+if(typeof crsLoadCache==='function') crsLoadCache();
 
 
 
@@ -6022,6 +6082,290 @@ document.addEventListener('DOMContentLoaded', function(){
   if(mo) mo.addEventListener('click', function(e){ if(e.target===this) tmCloseModal(); });
 });
 
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// THE COURSE — tree navigator (period → hospital → group → 4 days)
+// Reads groups/students from `roster`. Each day reuses the existing
+// attendance + evaluation + download functions, but reads/writes an
+// ISOLATED namespace: courseHistory/{hosp}/{group}/{date}_{morning|evening}
+// The main attendance tab and its `history` store are never touched.
+// ═══════════════════════════════════════════════════════════════════════
+
+var courseHistory = {};      // mirror of users/{uid}/courseHistory
+var crsNav = { period:null, hospital:null, group:null }; // tree position
+var crsCtx = null;           // active day context while a day panel is open
+
+// ── safe key segment (hospital/group names may contain spaces/symbols) ──
+function crsSeg(v){ return String(v==null?'':v).replace(/[.#$\[\]\/]/g,'_').replace(/\s+/g,'_').substring(0,60) || '_'; }
+function crsDayPath(hosp, group, dateKey){ return 'courseHistory/'+crsSeg(hosp)+'/'+crsSeg(group)+'/'+dateKey; }
+function crsGet(hosp, group, dateKey){
+  var h=courseHistory[crsSeg(hosp)]; if(!h) return {};
+  var g=h[crsSeg(group)]; if(!g) return {};
+  return g[dateKey] || {};
+}
+function crsSet(hosp, group, dateKey, rec){
+  var sh=crsSeg(hosp), sg=crsSeg(group);
+  if(!courseHistory[sh]) courseHistory[sh]={};
+  if(!courseHistory[sh][sg]) courseHistory[sh][sg]={};
+  courseHistory[sh][sg][dateKey]=rec;
+  if(!isOfflineMode && currentUser && db){ guardedSet(crsDayPath(hosp,group,dateKey), rec); }
+  try{ localStorage.setItem('hsp_course', JSON.stringify(courseHistory)); }catch(e){}
+}
+
+// ── build the tree data from roster ───────────────────────────────────
+// returns { morning:{hospital:{group:[students]}}, evening:{...} }
+function crsTree(){
+  var t={ morning:{}, evening:{} };
+  for(var i=0;i<roster.length;i++){
+    var r=roster[i];
+    var period = (r.type==='مسائي') ? 'evening' : 'morning';
+    var hosp = r.hospital || '(غير محدد)';
+    var grp  = r.group || '—';
+    if(!t[period][hosp]) t[period][hosp]={};
+    if(!t[period][hosp][grp]) t[period][hosp][grp]=[];
+    t[period][hosp][grp].push(r);
+  }
+  return t;
+}
+function crsStartDateFor(period, hosp, grp){
+  for(var i=0;i<roster.length;i++){
+    var r=roster[i], p=(r.type==='مسائي')?'evening':'morning';
+    if(p===period && (r.hospital||'(غير محدد)')===hosp && (r.group||'—')===grp && r.startDate) return r.startDate;
+  }
+  return '';
+}
+
+// ── breadcrumb ────────────────────────────────────────────────────────
+function crsCrumb(){
+  var el=document.getElementById('crsCrumb'); if(!el) return;
+  var parts=['<span class="node" onclick="crsGo(null,null,null)" style="cursor:pointer;color:var(--pl);font-weight:700">🌳 البداية</span>'];
+  if(crsNav.period){
+    parts.push('<span style="color:var(--muted)">›</span>');
+    parts.push('<span class="node" onclick="crsGo(\''+crsNav.period+'\',null,null)" style="cursor:pointer;color:var(--pl);font-weight:700">'+(crsNav.period==='morning'?'🌅 صباحي':'🌙 مسائي')+'</span>');
+  }
+  if(crsNav.hospital){
+    parts.push('<span style="color:var(--muted)">›</span>');
+    parts.push('<span class="node" onclick="crsGo(\''+crsNav.period+'\',\''+escJsAttr(crsNav.hospital)+'\',null)" style="cursor:pointer;color:var(--pl);font-weight:700">🏥 '+esc(crsNav.hospital)+'</span>');
+  }
+  if(crsNav.group){
+    parts.push('<span style="color:var(--muted)">›</span>');
+    parts.push('<span style="font-weight:700">👥 مجموعة '+esc(crsNav.group)+'</span>');
+  }
+  el.innerHTML=parts.join(' ');
+}
+// escape for use inside a single-quoted onclick attribute
+function escJsAttr(v){ return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,'\\&#39;').replace(/"/g,'&quot;'); }
+
+// ── navigation ────────────────────────────────────────────────────────
+function crsGo(period, hospital, group){
+  crsNav.period=period; crsNav.hospital=hospital; crsNav.group=group;
+  crsRender();
+}
+
+// ── main render: shows whichever level we're at ───────────────────────
+function crsRender(){
+  var cont=document.getElementById('crsContent'); if(!cont) return;
+  crsCrumb();
+
+  if(!roster.length){
+    cont.innerHTML='<div style="border:2px dashed var(--primary);border-radius:12px;padding:30px;text-align:center;background:#eef7f6">'
+      +'<div style="font-size:40px;margin-bottom:10px">🌳</div>'
+      +'<div style="font-size:16px;font-weight:700;color:var(--primary);margin-bottom:8px">لا يوجد جدول مجموعات بعد</div>'
+      +'<div style="font-size:13px;color:var(--muted);line-height:1.9">ارفع ملف Excel في تبويب «جدول المجموعات» أولاً.<br>ستظهر هنا تلقائياً: الفترة ← المستشفى ← المجموعة ← ٤ أيام.</div></div>';
+    return;
+  }
+
+  var t=crsTree();
+
+  // LEVEL 1 — period
+  if(!crsNav.period){
+    var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+    [['morning','🌅 صباحي','#2980b9'],['evening','🌙 مسائي','#8e44ad']].forEach(function(p){
+      var hospCount=Object.keys(t[p[0]]).length;
+      html+='<div class="node" onclick="crsGo(\''+p[0]+'\',null,null)" style="cursor:pointer;border:1px solid var(--border);border-top:4px solid '+p[2]+';border-radius:12px;padding:22px;text-align:center;background:var(--surface)">'
+        +'<div style="font-size:22px;font-weight:800;color:'+p[2]+'">'+p[1]+'</div>'
+        +'<div style="font-size:13px;color:var(--muted);margin-top:6px">'+hospCount+' مستشفى</div></div>';
+    });
+    html+='</div>';
+    cont.innerHTML=html;
+    return;
+  }
+
+  // LEVEL 2 — hospital
+  if(!crsNav.hospital){
+    var hosps=Object.keys(t[crsNav.period]);
+    if(!hosps.length){ cont.innerHTML='<div class="rempty" style="padding:30px">لا توجد مستشفيات في هذه الفترة.</div>'; return; }
+    var html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">';
+    hosps.sort(function(a,b){return a.localeCompare(b,'ar');}).forEach(function(h){
+      var grpCount=Object.keys(t[crsNav.period][h]).length;
+      html+='<div class="node" onclick="crsGo(\''+crsNav.period+'\',\''+escJsAttr(h)+'\',null)" style="cursor:pointer;border:1px solid var(--border);border-top:4px solid #16a085;border-radius:12px;padding:18px;background:var(--surface)">'
+        +'<div style="font-size:16px;font-weight:700;color:#0f6e56">🏥 '+esc(h)+'</div>'
+        +'<div style="font-size:12px;color:var(--muted);margin-top:6px">'+grpCount+' مجموعة</div></div>';
+    });
+    html+='</div>';
+    cont.innerHTML=html;
+    return;
+  }
+
+  // LEVEL 3 — group
+  if(!crsNav.group){
+    var grps=Object.keys(t[crsNav.period][crsNav.hospital]||{});
+    if(!grps.length){ cont.innerHTML='<div class="rempty" style="padding:30px">لا توجد مجموعات.</div>'; return; }
+    var html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">';
+    grps.sort(function(a,b){return (parseInt(a)||0)-(parseInt(b)||0);}).forEach(function(g){
+      var n=t[crsNav.period][crsNav.hospital][g].length;
+      html+='<div class="node" onclick="crsGo(\''+crsNav.period+'\',\''+escJsAttr(crsNav.hospital)+'\',\''+escJsAttr(g)+'\')" style="cursor:pointer;border:1px solid var(--border);border-top:4px solid #6c3483;border-radius:12px;padding:18px;text-align:center;background:var(--surface)">'
+        +'<div style="font-size:18px;font-weight:800;color:#6c3483">👥 مجموعة '+esc(g)+'</div>'
+        +'<div style="font-size:12px;color:var(--muted);margin-top:6px">'+n+' طالب</div></div>';
+    });
+    html+='</div>';
+    cont.innerHTML=html;
+    return;
+  }
+
+  // LEVEL 4 — the 4 days for this group
+  var startDate=crsStartDateFor(crsNav.period, crsNav.hospital, crsNav.group);
+  var dates=getSched(startDate); // existing helper: 4 weekday dates from start
+  var students=t[crsNav.period][crsNav.hospital][crsNav.group]||[];
+  var dnames=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  var periodKey=crsNav.period; // 'morning' | 'evening'
+  var html='<div style="font-size:13px;color:var(--muted);margin-bottom:10px">👥 '+students.length+' طالب · اختر يوماً لفتح الحضور والتقييم</div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px">';
+  for(var d=0; d<4; d++){
+    var dateStr=dates[d]||'';
+    var dateKey=dateStr? (dateStr+'_'+periodKey) : '';
+    var dobj=dateStr? new Date(dateStr+'T00:00:00') : null;
+    var rec = dateStr ? crsGet(crsNav.hospital, crsNav.group, dateKey) : {};
+    var done=0, present=0;
+    Object.keys(rec).forEach(function(k){ if(k==='__names__')return; var r=rec[k]; if(r){ if(r.evaluated)done++; if(r.attendance==='present')present++; } });
+    var hasDate = !!dateStr;
+    html+='<div class="node" '+(hasDate?'onclick="crsOpenDay('+d+')"':'')+' style="'+(hasDate?'cursor:pointer;':'opacity:.5;')+'border:1px solid var(--border);border-top:4px solid #e67e22;border-radius:12px;padding:16px;text-align:center;background:var(--surface)">'
+      +'<div style="font-size:17px;font-weight:800;color:#b7770d">يوم '+(d+1)+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(hasDate?(dnames[dobj.getDay()]+'<br>'+dateStr):'لا يوجد تاريخ')+'</div>'
+      +(hasDate?'<div style="font-size:11px;color:var(--success);margin-top:6px">✓ مُقيَّم: '+done+' · حاضر: '+present+'</div>':'')
+      +'</div>';
+  }
+  html+='</div>';
+  cont.innerHTML=html;
+}
+
+// ── open a day: bind the existing eval/attendance UI to course context ─
+// Saves the main globals, swaps them so getStudents()/getSession()/openEval()
+// /setAtt() operate on this group-day, renders the existing list into a modal.
+function crsOpenDay(dayIdx){
+  var startDate=crsStartDateFor(crsNav.period, crsNav.hospital, crsNav.group);
+  var dates=getSched(startDate);
+  var dateStr=dates[dayIdx]; if(!dateStr){ toast('لا يوجد تاريخ لهذا اليوم'); return; }
+  var periodKey=crsNav.period;
+  var dateKey=dateStr+'_'+periodKey;
+  var students=crsTree()[crsNav.period][crsNav.hospital][crsNav.group]||[];
+
+  crsCtx={
+    hospital:crsNav.hospital, group:crsNav.group, period:periodKey,
+    dateStr:dateStr, dateKey:dateKey,
+    students:students.map(function(s){return {name:s.name, email:s.email||'', notes:s.notes||''};})
+  };
+  crsDayRender();
+  document.getElementById('crsDayModal').classList.add('open');
+}
+
+// render the day's student list (attendance + evaluate + per-student score)
+function crsDayRender(){
+  if(!crsCtx) return;
+  var rec=crsGet(crsCtx.hospital, crsCtx.group, crsCtx.dateKey);
+  var dnames=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  var dobj=new Date(crsCtx.dateStr+'T00:00:00');
+  document.getElementById('crsDayTitle').textContent='👥 مجموعة '+crsCtx.group+' — '+dnames[dobj.getDay()]+' '+crsCtx.dateStr;
+  var html='';
+  crsCtx.students.forEach(function(s,i){
+    var r=rec[i]||{}, att=r.attendance||'none';
+    var sc=(r.total!==undefined)? r.total.toFixed(2):null;
+    html+='<div style="display:grid;grid-template-columns:26px 1fr 90px 70px 60px;gap:6px;align-items:center;padding:9px 10px;border-bottom:1px solid var(--border)'+(att==='absent'?';background:#fff8f8':'')+'">';
+    html+='<div style="font-size:13px;color:var(--muted);text-align:center">'+(i+1)+'</div>';
+    html+='<div style="font-size:15px;font-weight:500;cursor:pointer" onclick="crsEval('+i+')">'+esc(s.name)+'</div>';
+    html+='<div style="display:flex;gap:4px"><button class="ab '+(att==='present'?'abap':'abp')+'" onclick="crsSetAtt('+i+',\'present\')">✓</button><button class="ab '+(att==='absent'?'abaa':'aba')+'" onclick="crsSetAtt('+i+',\'absent\')">✗</button></div>';
+    html+='<div class="sbadge'+(sc===null?' empty':'')+'" style="text-align:center"><span>'+(sc!==null?sc+'/15':'—')+'</span></div>';
+    html+='<div style="text-align:center"><div class="ei '+(r.evaluated?'done':'pend')+'" onclick="crsEval('+i+')">'+(r.evaluated?'✏️':'📝')+'</div></div>';
+    html+='</div>';
+  });
+  if(!crsCtx.students.length) html='<div style="padding:22px;text-align:center;color:var(--muted)">لا يوجد طلاب في هذه المجموعة.</div>';
+  document.getElementById('crsDayBody').innerHTML=html;
+}
+
+// attendance toggle (writes to course namespace)
+function crsSetAtt(i, val){
+  var rec=crsGet(crsCtx.hospital, crsCtx.group, crsCtx.dateKey);
+  if(!rec[i]) rec[i]={};
+  rec[i].attendance=(rec[i].attendance===val)?'none':val;
+  rec[i].attendanceTime=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+  rec['__names__']=crsCtx.students.map(function(s){return s.name;});
+  crsSet(crsCtx.hospital, crsCtx.group, crsCtx.dateKey, rec);
+  crsDayRender();
+}
+
+// evaluation — reuse the EXISTING modal by temporarily swapping globals
+var crsSaved=null;
+function crsEval(i){
+  // snapshot main globals
+  crsSaved={ curDate:curDate, curGroup:curGroup, sm:studentsMorning, se:studentsEvening, hist:history, curSt:curSt };
+  // point the existing engine at this course day
+  curDate=crsCtx.dateStr;
+  curGroup=crsCtx.period; // 'morning'|'evening' — matches getStudents() switch
+  var arr=crsCtx.students.map(function(s){return {name:s.name, email:s.email};});
+  if(crsCtx.period==='morning'){ studentsMorning=arr; } else { studentsEvening=arr; }
+  // load existing course record into a temp history under the same session key
+  var sk=crsCtx.dateKey;
+  history={}; history[sk]=JSON.parse(JSON.stringify(crsGet(crsCtx.hospital,crsCtx.group,crsCtx.dateKey)));
+  crsEvalActive=true;
+  openEval(i); // existing modal renders against the swapped globals
+}
+var crsEvalActive=false;
+
+// called after the existing saveEval() finishes while a course eval is open
+function crsCaptureAndRestore(){
+  if(!crsEvalActive || !crsSaved) return false;
+  var sk=crsCtx.dateKey;
+  var updated=history[sk]||{};
+  updated['__names__']=crsCtx.students.map(function(s){return s.name;});
+  crsSet(crsCtx.hospital, crsCtx.group, crsCtx.dateKey, updated);
+  // restore main globals
+  curDate=crsSaved.curDate; curGroup=crsSaved.curGroup;
+  studentsMorning=crsSaved.sm; studentsEvening=crsSaved.se;
+  history=crsSaved.hist; curSt=crsSaved.curSt;
+  crsSaved=null; crsEvalActive=false;
+  crsDayRender();
+  return true;
+}
+
+function crsCloseDay(){
+  document.getElementById('crsDayModal').classList.remove('open');
+  crsCtx=null;
+  crsRender();
+}
+
+// ── downloads for the current course day (reuse export builders) ──────
+function crsDayExcel(){
+  if(!crsCtx) return;
+  var rec=crsGet(crsCtx.hospital,crsCtx.group,crsCtx.dateKey);
+  var rows=[['#','اسم الطالب','الحضور','الدرجة /15','تم التقييم']];
+  crsCtx.students.forEach(function(s,i){
+    var r=rec[i]||{};
+    rows.push([i+1, s.name,
+      r.attendance==='present'?'حاضر':r.attendance==='absent'?'غائب':'—',
+      (r.total!==undefined)?r.total.toFixed(2):'—',
+      r.evaluated?'نعم':'لا']);
+  });
+  var wb=XLSX.utils.book_new();
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, 'اليوم');
+  XLSX.writeFile(wb, 'الدورة_مجموعة'+crsSeg(crsCtx.group)+'_'+crsCtx.dateStr+'.xlsx');
+}
+
+// ── load courseHistory from cache/cloud ───────────────────────────────
+function crsLoadCache(){
+  try{ var raw=localStorage.getItem('hsp_course'); if(raw) courseHistory=JSON.parse(raw)||{}; }catch(e){}
+}
 
 </script>
 </body>
