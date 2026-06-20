@@ -456,6 +456,31 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// ── BOOT WATCHDOG ──────────────────────────────────────────────────────
+// Hard guarantee: the loading spinner can NEVER hang forever. If neither the
+// app nor the login card is visible within 8s of the page starting (e.g.
+// Firebase scripts blocked on a mobile network, or iOS Safari stalls the
+// auth callback because storage is partitioned), force the login screen so
+// the user can at least choose online retry or offline mode.
+(function(){
+  var BOOT_TIMEOUT = 8000;
+  window.__appBooted = false;
+  setTimeout(function(){
+    if (window.__appBooted) return;
+    var ls   = document.getElementById('loadingScreen');
+    var app  = document.getElementById('appRoot');
+    var login= document.getElementById('loginScreen');
+    var appVisible   = app   && app.style.display   === 'block';
+    var loginVisible = login && (login.style.display === 'flex' || login.style.display === 'block');
+    if (appVisible || loginVisible) return; // something already took over
+    if (ls) ls.style.display = 'none';
+    if (login) {
+      login.style.display = 'flex';
+      try { showLoginSection(navigator.onLine ? 'online' : 'offline'); } catch(e){}
+    }
+  }, BOOT_TIMEOUT);
+})();
+
 // ── OFFLINE REDIRECT (Option C) ──
 // If no service worker AND no internet → go to offline.html
 window.addEventListener('load', function() {
@@ -1644,6 +1669,7 @@ function initConnectivityCheck() {
 }
 
 function detectAndShowLogin() {
+  window.__appBooted = true;
   document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display   = 'flex';
   showLoginSection(navigator.onLine ? 'online' : 'offline');
@@ -1733,6 +1759,7 @@ function attachAuthListener() {
 
   auth.onAuthStateChanged(function(user) {
     // Always hide loading screen when auth state is known
+    window.__appBooted = true;
     document.getElementById('loadingScreen').style.display = 'none';
     if (user) {
       if (typeof optimisticUid !== 'undefined') optimisticUid = null; // restore confirmed
@@ -5281,6 +5308,7 @@ function optimisticRestore(sess){
       if (c.sn) document.getElementById('supName').value = c.sn;
     }
   } catch(e) {}
+  window.__appBooted = true;
   document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display   = 'none';
   document.getElementById('appRoot').style.display       = 'block';
