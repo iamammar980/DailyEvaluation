@@ -1,115 +1,86 @@
-// ═══════════════════════════════════════════════════════════
-// SERVICE WORKER — Option A
-// Caches everything on first visit so app works fully offline
-// ═══════════════════════════════════════════════════════════
-
-var CACHE_NAME = 'hospital-eval-v1';
-
-// Everything that needs to work offline
-var CACHE_URLS = [
-  '/',
+/* ──────────────────────────────────────────────────────────────────────
+   Service Worker — تقييم الممارسة اليومية
+   Strategy:
+     • App shell (index.html, offline.html, icons, manifest) is precached so
+       the app opens with no network.
+     • Navigation requests: network-first, falling back to cached index.html
+       (so a refresh offline still loads the app, not a browser error).
+     • Same-origin static assets: stale-while-revalidate.
+     • Cross-origin (Firebase, ImgBB proxy, CDNs): never intercepted — let the
+       app's own offline queue + live sync handle those.
+   Bump CACHE_VERSION whenever you change cached files to force an update.
+   ────────────────────────────────────────────────────────────────────── */
+const CACHE_VERSION = 'hsp-v1';
+const PRECACHE = [
   '/index.html',
   '/offline.html',
-  // Firebase SDKs
-  'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
-  'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js',
-  'https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js',
-  // SheetJS
-  'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
-  // Google Sign-In icon
-  'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg'
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png',
+  '/apple-touch-icon.png'
 ];
 
-// ── INSTALL: cache everything on first visit ──
 self.addEventListener('install', function(event) {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(function(cache) {
-      console.log('[SW] Caching all resources...');
-      // Cache each URL individually so one failure doesn't block others
-      return Promise.allSettled(
-        CACHE_URLS.map(function(url) {
-          return cache.add(url).catch(function(err) {
-            console.warn('[SW] Failed to cache:', url, err);
-          });
-        })
-      );
-    }).then(function() {
-      console.log('[SW] Install complete');
-      return self.skipWaiting();
-    })
+    caches.open(CACHE_VERSION)
+      .then(function(cache) { return cache.addAll(PRECACHE); })
+      .then(function() { return self.skipWaiting(); })
+      .catch(function() { /* precache failure shouldn't block install */ })
   );
 });
 
-// ── ACTIVATE: clean up old caches ──
 self.addEventListener('activate', function(event) {
   event.waitUntil(
     caches.keys().then(function(keys) {
       return Promise.all(
-        keys.filter(function(k) { return k !== CACHE_NAME; })
+        keys.filter(function(k) { return k !== CACHE_VERSION; })
             .map(function(k) { return caches.delete(k); })
       );
-    }).then(function() {
-      return self.clients.claim();
-    })
+    }).then(function() { return self.clients.claim(); })
   );
 });
 
-// ── FETCH: serve from cache, fall back to network ──
 self.addEventListener('fetch', function(event) {
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') return;
+  const req = event.request;
 
-  // Skip Firebase auth/database API calls (must be live)
-  var url = event.request.url;
-  if (url.includes('firebaseio.com') ||
-      url.includes('identitytoolkit') ||
-      url.includes('securetoken.google.com') ||
-      url.includes('googleapis.com/identitytoolkit')) {
-    return; // Let these go to network always
+  // Only handle GET; let everything else (POST to Firebase/proxy) pass through.
+  if (req.method !== 'GET') return;
+
+  const url = new URL(req.url);
+
+  // Never touch cross-origin requests — Firebase, the upload proxy, Google
+  // auth, and CDNs must always go straight to the network.
+  if (url.origin !== self.location.origin) return;
+
+  // Navigations: network-first with cached index.html fallback.
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req).catch(function() {
+        return caches.match('/index.html').then(function(cached) {
+          return cached || caches.match('/offline.html');
+        });
+      })
+    );
+    return;
   }
 
+  // Same-origin static assets: stale-while-revalidate.
   event.respondWith(
-    caches.match(event.request).then(function(cached) {
-      if (cached) {
-        // Serve from cache immediately
-        // Also update cache in background (stale-while-revalidate)
-        var fetchPromise = fetch(event.request).then(function(response) {
-          if (response && response.status === 200) {
-            var clone = response.clone();
-            caches.open(CACHE_NAME).then(function(cache) {
-              cache.put(event.request, clone);
-            });
-          }
-          return response;
-        }).catch(function() { /* offline - ignore */ });
-
-        return cached;
-      }
-
-      // Not in cache - try network
-      return fetch(event.request).then(function(response) {
-        if (!response || response.status !== 200 || response.type === 'opaque') {
-          return response;
+    caches.match(req).then(function(cached) {
+      const network = fetch(req).then(function(res) {
+        if (res && res.status === 200 && res.type === 'basic') {
+          const copy = res.clone();
+          caches.open(CACHE_VERSION).then(function(cache) { cache.put(req, copy); });
         }
-        // Cache the new resource
-        var clone = response.clone();
-        caches.open(CACHE_NAME).then(function(cache) {
-          cache.put(event.request, clone);
-        });
-        return response;
-      }).catch(function() {
-        // Network failed and not in cache
-        // If it's a page request, show offline fallback
-        if (event.request.mode === 'navigate') {
-          return caches.match('/offline.html');
-        }
-        return new Response('', { status: 503 });
-      });
+        return res;
+      }).catch(function() { return cached; });
+      return cached || network;
     })
   );
 });
 
-// ── MESSAGE: force update ──
+// Allow the page to trigger an immediate update via postMessage.
 self.addEventListener('message', function(event) {
-  if (event.data === 'skipWaiting') self.skipWaiting();
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });
