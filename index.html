@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>تقييم الممارسة اليومية في المستشفى</title>
+<!-- PWA: installable app metadata -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a5276">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="تقييم الممارسة">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <!-- UX enhancement libraries (MIT/Apache, CDN, no build) -->
@@ -16,12 +25,12 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <!-- Firebase loads dynamically in JS only when online mode is chosen -->
 <style>
-:root{--bg:#f4f7f5;--surface:#fff;--border:#e4ebe7;--primary:#0f7a6a;--pl:#13a08a;--accent:#0f7a6a;--danger:#c0392b;--warn:#e67e22;--success:#27ae60;--text:#1f3329;--muted:#7c8a83;--r:10px}
+:root{--bg:#f5f6fa;--surface:#fff;--border:#e2e6ea;--primary:#1a5276;--pl:#2980b9;--accent:#16a085;--danger:#c0392b;--warn:#e67e22;--success:#27ae60;--text:#2c3e50;--muted:#7f8c8d;--r:10px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;direction:rtl}
 
 /* LOGIN SCREEN */
-.login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#eceae3;padding:20px}
+.login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1a5276,#2980b9)}
 .login-card{background:#fff;border-radius:18px;padding:40px 36px;width:100%;max-width:400px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 .login-card .logo{font-size:48px;margin-bottom:12px}
 .login-card h2{font-size:22px;font-weight:700;color:var(--primary);margin-bottom:8px}
@@ -74,27 +83,6 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .tab-panel{display:none}
 .tab-panel.active{display:block}
 
-/* ★ STAGE 1: green SaaS sidebar layout */
-:root{--green:#0f7a6a;--green-soft:#e2f4f0;--green-dim:#a8e0d6}
-.shell{display:flex;gap:0;max-width:1180px;margin:0 auto;align-items:flex-start}
-.sidebar{width:212px;flex:0 0 212px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 10px;margin:14px 14px 14px 0;display:flex;flex-direction:column;gap:3px;position:sticky;top:14px}
-.sb-sec{font-size:10px;color:var(--muted);letter-spacing:1px;padding:12px 10px 4px}
-.snav{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:10px;font-size:13px;font-weight:600;color:var(--muted);background:transparent;border:none;cursor:pointer;position:relative;width:100%;text-align:right;font-family:inherit;transition:background .15s,color .15s}
-.snav:hover{background:var(--bg);color:var(--text)}
-.snav.active{background:var(--green-soft);color:var(--green)}
-.snav.active::before{content:'';position:absolute;right:-10px;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--green)}
-.snav .si{font-size:17px;line-height:1}
-.snav .sct{margin-right:auto;font-size:10px;background:var(--green-soft);color:var(--green);border-radius:10px;padding:1px 8px;font-weight:700}
-.content{flex:1;min-width:0;padding:14px 4px}
-@media(max-width:760px){
-  .shell{flex-direction:column}
-  .sidebar{width:auto;flex:none;margin:10px;position:static;flex-direction:row;flex-wrap:wrap;gap:6px}
-  .sb-sec{display:none}
-  .snav{width:auto;flex:0 0 auto;padding:8px 10px}
-  .snav .stxt{display:none}
-  .snav.active::before{display:none}
-}
-
 /* BUTTONS */
 .btn{cursor:pointer;border:none;border-radius:var(--r);padding:7px 12px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
 .btn:active{transform:scale(.97)}
@@ -103,7 +91,7 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .bw{background:var(--warn);color:#fff}.bw:hover{background:#d68910}
 .bo{background:var(--surface);color:var(--text);border:1px solid var(--border)}.bo:hover{background:var(--bg)}
 .bpu{background:#6c3483;color:#fff}.bpu:hover{background:#7d3c98}
-.bt{background:#0f7a6a;color:#fff}.bt:hover{background:#148f77}
+.bt{background:#117a65;color:#fff}.bt:hover{background:#148f77}
 .bred{background:var(--danger);color:#fff}.bred:hover{background:#a93226}
 
 /* STATS */
@@ -314,7 +302,7 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .db-tbl td{padding:8px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
 .db-tbl tr:hover td{background:#f0f7ff}
 .dbb{display:inline-block;font-size:11px;font-weight:700;border-radius:10px;padding:2px 8px}
-.dbb-mo{background:#d6eaf8;color:#0f7a6a}
+.dbb-mo{background:#d6eaf8;color:#1a5276}
 .dbb-ev{background:#e8daef;color:#6c3483}
 .dbb-hp{background:#d5f5e3;color:#1e8449}
 .dbb-ar{background:#fef9e7;color:#7d6608}
@@ -422,18 +410,10 @@ body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);
 .ab:active,.pb:active{transform:scale(.9)}
 .user-info{transition:background .22s,transform .2s}
 .user-info:hover{background:rgba(255,255,255,.26);transform:translateY(-1px)}
-.login-screen{background:#eceae3}
+.login-screen{background:linear-gradient(-45deg,#1a5276,#2980b9,#16a085,#1a5276);background-size:380% 380%;animation:gradFlow 14s ease infinite}
+@keyframes gradFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes loginCardIn{from{opacity:0;transform:translateY(26px) scale(.97)}to{opacity:1;transform:none}}
 .login-card{animation:loginCardIn .55s cubic-bezier(.22,1,.36,1)}
-/* ★ split login: form panel + illustration panel */
-.login-card{display:flex;flex-direction:row-reverse;padding:0;max-width:880px;width:100%;border-radius:20px;overflow:hidden;box-shadow:0 30px 80px rgba(20,40,30,.18);text-align:right;background:#f4f2ec}
-.login-form{flex:1;padding:48px 44px;display:flex;flex-direction:column;justify-content:center;min-width:280px}
-.login-art{flex:1;position:relative;min-height:480px;background:#dfe7e0;overflow:hidden}
-.login-art svg{position:absolute;inset:0;width:100%;height:100%}
-.login-mark{font-family:Georgia,'Times New Roman',serif;font-size:18px;letter-spacing:1px;color:#0f7a6a;margin-bottom:auto}
-.login-welcome{font-family:Georgia,'Times New Roman',serif;font-size:34px;font-weight:700;color:#2a3a33;margin:0 0 6px}
-.login-sub{font-size:14px;color:#7c8a83;margin:0 0 28px}
-@media(max-width:720px){.login-card{flex-direction:column}.login-art{min-height:170px;flex:none}.login-form{padding:32px 26px}}
 .hinput,.sbox{transition:background .22s,border-color .22s,box-shadow .22s}
 .sbox:focus{box-shadow:0 0 0 3px rgba(41,128,185,.15)}
 .ei{transition:transform .18s}
@@ -499,10 +479,8 @@ window.addEventListener('load', function() {
 <!-- LOGIN — UNIFIED: auto-detects connectivity, both options always available -->
 <div class="login-screen" id="loginScreen" style="display:none">
   <div class="login-card">
-    <div class="login-form">
-    <div class="login-mark">● تقييم المستشفى</div>
-    <h2 class="login-welcome">أهلاً بعودتك</h2>
-    <p class="login-sub">حيث تبدأ متابعة طلابك من جديد.</p>
+    <div class="logo">🏥</div>
+    <h2>تقييم الممارسة اليومية</h2>
 
     <!-- Shown while detecting connectivity -->
     <div id="checkingSection" style="padding:10px 0;color:var(--muted);font-size:14px">
@@ -539,18 +517,6 @@ window.addEventListener('load', function() {
       <div style="margin-top:14px;font-size:12px;color:#888;text-align:center;line-height:1.7">
         عند عودة الاتصال، أعد تحميل الصفحة لتسجيل الدخول بـ Google<br>
         <a href="/offline.html" style="color:var(--pl);text-decoration:none;font-weight:600">📱 أو افتح النسخة المحلية الكاملة</a>
-      </div>
-    </div>
-    </div>
-
-    <div class="login-art" aria-hidden="true" style="background:#fff;display:flex;align-items:center;justify-content:center">
-      <div style="display:flex;align-items:flex-end;gap:10px">
-        <div style="display:flex;align-items:flex-end;gap:5px">
-          <span style="width:11px;height:26px;background:#a8e0d6;border-radius:3px"></span>
-          <span style="width:11px;height:44px;background:#5dcaa5;border-radius:3px"></span>
-          <span style="width:11px;height:64px;background:#0f7a6a;border-radius:3px"></span>
-        </div>
-        <span style="font-family:system-ui,'Segoe UI',sans-serif;font-size:34px;font-weight:700;color:#27332e;letter-spacing:-.5px">Evaluate</span>
       </div>
     </div>
   </div>
@@ -599,47 +565,23 @@ window.addEventListener('load', function() {
   </div>
 
   <div class="app-body" id="appBody">
-    <div class="shell">
-      <aside class="sidebar">
-        <div class="sb-sec">العمل اليومي</div>
-        <button class="snav active" id="tbhome" onclick="showTab('home')"><span class="si">🏠</span><span class="stxt">اللوحة</span></button>
-        <button class="snav" id="tba" onclick="showTab('att')"><span class="si">👥</span><span class="stxt">الحضور والتقييم</span></button>
-        <button class="snav" id="tbp" onclick="showTab('paper')"><span class="si">📄</span><span class="stxt">الورقة اليومية</span></button>
-        <button class="snav" id="tbcyc" onclick="showTab('cycle')"><span class="si">🎯</span><span class="stxt">الدورة التقييمية</span></button>
-        <button class="snav" id="tbrot" onclick="showTab('rot')"><span class="si">🔄</span><span class="stxt">نظام التناوب</span></button>
-
-        <div class="sb-sec">التحليل</div>
-        <button class="snav" id="tbpg" onclick="showTab('prog')"><span class="si">📈</span><span class="stxt">متابعة الطلاب</span></button>
-        <button class="snav" id="tbstat" onclick="showTab('stat')"><span class="si">📊</span><span class="stxt">الإحصائيات</span></button>
-
-        <div class="sb-sec">البيانات والإعداد</div>
-        <button class="snav" id="tbdb" onclick="showTab('db')"><span class="si">🗄️</span><span class="stxt">قاعدة البيانات</span></button>
-        <button class="snav" id="tbr" onclick="showTab('roster')"><span class="si">🏥</span><span class="stxt">جدول المجموعات</span></button>
-        <button class="snav" id="tbh" onclick="showTab('hist')"><span class="si">📅</span><span class="stxt">السجل التاريخي</span></button>
-
-        <div class="sb-sec">مرجع</div>
-        <button class="snav" id="tbtm" onclick="showTab('teach')"><span class="si">📚</span><span class="stxt">المواد التعليمية</span></button>
-        <button class="snav" id="tbal" onclick="showTab('audit')"><span class="si">📋</span><span class="stxt">سجل التغييرات</span></button>
-      </aside>
-      <div class="content">
-
-      <!-- TAB: HOME DASHBOARD -->
-      <div class="tab-panel active" id="phome">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-          <div>
-            <h2 style="margin:0;font-size:20px;font-weight:700;color:var(--text)">اللوحة</h2>
-            <div style="font-size:13px;color:var(--muted);margin-top:2px">نظرة عامة على يومك ومجموعاتك</div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn bp" onclick="showTab('att')">👥 بدء التقييم</button>
-            <button class="btn bo" onclick="showTab('stat')">📊 الإحصائيات</button>
-          </div>
-        </div>
-        <div id="homeContent"></div>
+    <div class="main">
+      <div class="tab-nav">
+        <button class="tab-btn active" id="tba" onclick="showTab('att')">👥 الحضور والتقييم</button>
+        <button class="tab-btn" id="tbrot" onclick="showTab('rot')">🔄 الدورة</button>
+        <button class="tab-btn" id="tbp" onclick="showTab('paper')">📄 الورقة اليومية</button>
+        <button class="tab-btn" id="tbr" onclick="showTab('roster')">🏥 جدول المجموعات</button>
+        <button class="tab-btn" id="tbh" onclick="showTab('hist')">📅 السجل التاريخي</button>
+        <button class="tab-btn" id="tbdb" onclick="showTab('db')">🗄️ قاعدة البيانات</button>
+        <button class="tab-btn" id="tbtm" onclick="showTab('teach')">📚 المواد التعليمية</button>
+        <button class="tab-btn" id="tbal" onclick="showTab('audit')">📋 سجل التغييرات</button>
+        <button class="tab-btn" id="tbpg" onclick="showTab('prog')">📈 متابعة الطلاب</button>
+        <button class="tab-btn" id="tbcyc" onclick="showTab('cycle')">🎯 الدورة التقييمية</button>
+        <button class="tab-btn" id="tbstat" onclick="showTab('stat')">📊 الإحصائيات</button>
       </div>
 
       <!-- TAB: ATTENDANCE -->
-      <div class="tab-panel" id="pa">
+      <div class="tab-panel active" id="pa">
         <!-- ★ MODE TOGGLE: classic day-view (default) vs 4-day cycle assessment -->
         <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
           <button id="paModeClassicBtn" class="btn bp" onclick="paSetMode('classic')" style="font-size:13px">📆 العرض اليومي</button>
@@ -669,7 +611,7 @@ window.addEventListener('load', function() {
         </div>
 
         <!-- ★ ROTATION CONTEXT BAR — hospital / block / day(1-4) / unit -->
-        <div id="rotBar" style="background:linear-gradient(135deg,#0f6e56,#0f7a6a);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div id="rotBar" style="background:linear-gradient(135deg,#0f6e56,#16a085);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="font-size:13px;font-weight:700">🔄 الدورة الحالية</div>
           <span id="rotSummary" style="font-size:13px;opacity:.95;flex:1">— لم تُحدَّد بعد —</span>
           <button class="btn" style="background:rgba(255,255,255,.2);color:#fff;font-size:12px;padding:5px 12px" onclick="openRotModal()">✏️ تحديد المستشفى واليوم</button>
@@ -680,9 +622,9 @@ window.addEventListener('load', function() {
           <button class="btn bp" onclick="sortSt()">🔤 أبجدي</button>
           <button class="btn ba" onclick="doExcel()">📥 Excel</button>
           <button class="btn" style="background:#8e2f5d;color:#fff" onclick="exportDayPDF()">📕 PDF تفصيلي</button>
-          <button class="btn" style="background:#0f7a6a;color:#fff" onclick="exportSummaryExcel()">📊 ملف الدرجات</button>
+          <button class="btn" style="background:#117a65;color:#fff" onclick="exportSummaryExcel()">📊 ملف الدرجات</button>
           <button class="btn" style="background:#c0392b;color:#fff" onclick="exportAttPDF()">🖨️ كشف الحضور</button>
-          <button class="btn" style="background:#0f7a6a;color:#fff" onclick="openGrpLoader()">📋 تحميل مجموعة</button>
+          <button class="btn" style="background:#117a65;color:#fff" onclick="openGrpLoader()">📋 تحميل مجموعة</button>
           <button class="btn bw" onclick="clearDay()">🔄 يوم جديد</button>
           <button class="btn" style="background:#8e44ad;color:#fff" onclick="newGroup()">👥 مجموعة جديدة</button>
           <button class="btn" style="background:#e74c3c;color:#fff" onclick="openEmailPanel()">📧 إرسال الدرجات</button>
@@ -773,7 +715,7 @@ window.addEventListener('load', function() {
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <input type="text" class="sbox" id="histSearch" placeholder="🔍 ابحث بالتاريخ أو اسم الطالب..." oninput="renderHist()" style="max-width:260px">
             <button class="btn ba" onclick="doExcelAll()">📥 تصدير الكل</button>
-            <button class="btn" style="background:#0f7a6a;color:#fff" onclick="exportSummaryExcel()">📊 ملف الدرجات الكامل</button>
+            <button class="btn" style="background:#117a65;color:#fff" onclick="exportSummaryExcel()">📊 ملف الدرجات الكامل</button>
             <button class="btn" style="background:#8e2f5d;color:#fff" onclick="exportFullPDF()">📕 سجل الدرجات PDF</button>
           </div>
         </div>
@@ -797,11 +739,7 @@ window.addEventListener('load', function() {
       <div class="tab-panel" id="ppg">
         <div class="hist-hdr">
           <h2>📈 متابعة تطور الطلاب</h2>
-          <div style="font-size:12px;color:var(--muted)">المتوسط، الحضور، وتطور الدرجات لكل طالب — عرض شامل أو حسب الدورة (٤ أيام)</div>
-        </div>
-        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
-          <button id="pgModeAllBtn" class="btn bp" onclick="pgSetMode('all')" style="font-size:13px">📋 كل الجلسات</button>
-          <button id="pgModeCycBtn" class="btn bo" onclick="pgSetMode('cycle')" style="font-size:13px">🎯 حسب الدورة (٤ أيام)</button>
+          <div style="font-size:12px;color:var(--muted)">المتوسط، الحضور، وتطور الدرجات لكل طالب عبر كل الجلسات — مع تنبيه للطلاب المتعثرين</div>
         </div>
         <div id="progContent"></div>
       </div>
@@ -831,7 +769,7 @@ window.addEventListener('load', function() {
 
       <div class="tab-panel" id="prot">
         <div class="hist-hdr">
-          <h2>🔄 نظام التناوب</h2>
+          <h2>🔄 نظام الدورة</h2>
           <div style="font-size:12px;color:var(--muted)">حدّد مستشفى ويوم الدورة، وراجع أيام كل مستشفى المحفوظة — وأغلق اليوم عند انتهاء تقييمه</div>
         </div>
         <div id="rotTabContent"></div>
@@ -841,13 +779,13 @@ window.addEventListener('load', function() {
       <div class="tab-panel" id="pdb">
         <div id="dbWrap">
           <!-- Upload area - always shown -->
-          <div style="background:#0f7a6a;border-radius:12px;padding:20px 22px;margin-bottom:16px;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px">
+          <div style="background:#1a5276;border-radius:12px;padding:20px 22px;margin-bottom:16px;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px">
             <div>
               <div style="font-size:17px;font-weight:700;margin-bottom:4px">🗄️ قاعدة بيانات الطلاب</div>
               <div style="font-size:13px;opacity:.85">ارفع ملف Excel لاستيراد بيانات الطلاب</div>
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap">
-              <button onclick="dlDbTemplate()" style="background:#fff;color:#0f7a6a;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer">📥 تحميل القالب</button>
+              <button onclick="dlDbTemplate()" style="background:#fff;color:#1a5276;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer">📥 تحميل القالب</button>
               <button onclick="document.getElementById('dbFileInput').click()" style="background:#27ae60;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer">📂 رفع ملف Excel</button>
               <input type="file" id="dbFileInput" accept=".xlsx,.xls" style="display:none" onchange="importDbFile(event)">
             </div>
@@ -857,13 +795,13 @@ window.addEventListener('load', function() {
 
           <!-- ★ DATA PROTECTION CENTER -->
           <div style="margin-top:18px;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-            <div style="background:linear-gradient(135deg,#13a08a,#0f7a6a);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div style="background:linear-gradient(135deg,#117a65,#16a085);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
               <div>
                 <div style="font-size:16px;font-weight:700">🛡️ مركز حماية البيانات</div>
                 <div style="font-size:12px;opacity:.85;margin-top:2px">سحابة + تخزين محلي + نسخ تلقائية يومية — لا فقدان للبيانات في أي حال</div>
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <button class="btn" style="background:#fff;color:#0f7a6a;font-weight:700" onclick="backupDownload()">💾 تنزيل نسخة احتياطية</button>
+                <button class="btn" style="background:#fff;color:#117a65;font-weight:700" onclick="backupDownload()">💾 تنزيل نسخة احتياطية</button>
                 <button class="btn" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4)" onclick="document.getElementById('backupFileInput').click()">📂 استعادة من ملف</button>
                 <input type="file" id="backupFileInput" accept=".json" style="display:none" onchange="backupRestore(event)">
               </div>
@@ -872,6 +810,19 @@ window.addEventListener('load', function() {
               <div id="backupStatus" style="font-size:13px;color:var(--muted);margin-bottom:10px"></div>
               <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">📸 النسخ التلقائية اليومية (آخر 7 أيام):</div>
               <div id="snapList" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+            </div>
+          </div>
+
+          <!-- ★ IMAGE UPLOAD SETTINGS (secure proxy, no API key in the page) -->
+          <div style="margin-top:18px;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#6c3483,#8e44ad);color:#fff;padding:14px 18px">
+              <div style="font-size:16px;font-weight:700">🖼️ إعداد رفع الصور (آمن)</div>
+              <div style="font-size:12px;opacity:.85;margin-top:2px">مفتاح الرفع محفوظ على الخادم — هذا الرابط آمن ولا يكشف أي سر</div>
+            </div>
+            <div style="padding:14px 18px">
+              <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">رابط الرفع (Upload Proxy URL)</label>
+              <input id="uploadProxyUrl" type="text" placeholder="https://script.google.com/macros/s/xxxxx/exec" style="width:100%;border:1px solid #ddd;border-radius:6px;padding:7px 10px;font-size:12px;direction:ltr" oninput="saveUploadProxyConfig()">
+              <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.7">يُستخدم في تبويب «المواد التعليمية» لرفع صور المواضيع. اتبع خطوات الإعداد في ملف <strong>upload-proxy.gs</strong>.</div>
             </div>
           </div>
         </div>
@@ -895,8 +846,7 @@ window.addEventListener('load', function() {
         </div>
       </div>
 
-    </div><!-- /content -->
-    </div><!-- /shell -->
+    </div><!-- /main -->
   </div><!-- /appBody -->
 </div><!-- /appRoot -->
 
@@ -1170,6 +1120,53 @@ function dateToKey(d) { return d.replace(/-/g, '_'); }
 function keyToDate(k) { return k.replace(/_/g, '-'); }
 function sessionDbKey() { return dateToKey(curDate) + '_' + curGroup; }
 
+// ═══════════════════════════════════════════════════════════════════════
+// SECURITY & RELIABILITY HELPERS
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── HTML escaping (XSS protection) ────────────────────────────────────
+// Every user-supplied value (student names, hospital names, notes, emails)
+// MUST pass through esc() before being placed into innerHTML.
+function esc(v) {
+  if (v === null || v === undefined) return '';
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ── Remote error reporting (lightweight) ──────────────────────────────
+function logError(context, err) {
+  try {
+    var info = {
+      context: context,
+      message: (err && err.message) ? err.message : String(err),
+      stack: (err && err.stack) ? String(err.stack).substring(0, 1000) : '',
+      ua: navigator.userAgent,
+      ts: Date.now(),
+      online: navigator.onLine
+    };
+    console.error('[' + context + ']', err);
+    if (!isOfflineMode && db && currentUser && navigator.onLine) {
+      db.ref('users/' + currentUser.uid + '/errors').push(info).catch(function(){});
+    }
+  } catch (e) {}
+}
+window.addEventListener('error', function(e) { logError('window.onerror', e.error || e.message); });
+window.addEventListener('unhandledrejection', function(e) { logError('unhandledrejection', e.reason || 'promise rejected'); });
+
+// ── App configuration (no secrets in client) ──────────────────────────
+// The image-upload key now lives on a Google Apps Script proxy you control;
+// the client only knows the proxy URL, which is safe to expose.
+function getUploadProxyUrl() {
+  try { return localStorage.getItem('hsp_upload_proxy') || ''; } catch (e) { return ''; }
+}
+function setUploadProxyUrl(url) {
+  try { localStorage.setItem('hsp_upload_proxy', (url || '').trim()); } catch (e) {}
+}
+
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
@@ -1421,7 +1418,7 @@ function renderRotationTab(){
   var html = '';
 
   // --- Setup panel: today's rotation ---
-  html += '<div style="background:linear-gradient(135deg,#0f6e56,#0f7a6a);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:18px">';
+  html += '<div style="background:linear-gradient(135deg,#0f6e56,#16a085);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:18px">';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">';
   html += '<div><div style="font-size:15px;font-weight:700">🔄 إعداد دورة اليوم</div>';
   var setup=[];
@@ -1448,7 +1445,7 @@ function renderRotationTab(){
     var g = groups[hk];
     html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden">';
     html += '<div style="background:#eef7f4;padding:11px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
-    html += '<div style="font-size:15px;font-weight:700;color:#0f6e56">🏥 '+g.hospital+(g.block?' <span style="font-size:12px;color:var(--muted);font-weight:400">— فترة '+g.block+'</span>':'')+'</div>';
+    html += '<div style="font-size:15px;font-weight:700;color:#0f6e56">🏥 '+esc(g.hospital)+(g.block?' <span style="font-size:12px;color:var(--muted);font-weight:400">— فترة '+esc(g.block)+'</span>':'')+'</div>';
     html += '<span style="font-size:12px;color:var(--muted)">'+g.days.length+' / 4 أيام</span>';
     html += '</div>';
     html += '<div style="padding:12px 15px;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">';
@@ -1460,7 +1457,7 @@ function renderRotationTab(){
       html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
       html += '<div style="background:#f8fafc;padding:9px 11px;border-bottom:1px solid var(--border)">';
       html += '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:14px;font-weight:700;color:var(--primary)">'+(d.dayNo?('اليوم '+d.dayNo):d.date)+'</span><span style="font-size:11px;font-weight:700;color:'+statusCol+'">'+statusTxt+'</span></div>';
-      html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+d.date+' • '+d.group+(d.unit?(' • '+d.unit):'')+'</div>';
+      html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+esc(d.date)+' • '+esc(d.group)+(d.unit?(' • '+esc(d.unit)):'')+'</div>';
       html += '</div>';
       html += '<div style="padding:9px 11px;font-size:12px;color:var(--text);display:flex;flex-wrap:wrap;gap:8px">';
       html += '<span style="color:#1e8449">✓ '+d.present+'</span>';
@@ -1473,7 +1470,7 @@ function renderRotationTab(){
       if(d.closed||allLocked){
         html += '<button class="btn bo" style="font-size:11px;padding:5px 9px" onclick="reopenDay(\''+d.key+'\')">🔓 فتح</button>';
       } else {
-        html += '<button class="btn" style="background:#0f7a6a;color:#fff;font-size:11px;padding:5px 9px;flex:1" onclick="closeDay(\''+d.key+'\')">🔒 إغلاق اليوم</button>';
+        html += '<button class="btn" style="background:#117a65;color:#fff;font-size:11px;padding:5px 9px;flex:1" onclick="closeDay(\''+d.key+'\')">🔒 إغلاق اليوم</button>';
       }
       html += '</div>';
       html += '</div>';
@@ -1531,19 +1528,22 @@ function flushQueue(){
   if (!paths.length) return;
   flushing = true;
   setSyncStatus('saving');
-  var failed = 0;
-  paths.forEach(function(p){
-    dbRef(p).set(q[p].d)
-      .then(function(){ dequeueWrite(p); })
-      .catch(function(){ failed++; });
+
+  // Promise-based completion: we know exactly when every write has settled,
+  // instead of guessing with a fixed timeout that could race a slow network.
+  var writes = paths.map(function(p){
+    return dbRef(p).set(q[p].d)
+      .then(function(){ dequeueWrite(p); return true; })
+      .catch(function(err){ logError('flushQueue:set', err); return false; });
   });
-  // settle check (compat SDK promises lack finally in old browsers)
-  setTimeout(function(){
+
+  Promise.allSettled(writes).then(function(){
     flushing = false;
     var remaining = Object.keys(loadQueue()).length;
     if (remaining === 0) { setSyncStatus('saved'); }
     else if (!navigator.onLine) { setSyncStatus('offline'); }
-  }, 2500);
+    else { setSyncStatus('saving'); }
+  });
 }
 function pendingCount(){ return Object.keys(loadQueue()).length; }
 function updatePendingBadge(){
@@ -1908,7 +1908,6 @@ function startListeners() {
       // Restore today's students (reload-safe): cache first, then __names__ from today's history
       restoreTodayStudents();
       renderList();
-      if(typeof renderHome==='function') renderHome();
       document.getElementById('clrRBtn').style.display = (roster && roster.length > 0) ? '' : 'none';
       cacheLocally();
       dbLoad();
@@ -2050,10 +2049,7 @@ function saveStudents() {
 }
 
 function saveDay(sessionK) {
-  if (!currentUser) return;
-  // ★ Bug 5 fix: if data isn't fully loaded yet, don't drop the write —
-  //   cache it locally so it survives, instead of silently discarding.
-  if (!dataLoaded) { try{ cacheLocally(); }catch(e){} return; }
+  if (!dataLoaded || !currentUser) return;
   if (isOfflineMode) { cacheLocally(); return; }
   var dayData = history[sessionK] || {};
   if (!Object.keys(dayData).length) return;
@@ -2159,9 +2155,9 @@ var FIELDS=[
 // ═══════════════════════════════════════════
 function showTab(n){
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
-  document.querySelectorAll('.tab-btn, .snav').forEach(function(b){b.classList.remove('active')});
-  var panels={home:'phome',att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',rot:'prot',cycle:'pcyc',stat:'pstat'};
-  var btns={home:'tbhome',att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',rot:'tbrot',cycle:'tbcyc',stat:'tbstat'};
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
+  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',rot:'prot',cycle:'pcyc',stat:'pstat'};
+  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',rot:'tbrot',cycle:'tbcyc',stat:'tbstat'};
   var panel=document.getElementById(panels[n]);
   panel.classList.add('active');
   // restart the entrance animation so every switch feels alive
@@ -2169,11 +2165,10 @@ function showTab(n){
   document.getElementById(btns[n]).classList.add('active');
   // Attendance tab always shows TODAY — never shows historical data
   if(n==='att'){ if(paMode==='cycle'){ paRenderCycleMode(); } else { curDate=today(); renderList(); } }
-  if(n==='home')   renderHome();
   if(n==='paper')  renderPaper();
   if(n==='roster') renderRoster();
   if(n==='hist')   renderHist();
-  if(n==='db'){ dbRender(); renderBackupCenter(); }
+  if(n==='db'){ dbRender(); renderBackupCenter(); loadUploadProxyConfig(); }
   if(n==='teach')  tmRender();
   if(n==='audit')  renderAudit();
   if(n==='prog')   renderProgress();
@@ -2230,7 +2225,7 @@ function renderList(){
     var lockIcon=rec.locked?'<span title="معتمد ومقفل" style="font-size:12px;margin-right:4px">🔒</span>':'';
     html+='<div class="srow'+(att==='absent'?' ar':'')+'">';
     html+='<div class="snum">'+shown+'</div>';
-    html+='<div class="sname" onclick="openEval('+i+')" style="display:flex;align-items:center;gap:4px">'+s.name+lockIcon+attTime+'</div>';
+    html+='<div class="sname" onclick="openEval('+i+')" style="display:flex;align-items:center;gap:4px">'+esc(s.name)+lockIcon+attTime+'</div>';
         html+='<div class="atg"><button class="ab '+(att==='present'?'abap':'abp')+'" onclick="setAtt(event,'+i+',\'present\')">✓</button><button class="ab '+(att==='absent'?'abaa':'aba')+'" onclick="setAtt(event,'+i+',\'absent\')">✗</button></div>';
     html+='<div class="sbadge'+(sc===null?' empty':'')+'"><span>'+(sc!==null?sc+'/15':'—')+'</span></div>';
     html+='<div class="ecell"><div class="ei '+(rec.evaluated?'done':'pend')+'" onclick="openEval('+i+')">'+(rec.evaluated?'✏️':'📝')+'</div></div>';
@@ -2304,19 +2299,12 @@ function clearDay(){
 // ═══════════════════════════════════════════
 function openEval(idx){
   curSt=idx;
-  // ★ In cycle mode, keep the day-specific session (set by paLoadCycleDay).
-  //   Only the classic day-view forces "today".
-  if(paMode==='cycle' && paCycGroup){
-    curGroup='morning';
-    curDate='cyc_'+paCycGroup.group+'_'+(paCycGroup.type||'')+'_d'+paCycDay;
-  } else {
-    curDate=today(); // classic view always works on today
-  }
+  curDate=today(); // Evaluation always works on today
   var s=getStudents()[idx], day=getSession(), rec=day[idx]||{}, sc=rec.scores||{};
   var pd=rec.paperDelivered;
   document.getElementById('mSN').textContent=s.name+' — '+curDate;
   var html='';
-  var colors=['#0f7a6a','#0f7a6a','#6c3483','#b7770d','#922b21'];
+  var colors=['#1a5276','#117a65','#6c3483','#b7770d','#922b21'];
   // ★ Sign-off / lock banner
   if(rec.locked){
     var lockWhen = rec.lockedAt ? new Date(rec.lockedAt).toLocaleString('ar-SA') : '';
@@ -2418,7 +2406,7 @@ function applyLockState(locked){
       lockBtn = document.createElement('button');
       lockBtn.id = 'lockBtn';
       lockBtn.className = 'btn';
-      lockBtn.style.cssText = 'background:#0f7a6a;color:#fff';
+      lockBtn.style.cssText = 'background:#117a65;color:#fff';
       lockBtn.textContent = '🔒 اعتماد وقفل';
       lockBtn.onclick = function(){ lockEval(curSt); };
       ftr.appendChild(lockBtn);
@@ -2749,7 +2737,7 @@ function renderPaper(){
     var i=show[j], rec=day[i]||{}, pd=rec.paperDelivered;
     html+='<div class="prow'+(pd===true?' dr':pd===false?' nr':'')+'">';
     html+='<div class="snum">'+(j+1)+'</div>';
-    html+='<div style="font-size:15px;font-weight:500">'+sts[i].name+'</div>';
+    html+='<div style="font-size:15px;font-weight:500">'+esc(sts[i].name)+'</div>';
     html+='<div class="ptog"><button class="pb '+(pd===true?'pbay':'pby')+'" onclick="setPaper('+i+',true)">✓ سلّم</button><button class="pb '+(pd===false?'pban':'pbn')+'" onclick="setPaper('+i+',false)">✗ لم يسلّم</button></div>';
     html+='</div>';
     if(pd===true)del++; if(pd===false)nd++;
@@ -2782,8 +2770,8 @@ function renderRoster(){
   hosps.sort(); grps.sort(function(a,b){return Number(a)-Number(b);});
   var fH=document.getElementById('fH'), fG=document.getElementById('fG');
   var sH=fH.value, sG=fG.value, sT=document.getElementById('fT').value;
-  fH.innerHTML='<option value="">كل المستشفيات</option>'+hosps.map(function(h){return'<option value="'+h+'"'+(h===sH?' selected':'')+'>'+h+'</option>';}).join('');
-  fG.innerHTML='<option value="">كل المجموعات</option>'+grps.map(function(g){return'<option value="'+g+'"'+(g===sG?' selected':'')+'>مجموعة '+g+'</option>';}).join('');
+  fH.innerHTML='<option value="">كل المستشفيات</option>'+hosps.map(function(h){return'<option value="'+esc(h)+'"'+(h===sH?' selected':'')+'>'+esc(h)+'</option>';}).join('');
+  fG.innerHTML='<option value="">كل المجموعات</option>'+grps.map(function(g){return'<option value="'+esc(g)+'"'+(g===sG?' selected':'')+'>مجموعة '+esc(g)+'</option>';}).join('');
   var fil=roster.filter(function(r){return(!sH||r.hospital===sH)&&(!sT||r.type===sT)&&(!sG||r.group===sG);});
   document.getElementById('rSum').textContent=fil.length+' طالب';
   var grpd={};
@@ -2800,7 +2788,7 @@ function renderRoster(){
     html+='<div class="gcard'+(isAct?' act':'')+'"><div class="gchdr '+(mo?'mo':'ev')+'">';
     html+='<div><div class="gtit">'+(isAct?'🟢 ':'')+' مجموعة '+(g.group||'—')+(isAct?' <span style="font-size:12px;color:var(--primary)">— في المستشفى اليوم</span>':'')+'</div><div class="dchips">'+chips+'</div></div>';
     html+='<div class="gmeta"><span class="gbadge bh">'+(g.hospital||'غير محدد')+'</span><span class="gbadge '+(mo?'bm':'be')+'">'+(g.type||'—')+'</span><span style="font-size:12px;color:var(--muted)">'+g.list.length+' طالب</span></div></div><div>';
-    for(var si=0;si<g.list.length;si++){var st=g.list[si];html+='<div class="grow"><div class="snum">'+(si+1)+'</div><div>'+st.name+(st.notes?' <span style="font-size:11px;color:var(--muted)">— '+st.notes+'</span>':'')+'</div><div style="text-align:center;font-size:12px;color:var(--muted)">'+(st.type||'—')+'</div></div>';}
+    for(var si=0;si<g.list.length;si++){var st=g.list[si];html+='<div class="grow"><div class="snum">'+(si+1)+'</div><div>'+esc(st.name)+(st.notes?' <span style="font-size:11px;color:var(--muted)">— '+esc(st.notes)+'</span>':'')+'</div><div style="text-align:center;font-size:12px;color:var(--muted)">'+esc(st.type||'—')+'</div></div>';}
     html+='</div></div>';
   }
   if(!html) html='<div class="rempty" style="padding:32px">لا توجد نتائج للفلاتر المختارة</div>';
@@ -2864,65 +2852,6 @@ function dlTemplate(){
 // ═══════════════════════════════════════════════════════════
 var RISK_AVG = 9, RISK_ABSENCES = 2;
 
-// ── HOME DASHBOARD (اللوحة) — live snapshot of today ─────────────────
-function renderHome(){
-  var cont=document.getElementById('homeContent'); if(!cont) return;
-  // today's session for the current group (classic) — or cycle day if in cycle mode
-  var sess, label;
-  if(typeof paMode!=='undefined' && paMode==='cycle' && paCycGroup){
-    sess = paDaySession(paCycDay);
-    label = 'الدورة · مجموعة '+paCycGroup.group+' · اليوم '+paCycDay;
-  } else {
-    var key = today()+'_'+curGroup;
-    sess = history[key] || {};
-    label = (curGroup==='morning'?'صباحي':'مسائي')+' · '+today();
-  }
-  var students = getStudents()||[];
-  var total=students.length, present=0, absent=0, evaluated=0, sumT=0, cntT=0;
-  for(var i=0;i<total;i++){
-    var r=sess[i]||{};
-    if(r.attendance==='present') present++;
-    if(r.attendance==='absent') absent++;
-    if(r.evaluated){ evaluated++; if(r.total!==undefined){ sumT+=r.total; cntT++; } }
-  }
-  var avg = cntT? (sumT/cntT) : null;
-  var attRate = (present+absent)>0 ? Math.round(present/(present+absent)*100) : null;
-  // at-risk across all history (overall picture)
-  var prof = (typeof buildStudentProfiles==='function')? buildStudentProfiles() : {};
-  var atRisk = Object.keys(prof).filter(function(n){ return prof[n].risk && prof[n].risk.length>0; }).length;
-  var remaining = Math.max(0, present - evaluated);
-
-  function card(label, value, sub, opts){
-    opts=opts||{};
-    var green=opts.green;
-    return '<div style="background:'+(green?'var(--primary)':'var(--surface)')+';border:1px solid '+(green?'var(--primary)':'var(--border)')+';border-radius:14px;padding:16px">'
-      +'<div style="font-size:12px;color:'+(green?'rgba(255,255,255,.8)':'var(--muted)')+'">'+label+'</div>'
-      +'<div style="font-size:30px;font-weight:800;margin-top:6px;color:'+(green?'#fff':(opts.color||'var(--text)'))+'">'+value+'</div>'
-      +'<div style="font-size:11px;margin-top:6px;color:'+(green?'rgba(255,255,255,.7)':'var(--muted)')+'">'+sub+'</div></div>';
-  }
-
-  var html='';
-  html+='<div style="font-size:12px;color:var(--muted);margin-bottom:12px">'+label+'</div>';
-  html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">';
-  html+=card('الطلاب اليوم', total, label, {green:true});
-  html+=card('نسبة الحضور', attRate!=null?attRate+'%':'—', present+' حاضر · '+absent+' غائب', {color:'#1e8449'});
-  html+=card('تم تقييمهم', evaluated, remaining>0?(remaining+' بانتظار التقييم'):'اكتمل اليوم', {color:'var(--primary)'});
-  html+=card('بحاجة متابعة', atRisk, atRisk?'أقل من '+RISK_AVG+' / 15':'لا يوجد', {color:atRisk?'#c0392b':'#1e8449'});
-  html+='</div>';
-  // today's average strip
-  html+='<div style="margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
-  html+='<div><div style="font-size:13px;font-weight:700;color:var(--text)">متوسط اليوم</div><div style="font-size:11px;color:var(--muted)">من '+cntT+' تقييم</div></div>';
-  html+='<div style="font-size:28px;font-weight:800;color:'+(avg==null?'#ccc':avg>=12?'#1e8449':avg>=RISK_AVG?'var(--primary)':'#c0392b')+'">'+(avg==null?'—':avg.toFixed(2)+' / 15')+'</div>';
-  html+='</div>';
-  if(!total){
-    html+='<div style="margin-top:14px;border:2px dashed var(--primary);border-radius:14px;padding:24px;text-align:center;background:var(--green-soft)">'
-      +'<div style="font-size:32px;margin-bottom:8px">🏠</div>'
-      +'<div style="font-size:14px;font-weight:700;color:var(--primary);margin-bottom:4px">لا يوجد طلاب محمّلون اليوم</div>'
-      +'<div style="font-size:12px;color:var(--muted)">استورد مجموعة أو ابدأ التقييم لعرض أرقام اليوم.</div></div>';
-  }
-  cont.innerHTML=html;
-}
-
 // Build {name: {sessions:[{date,group,total,att,paper,scores}], avg, present, absent, missingPaper, evals}}
 function buildStudentProfiles(){
   var prof = {};
@@ -2975,15 +2904,7 @@ function buildStudentProfiles(){
 
 var progSelected = null;
 
-var pgMode='all'; // 'all' | 'cycle'
-function pgSetMode(m){
-  pgMode=m;
-  var bA=document.getElementById('pgModeAllBtn'), bC=document.getElementById('pgModeCycBtn');
-  if(bA&&bC){ bA.className = m==='all'?'btn bp':'btn bo'; bC.className = m==='cycle'?'btn bp':'btn bo'; }
-  renderProgress();
-}
 function renderProgress(){
-  if(pgMode==='cycle'){ renderProgressCycle(); return; }
   var prof = buildStudentProfiles();
   var names = Object.keys(prof).sort(function(a,b){ return a.localeCompare(b,'ar'); });
   var atRisk = names.filter(function(n){ return prof[n].risk.length>0; });
@@ -3045,103 +2966,19 @@ function renderProgress(){
   cont.innerHTML = html;
 }
 
-// ── CYCLE-AWARE progress: per student, 4-day trajectory within each cycle ──
-// Reads the 4-day cycle assessment mode sessions: history['cyc_<g>_<type>_d<N>_morning']
-function pgCycleData(){
-  // groups present in the gradebook = the cycles
-  var groups={};
-  (cycleStore||[]).forEach(function(s){
-    var g=String(s.group||''); if(!g) return;
-    if(!groups[g]) groups[g]={group:g,type:s.type||'',names:[]};
-    if(groups[g].names.indexOf(s.name)<0) groups[g].names.push(s.name);
-  });
-  var out=[];
-  Object.keys(groups).sort(function(a,b){return (parseInt(a)||999)-(parseInt(b)||999);}).forEach(function(g){
-    var grp=groups[g];
-    var days=[]; for(var d=1; d<=4; d++){ days.push(history['cyc_'+grp.group+'_'+(grp.type||'')+'_d'+d+'_morning']||{}); }
-    var students=grp.names.map(function(nm,idx){
-      var dayScores=[], present=0, absent=0, missingPaper=0;
-      for(var d=0; d<4; d++){
-        var rec=days[d][idx]||{};
-        if(rec.attendance==='present') present++;
-        if(rec.attendance==='absent') absent++;
-        if(rec.paperDelivered===false) missingPaper++;
-        var t=(rec.total!==undefined && rec.attendance!=='absent')? +(Math.round(rec.total*100)/100) : null;
-        dayScores.push(t);
-      }
-      var vals=dayScores.filter(function(x){return x!=null;});
-      var avg=vals.length? +(vals.reduce(function(a,b){return a+b;},0)/vals.length).toFixed(2) : null;
-      // trend: compare first vs last recorded score
-      var trend='—', trendCol='#888';
-      if(vals.length>=2){
-        var diff=vals[vals.length-1]-vals[0];
-        if(diff>0.5){ trend='▲ تحسّن'; trendCol='#1e8449'; }
-        else if(diff<-0.5){ trend='▼ تراجع'; trendCol='#c0392b'; }
-        else { trend='▬ ثابت'; trendCol='#2980b9'; }
-      }
-      // risk: low avg, declining, or 2+ absences in the cycle
-      var risk=[];
-      if(avg!=null && avg<RISK_AVG) risk.push('متوسط منخفض');
-      if(vals.length>=2 && (vals[vals.length-1]-vals[0])<-1.5) risk.push('تراجع واضح');
-      if(absent>=RISK_ABSENCES) risk.push(absent+' غياب');
-      return {name:nm, days:dayScores, avg:avg, present:present, absent:absent, missingPaper:missingPaper, trend:trend, trendCol:trendCol, risk:risk};
-    });
-    out.push({group:grp.group, type:grp.type, students:students});
-  });
-  return out;
-}
-
-function renderProgressCycle(){
-  var cont=document.getElementById('progContent'); if(!cont) return;
-  var cycles=pgCycleData();
-  var hasAny=cycles.some(function(c){ return c.students.some(function(s){ return s.days.some(function(d){return d!=null;}); }); });
-  if(!cycles.length || !hasAny){
-    cont.innerHTML='<div class="hist-empty"><div style="font-size:44px;margin-bottom:10px">🎯</div>'
-      +'<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">لا توجد بيانات دورات بعد</div>'
-      +'<div style="font-size:13px;color:var(--muted);line-height:1.8">قيّم مجموعة عبر «التقييم اليومي ← دورة ٤ أيام» وستظهر هنا متابعة تطورهم خلال الأيام الأربعة.</div></div>';
-    return;
-  }
-  var q=(document.getElementById('pgCycSearch')&&document.getElementById('pgCycSearch').value||'').toLowerCase();
-  var html='';
-  html+='<input type="text" class="sbox" id="pgCycSearch" placeholder="🔍 ابحث عن طالب..." oninput="renderProgressCycle()" value="'+(document.getElementById('pgCycSearch')?document.getElementById('pgCycSearch').value:'')+'" style="max-width:280px;margin-bottom:12px">';
-
-  cycles.forEach(function(c){
-    var studs=c.students.filter(function(s){ return !q || s.name.toLowerCase().indexOf(q)>=0; });
-    if(!studs.length) return;
-    var atRisk=studs.filter(function(s){return s.risk.length;}).length;
-    html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:6px 0 8px;border-right:4px solid var(--primary);padding-right:8px">دورة '+c.group+' · '+(c.type||'')+' <span style="font-size:12px;font-weight:400;color:var(--muted)">('+studs.length+' طالب'+(atRisk?(' · ⚠️ '+atRisk+' بحاجة متابعة'):'')+')</span></div>';
-    html+='<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:18px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:620px">';
-    html+='<thead><tr style="background:var(--primary);color:#fff">';
-    ['الطالب','يوم ١','يوم ٢','يوم ٣','يوم ٤','المتوسط','التطور','حضور','الحالة'].forEach(function(h){ html+='<th style="padding:9px 8px;font-size:12px;white-space:nowrap">'+h+'</th>'; });
-    html+='</tr></thead><tbody>';
-    studs.forEach(function(s,i){
-      var avgCol=s.avg==null?'#aaa':s.avg>=12?'#1e8449':s.avg>=RISK_AVG?'#2980b9':'#c0392b';
-      html+='<tr style="background:'+(i%2?'#f8fafc':'#fff')+'">';
-      html+='<td style="padding:8px 10px;font-weight:600;text-align:right">'+s.name+(s.risk.length?' <span style="font-size:11px">⚠️</span>':'')+'</td>';
-      for(var d=0; d<4; d++){ var v=s.days[d]; html+='<td style="padding:8px;text-align:center;color:'+(v==null?'#ccc':'#0f7a6a')+'">'+(v==null?'—':v)+'</td>'; }
-      html+='<td style="padding:8px;text-align:center;font-weight:700;color:'+avgCol+'">'+(s.avg==null?'—':s.avg)+'</td>';
-      html+='<td style="padding:8px;text-align:center;font-weight:700;color:'+s.trendCol+';white-space:nowrap">'+s.trend+'</td>';
-      html+='<td style="padding:8px;text-align:center;color:var(--muted)">'+s.present+'/4</td>';
-      html+='<td style="padding:8px;text-align:center">'+(s.risk.length?'<span style="color:var(--danger);font-weight:700">'+s.risk.join(' · ')+'</span>':'<span style="color:var(--success)">جيد</span>')+'</td>';
-      html+='</tr>';
-    });
-    html+='</tbody></table></div>';
-  });
-  cont.innerHTML=html;
-}
-
+// Per-student longitudinal detail (trend of the 5 sections over sessions)
 function openProgressDetail(encName){
   var name = decodeURIComponent(encName);
   var prof = buildStudentProfiles();
   var p = prof[name];
   if(!p){ toast('لا توجد بيانات لهذا الطالب'); return; }
-  var colors=['#0f7a6a','#0f7a6a','#6c3483','#b7770d','#922b21'];
+  var colors=['#1a5276','#117a65','#6c3483','#b7770d','#922b21'];
 
   var html = '';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">';
-  html += '<div><div style="font-size:18px;font-weight:700;color:var(--primary)">'+name+'</div>';
+  html += '<div><div style="font-size:18px;font-weight:700;color:var(--primary)">'+esc(name)+'</div>';
   html += '<div style="font-size:12px;color:var(--muted)">'+p.sessions.length+' جلسة • المتوسط '+(p.avg!==null?p.avg.toFixed(2):'—')+'/15</div></div>';
-  html += '<button class="btn" style="background:#0f7a6a;color:#fff;font-size:12px" onclick="printStudentSummary(\''+encName+'\')">🖨️ تقرير الطالب</button>';
+  html += '<button class="btn" style="background:#117a65;color:#fff;font-size:12px" onclick="printStudentSummary(\''+encName+'\')">🖨️ تقرير الطالب</button>';
   html += '</div>';
 
   if(p.risk.length){
@@ -3155,7 +2992,7 @@ function openProgressDetail(encName){
     var pct = s.total!==null ? Math.min(100,(s.total/15)*100) : 0;
     var bcol = s.total===null ? '#ccc' : s.total>=12 ? '#1e8449' : s.total>=RISK_AVG ? '#2980b9' : '#c0392b';
     html += '<div style="display:flex;align-items:center;gap:8px">';
-    html += '<span style="font-size:11px;color:var(--muted);min-width:96px">'+s.date+' ('+s.group+')</span>';
+    html += '<span style="font-size:11px;color:var(--muted);min-width:96px">'+esc(s.date)+' ('+esc(s.group)+')</span>';
     html += '<div style="flex:1;height:18px;background:#eee;border-radius:9px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+bcol+'"></div></div>';
     html += '<span style="font-size:12px;font-weight:700;min-width:48px;text-align:left;color:'+bcol+'">'+(s.total!==null?s.total.toFixed(2):'—')+'</span>';
     html += '</div>';
@@ -3173,7 +3010,7 @@ function openProgressDetail(encName){
       var hcol = h.avg===null ? '#888' : h.avg>=12 ? '#1e8449' : h.avg>=RISK_AVG ? '#2980b9' : '#c0392b';
       html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
       html += '<div style="background:#eef7f4;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">';
-      html += '<span style="font-size:13px;font-weight:700;color:#0f6e56">🏥 '+h.hospital+(h.block?' <span style="font-size:11px;color:var(--muted);font-weight:400">('+h.block+')</span>':'')+'</span>';
+      html += '<span style="font-size:13px;font-weight:700;color:#0f6e56">🏥 '+esc(h.hospital)+(h.block?' <span style="font-size:11px;color:var(--muted);font-weight:400">('+esc(h.block)+')</span>':'')+'</span>';
       html += '<span style="font-size:13px;font-weight:800;color:'+hcol+'">المعدل '+hAvg+'/15</span>';
       html += '</div>';
       html += '<div style="padding:8px 12px;display:flex;flex-direction:column;gap:5px">';
@@ -3228,7 +3065,7 @@ function printStudentSummary(encName){
   if(!p){ toast('لا توجد بيانات'); return; }
   var hN = document.getElementById('hName').value || '—';
   var sup = document.getElementById('supName').value || '—';
-  var colors=['#0f7a6a','#0f7a6a','#6c3483','#b7770d','#922b21'];
+  var colors=['#1a5276','#117a65','#6c3483','#b7770d','#922b21'];
 
   var rows = p.sessions.map(function(s){
     var secs = FIELDS.map(function(f,fi){
@@ -3244,9 +3081,9 @@ function printStudentSummary(encName){
   var headCols = FIELDS.map(function(f,fi){ return '<th style="padding:6px 3px;font-size:9.5px;color:'+colors[fi]+'">'+f.s+'</th>'; }).join('');
 
   var html = '<div style="font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#222">'
-    + pdfHeader('تقرير متابعة الطالب', 'Student Progress Report — '+name, '#0f7a6a')
+    + pdfHeader('تقرير متابعة الطالب', 'Student Progress Report — '+name, '#117a65')
     + '<div style="display:flex;gap:8px;margin-bottom:14px">'
-    + '<div style="flex:1;background:#eef7ff;border:1px solid #bcd9f2;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#0f7a6a">'+p.sessions.length+'</div><div style="font-size:10px;color:#666">الجلسات</div></div>'
+    + '<div style="flex:1;background:#eef7ff;border:1px solid #bcd9f2;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#1a5276">'+p.sessions.length+'</div><div style="font-size:10px;color:#666">الجلسات</div></div>'
     + '<div style="flex:1;background:#e8f8f0;border:1px solid #a9dfc3;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#1e8449">'+p.present+'</div><div style="font-size:10px;color:#666">حاضر</div></div>'
     + '<div style="flex:1;background:#fdf2f2;border:1px solid #ecb1ab;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#922b21">'+p.absent+'</div><div style="font-size:10px;color:#666">غائب</div></div>'
     + '<div style="flex:1;background:#fff8e9;border:1px solid #efd49a;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#b7770d">'+(p.avg!==null?p.avg.toFixed(2):'—')+'</div><div style="font-size:10px;color:#666">المتوسط /15</div></div>'
@@ -3315,7 +3152,7 @@ function renderHist(){
       var pdCls=r.paperDelivered===true?'del':r.paperDelivered===false?'ndel':'u';
       html+='<div class="hst-row" onclick="event.stopPropagation();openStudentDetail(\''+date+'\','+i+')">';
       html+='<div class="snum">'+(ji+1)+'</div>';
-      html+='<div class="hst-name">'+sessionStudents[i].name+'</div>';
+      html+='<div class="hst-name">'+esc(sessionStudents[i].name)+'</div>';
       html+='<div class="hst-att '+attCls+'">'+att+'</div>';
       html+='<div class="hst-score'+(sc===null?' empty':'')+'"><span>'+(sc!==null?sc+'/15':'—')+'</span></div>';
       html+='<div class="hst-paper '+pdCls+'">'+pd+'</div>';
@@ -3342,7 +3179,7 @@ function openDayDetail(date){
     var pd=r.paperDelivered===true?'سلّم ✓':r.paperDelivered===false?'لم يسلّم ✗':'—';
     var pdColor=r.paperDelivered===true?'var(--success)':r.paperDelivered===false?'var(--danger)':'var(--muted)';
     html+='<div class="dm-student-card"><div class="dm-st-hdr">';
-    html+='<div class="dm-st-name">'+(i+1)+'. '+ddStsList[i].name+'</div>';
+    html+='<div class="dm-st-name">'+(i+1)+'. '+esc(ddStsList[i].name)+'</div>';
     html+='<div class="dm-st-meta"><span style="font-size:13px;font-weight:600;color:'+attColor+'">'+att+'</span>';
     html+='<span style="font-size:13px;font-weight:600;color:'+pdColor+'">'+pd+'</span>';
     if(r.total!==undefined) html+='<span class="dm-score-big">'+r.total.toFixed(2)+' / 15</span>';
@@ -3354,7 +3191,7 @@ function openDayDetail(date){
         html+='<div class="dm-field"><div class="lbl">'+it.l+'</div><div class="val">'+v+' <span style="font-size:10px;color:var(--muted)">/ '+it.m+'</span></div></div>';
       }
       html+='</div>';
-      if(r.notes) html+='<div class="dm-notes">ملاحظات: '+r.notes+'</div>';
+      if(r.notes) html+='<div class="dm-notes">ملاحظات: '+esc(r.notes)+'</div>';
     } else if(r.attendance){
       html+='<div style="padding:12px 14px;font-size:13px;color:var(--muted)">لم يتم التقييم بعد</div>';
     }
@@ -3735,7 +3572,7 @@ function toast(msg, type){
       if(!window.__notyf){
         window.__notyf = new Notyf({ duration:2600, ripple:true, position:{x:'center',y:'top'},
           types:[
-            {type:'success',background:'#0f7a6a'},
+            {type:'success',background:'#0E7C86'},
             {type:'error',background:'#c0392b'},
             {type:'info',background:'#2980b9'}
           ]});
@@ -3978,16 +3815,16 @@ function buildDayReportHTML(histKey){
   var objs = sessionObjs(histKey);
   var dnames=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
   var dow = dnames[new Date(clean+'T00:00:00').getDay()];
-  var colors=['#0f7a6a','#0f7a6a','#6c3483','#b7770d','#922b21'];
+  var colors=['#1a5276','#117a65','#6c3483','#b7770d','#922b21'];
 
   var p=0,a=0,ev=0,sum=0,cnt=0;
   for(var i=0;i<objs.length;i++){var r=dayData[i]||{};if(r.attendance==='present')p++;if(r.attendance==='absent')a++;if(r.evaluated){ev++;sum+=r.total||0;cnt++;}}
   var avg = cnt ? (sum/cnt).toFixed(2) : '—';
 
   var html = '<div style="font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#222">'
-    + pdfHeader('التقرير التفصيلي للدرجات والتقييم', 'Detailed Daily Evaluation Report — '+clean+' ('+dow+') — المجموعة '+grp, '#0f7a6a')
+    + pdfHeader('التقرير التفصيلي للدرجات والتقييم', 'Detailed Daily Evaluation Report — '+clean+' ('+dow+') — المجموعة '+grp, '#1a5276')
     + '<div style="display:flex;gap:8px;margin-bottom:14px">'
-    + '<div style="flex:1;background:#eef7ff;border:1px solid #bcd9f2;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#0f7a6a">'+objs.length+'</div><div style="font-size:10px;color:#666">الطلاب</div></div>'
+    + '<div style="flex:1;background:#eef7ff;border:1px solid #bcd9f2;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#1a5276">'+objs.length+'</div><div style="font-size:10px;color:#666">الطلاب</div></div>'
     + '<div style="flex:1;background:#e8f8f0;border:1px solid #a9dfc3;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#1e8449">'+p+'</div><div style="font-size:10px;color:#666">حاضر</div></div>'
     + '<div style="flex:1;background:#fdf2f2;border:1px solid #ecb1ab;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#922b21">'+a+'</div><div style="font-size:10px;color:#666">غائب</div></div>'
     + '<div style="flex:1;background:#f3eefc;border:1px solid #cdb9ec;border-radius:8px;padding:8px;text-align:center"><div style="font-size:19px;font-weight:800;color:#6c3483">'+ev+'</div><div style="font-size:10px;color:#666">تم تقييمهم</div></div>'
@@ -4007,7 +3844,7 @@ function buildDayReportHTML(histKey){
       + '<div style="display:flex;gap:14px;align-items:center">'
       + '<span style="font-size:12px;font-weight:700;color:'+attC+'">'+att+(r.attendanceTime?' <span style="font-weight:400;color:#888">('+r.attendanceTime+')</span>':'')+'</span>'
       + '<span style="font-size:12px;font-weight:700;color:'+pdC+'">'+pd+'</span>'
-      + (r.total!==undefined ? '<span style="background:#0f7a6a;color:#fff;border-radius:14px;padding:3px 12px;font-size:13px;font-weight:800">'+r.total.toFixed(2)+' / 15</span>' : '')
+      + (r.total!==undefined ? '<span style="background:#1a5276;color:#fff;border-radius:14px;padding:3px 12px;font-size:13px;font-weight:800">'+r.total.toFixed(2)+' / 15</span>' : '')
       + '</div></div>';
     if(r.evaluated){
       html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0;border-bottom:1px solid #eef1f4">';
@@ -4023,7 +3860,7 @@ function buildDayReportHTML(histKey){
         html += '</div>';
       }
       html += '</div>';
-      if(r.notes) html += '<div style="padding:7px 12px;font-size:11px;color:#555;background:#fffdf2;border-top:1px solid #f1ebcd"><b>ملاحظات:</b> '+r.notes+'</div>';
+      if(r.notes) html += '<div style="padding:7px 12px;font-size:11px;color:#555;background:#fffdf2;border-top:1px solid #f1ebcd"><b>ملاحظات:</b> '+esc(r.notes)+'</div>';
     } else {
       html += '<div style="padding:9px 12px;font-size:12px;color:#999">لم يتم إجراء التقييم لهذا اليوم</div>';
     }
@@ -4059,9 +3896,9 @@ function exportHistDayPDF(){
 function exportFullPDF(){
   var days = Object.keys(history).sort();
   if(!days.length){ toast('لا توجد بيانات في السجل'); return; }
-  var colors=['#0f7a6a','#0f7a6a','#6c3483','#b7770d','#922b21'];
+  var colors=['#1a5276','#117a65','#6c3483','#b7770d','#922b21'];
   var html = '<div style="font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#222">'
-    + pdfHeader('سجل الدرجات الكامل', 'Complete Grades Record — جميع الأيام والمجموعات', '#0f7a6a');
+    + pdfHeader('سجل الدرجات الكامل', 'Complete Grades Record — جميع الأيام والمجموعات', '#117a65');
 
   days.forEach(function(dk){
     var dayData = history[dk]||{};
@@ -4092,7 +3929,7 @@ function exportFullPDF(){
     }
     var avg = cnt?(sum/cnt).toFixed(2):'—';
     html += '<div style="page-break-inside:avoid;margin-bottom:14px">'
-      + '<div style="display:flex;align-items:center;gap:8px;background:'+(isM?'#0f7a6a':'#6c3483')+';color:#fff;border-radius:8px 8px 0 0;padding:7px 12px">'
+      + '<div style="display:flex;align-items:center;gap:8px;background:'+(isM?'#1a5276':'#6c3483')+';color:#fff;border-radius:8px 8px 0 0;padding:7px 12px">'
       + '<span style="font-size:13px;font-weight:800">'+clean+'</span>'
       + '<span style="font-size:11px;background:rgba(255,255,255,.22);border-radius:10px;padding:2px 10px">'+(isM?'صباحي':'مسائي')+'</span>'
       + '<span style="font-size:11px;margin-right:auto">متوسط المجموع: <b>'+avg+'</b> / 15</span></div>'
@@ -4201,7 +4038,7 @@ function renderBackupCenter(){
   if(!st || !sl) return;
   var pend = pendingCount();
   var mode = isOfflineMode ? '📴 وضع محلي — ستُزامَن البيانات عند تسجيل الدخول'
-           : (currentUser ? '☁️ مرتبط بحساب: <b>'+(currentUser.email||currentUser.displayName||'')+'</b>' : '');
+           : (currentUser ? '☁️ مرتبط بحساب: <b>'+esc(currentUser.email||currentUser.displayName||'')+'</b>' : '');
   st.innerHTML = mode
     + ' &nbsp;•&nbsp; سجلات الأيام: <b>'+Object.keys(history).length+'</b>'
     + ' &nbsp;•&nbsp; قاعدة الطلاب: <b>'+(studentDb?studentDb.length:0)+'</b>'
@@ -4281,8 +4118,8 @@ function buildNotesPDF(dateStr, group, notes){
   var dnames=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
   var dow = dnames[new Date(dateStr+'T00:00:00').getDay()];
   // Escape HTML then turn newlines into paragraphs/line breaks for clean PDF text
-  var esc = notes.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  var body = esc.split(/\n{2,}/).map(function(p){
+  var safe = esc(notes);
+  var body = safe.split(/\n{2,}/).map(function(p){
     return '<p style="margin:0 0 12px 0">'+p.replace(/\n/g,'<br>')+'</p>';
   }).join('');
   return '<div style="font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#222">'
@@ -4406,7 +4243,7 @@ function dbRender(){
     cont.innerHTML =
       '<div style="border:2px dashed #2980b9;border-radius:12px;padding:32px;text-align:center;background:#f0f8ff">'
       +'<div style="font-size:40px;margin-bottom:12px">📂</div>'
-      +'<div style="font-size:16px;font-weight:700;color:#0f7a6a;margin-bottom:8px">قاعدة البيانات فارغة</div>'
+      +'<div style="font-size:16px;font-weight:700;color:#1a5276;margin-bottom:8px">قاعدة البيانات فارغة</div>'
       +'<div style="font-size:13px;color:#666;margin-bottom:20px;line-height:1.8">'
       +'اضغط <strong>📥 تحميل القالب</strong> لتنزيل ملف Excel جاهز<br>'
       +'عبّئه ببيانات الطلاب ثم اضغط <strong>📂 رفع ملف Excel</strong>'
@@ -4458,8 +4295,8 @@ function dbRender(){
 
   // Stats bar
   html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px">';
-  html += '<div style="background:#fff;border:1px solid #ddd;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#0f7a6a">'+studentDb.length+'</div><div style="font-size:11px;color:#888">إجمالي</div></div>';
-  html += '<div style="background:#d6eaf8;border:1px solid #2980b9;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#0f7a6a">'+mo+'</div><div style="font-size:11px;color:#555">صباحي</div></div>';
+  html += '<div style="background:#fff;border:1px solid #ddd;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#1a5276">'+studentDb.length+'</div><div style="font-size:11px;color:#888">إجمالي</div></div>';
+  html += '<div style="background:#d6eaf8;border:1px solid #2980b9;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#1a5276">'+mo+'</div><div style="font-size:11px;color:#555">صباحي</div></div>';
   html += '<div style="background:#e8daef;border:1px solid #8e44ad;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#6c3483">'+ev+'</div><div style="font-size:11px;color:#555">مسائي</div></div>';
   html += '<div style="background:#d5f5e3;border:1px solid #27ae60;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#1e8449">'+Object.keys(hSet).length+'</div><div style="font-size:11px;color:#555">مستشفى</div></div>';
   html += '<div style="background:#fef9e7;border:1px solid #f39c12;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:#b7770d">'+Object.keys(gSet).length+'</div><div style="font-size:11px;color:#555">مجموعة</div></div>';
@@ -4474,10 +4311,10 @@ function dbRender(){
   // Filters row
   html += '<div style="background:#fff;border:1px solid #e2e6ea;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
   html += '<input id="dbQ" type="text" placeholder="🔍 ابحث..." oninput="dbRender()" style="flex:1;min-width:140px;border:1px solid #ddd;border-radius:8px;padding:6px 10px;font-size:13px" value="'+(q||'')+'">';
-  html += '<select id="dbFH" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">كل المستشفيات</option>'+hosps.map(function(h){return'<option value="'+h+'"'+(h===fH?' selected':'')+'>'+h+'</option>';}).join('')+'</select>';
+  html += '<select id="dbFH" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">كل المستشفيات</option>'+hosps.map(function(h){return'<option value="'+esc(h)+'"'+(h===fH?' selected':'')+'>'+esc(h)+'</option>';}).join('')+'</select>';
   html += '<select id="dbFT" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">الكل</option><option value="صباحي"'+(fT==='صباحي'?' selected':'')+'>صباحي</option><option value="مسائي"'+(fT==='مسائي'?' selected':'')+'>مسائي</option></select>';
-  html += '<select id="dbFG" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">كل المجموعات</option>'+grps.map(function(g){return'<option value="'+g+'"'+(g===fG?' selected':'')+'>مجموعة '+g+'</option>';}).join('')+'</select>';
-  html += '<select id="dbFA" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">كل المناطق</option>'+areas.map(function(a){return'<option value="'+a+'"'+(a===fA?' selected':'')+'>'+a+'</option>';}).join('')+'</select>';
+  html += '<select id="dbFG" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">كل المجموعات</option>'+grps.map(function(g){return'<option value="'+esc(g)+'"'+(g===fG?' selected':'')+'>مجموعة '+esc(g)+'</option>';}).join('')+'</select>';
+  html += '<select id="dbFA" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">كل المناطق</option>'+areas.map(function(a){return'<option value="'+esc(a)+'"'+(a===fA?' selected':'')+'>'+esc(a)+'</option>';}).join('')+'</select>';
   html += '<select id="dbFAt" onchange="dbRender()" style="border:1px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px"><option value="">كل الحالات</option><option value="حاضر"'+(fAt==='حاضر'?' selected':'')+'>حاضر</option><option value="غائب"'+(fAt==='غائب'?' selected':'')+'>غائب</option></select>';
   html += '<span style="font-size:12px;color:#888">'+fil.length+' / '+studentDb.length+'</span>';
   html += '</div>';
@@ -4485,7 +4322,7 @@ function dbRender(){
   // Table
   html += '<div style="overflow-x:auto;border:1px solid #e2e6ea;border-radius:10px">';
   html += '<table style="width:100%;border-collapse:collapse;min-width:750px;font-size:13px">';
-  html += '<thead><tr style="background:#0f7a6a;color:#fff">';
+  html += '<thead><tr style="background:#1a5276;color:#fff">';
   ['#','اسم الطالب','نوع الدراسة','المجموعة','المستشفى','المنطقة','الحضور','الدرجة','البريد','التاريخ'].forEach(function(h){
     html += '<th style="padding:9px 10px;text-align:right;font-size:12px;white-space:nowrap">'+h+'</th>';
   });
@@ -4496,17 +4333,17 @@ function dbRender(){
     var bg = i%2===0 ? '#fff' : '#f8fafc';
     var isMo = r.type === 'صباحي';
     var attColor = r.attendance==='حاضر' ? '#1e8449' : r.attendance==='غائب' ? '#922b21' : '#888';
-    var grColor = r.grade==='' ? '#aaa' : parseFloat(r.grade)>=12 ? '#0f7a6a' : parseFloat(r.grade)>=8 ? '#0f7a6a' : '#c0392b';
+    var grColor = r.grade==='' ? '#aaa' : parseFloat(r.grade)>=12 ? '#1a5276' : parseFloat(r.grade)>=8 ? '#117a65' : '#c0392b';
     html += '<tr style="background:'+bg+'">';
     html += '<td style="padding:8px 10px;color:#999;text-align:center">'+(i+1)+'</td>';
-    html += '<td style="padding:8px 10px;font-weight:600">'+r.name+'</td>';
-    html += '<td style="padding:8px 10px;text-align:center"><span style="background:'+(isMo?'#d6eaf8':'#e8daef')+';color:'+(isMo?'#0f7a6a':'#6c3483')+';border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">'+(r.type||'—')+'</span></td>';
-    html += '<td style="padding:8px 10px;text-align:center;font-weight:600">'+(r.group||'—')+'</td>';
-    html += '<td style="padding:8px 10px"><span style="background:#d5f5e3;color:#1e8449;border-radius:8px;padding:2px 7px;font-size:11px">'+(r.hospital||'—')+'</span></td>';
-    html += '<td style="padding:8px 10px"><span style="background:#fef9e7;color:#7d6608;border-radius:8px;padding:2px 7px;font-size:11px">'+(r.area||'—')+'</span></td>';
+    html += '<td style="padding:8px 10px;font-weight:600">'+esc(r.name)+'</td>';
+    html += '<td style="padding:8px 10px;text-align:center"><span style="background:'+(isMo?'#d6eaf8':'#e8daef')+';color:'+(isMo?'#1a5276':'#6c3483')+';border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">'+esc(r.type||'—')+'</span></td>';
+    html += '<td style="padding:8px 10px;text-align:center;font-weight:600">'+esc(r.group||'—')+'</td>';
+    html += '<td style="padding:8px 10px"><span style="background:#d5f5e3;color:#1e8449;border-radius:8px;padding:2px 7px;font-size:11px">'+esc(r.hospital||'—')+'</span></td>';
+    html += '<td style="padding:8px 10px"><span style="background:#fef9e7;color:#7d6608;border-radius:8px;padding:2px 7px;font-size:11px">'+esc(r.area||'—')+'</span></td>';
     html += '<td style="padding:8px 10px;text-align:center;color:'+attColor+';font-weight:700">'+(r.attendance||'—')+'</td>';
     html += '<td style="padding:8px 10px;text-align:center;color:'+grColor+';font-weight:700">'+(r.grade!==''?parseFloat(r.grade).toFixed(2):'—')+'</td>';
-    html += '<td style="padding:8px 10px;font-size:11px;color:#2980b9">'+(r.email?'<a href="mailto:'+r.email+'" style="color:#2980b9">'+r.email+'</a>':'—')+'</td>';
+    html += '<td style="padding:8px 10px;font-size:11px;color:#2980b9">'+(r.email?'<a href="mailto:'+encodeURIComponent(r.email)+'" style="color:#2980b9">'+esc(r.email)+'</a>':'—')+'</td>';
     html += '<td style="padding:8px 10px;font-size:11px;color:#888">'+(r.date||'—')+'</td>';
     html += '</tr>';
   }
@@ -4617,7 +4454,7 @@ function openGrpLoader(){
     html += '<div class="grp-item-title">';
     if(isToday) html += '<span style="color:var(--success);font-size:12px">🟢 اليوم</span>';
     html += 'مجموعة ' + (g.group||'—');
-    html += '<span style="background:'+(isMo?'#d6eaf8':'#e8daef')+';color:'+(isMo?'#0f7a6a':'#6c3483')+';border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">'+(g.type||'—')+'</span>';
+    html += '<span style="background:'+(isMo?'#d6eaf8':'#e8daef')+';color:'+(isMo?'#1a5276':'#6c3483')+';border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">'+(g.type||'—')+'</span>';
     html += '</div>';
     html += '<div class="grp-item-meta">';
     html += '<span>🏥 ' + (g.hospital||'غير محدد') + '</span>';
@@ -4752,7 +4589,7 @@ function cycGroupsInDb(){
 // ── import a group → add its students (4 blank days) ─────────────────
 function cycImportPrompt(){
   if(!studentDb || !studentDb.length){
-    if(typeof Swal!=='undefined'){ Swal.fire({icon:'info',title:'قاعدة البيانات فارغة',text:'استورد ملف الطلاب في تبويب قاعدة البيانات أولاً',confirmButtonColor:'#0f7a6a'}); }
+    if(typeof Swal!=='undefined'){ Swal.fire({icon:'info',title:'قاعدة البيانات فارغة',text:'استورد ملف الطلاب في تبويب قاعدة البيانات أولاً',confirmButtonColor:'#0E7C86'}); }
     else toast('قاعدة البيانات فارغة'); return;
   }
   var groups=cycGroupsInDb();
@@ -4761,7 +4598,7 @@ function cycImportPrompt(){
   groups.forEach(function(g,i){ opts[i]='مجموعة '+g.group+' · '+(g.type||'')+' ('+g.count+' طالب)'; });
   if(typeof Swal!=='undefined'){
     Swal.fire({title:'اختر المجموعة لاستيرادها',input:'select',inputOptions:opts,inputPlaceholder:'اختر مجموعة',
-      showCancelButton:true,confirmButtonText:'استيراد',cancelButtonText:'إلغاء',confirmButtonColor:'#0f7a6a'
+      showCancelButton:true,confirmButtonText:'استيراد',cancelButtonText:'إلغاء',confirmButtonColor:'#0E7C86'
     }).then(function(res){ if(res.isConfirmed && res.value!==''){ cycImportGroup(groups[parseInt(res.value)]); } });
   } else {
     var idx=prompt('اكتب رقم المجموعة:\n'+groups.map(function(g,i){return i+': مجموعة '+g.group+' '+(g.type||'');}).join('\n'));
@@ -4777,20 +4614,13 @@ function cycImportGroup(g){
   var added=0;
   members.forEach(function(r){
     var nm=(r.name||'').trim(); if(!nm) return;
-    // ★ Bug 1 fix (partial): compare on NORMALIZED names so trailing/double
-    //   spaces and tatweel don't spawn duplicate students.
-    var key=cycNormName(nm)+'||'+g.group+'||'+(g.type||'');
-    var exists=cycleStore.some(function(s){ return cycNormName(s.name)+'||'+String(s.group)+'||'+(s.type||'')===key; });
+    var exists=cycleStore.some(function(s){ return (s.name||'').trim()===nm && String(s.group)===g.group && (s.type||'')===(g.type||''); });
     if(!exists){ cycleStore.push(cycNormalizeStudent({name:nm,group:g.group,type:g.type,days:cycBlankDays()})); added++; }
   });
   cycSave();
   cycActiveGroup=g.group;
   cycRender();
   toast('تم استيراد المجموعة '+g.group+' ('+members.length+' طالب) ✓','success');
-}
-// normalize an Arabic name for matching: trim, collapse spaces, strip tatweel
-function cycNormName(s){
-  return String(s||'').replace(/\u0640/g,'').replace(/\s+/g,' ').trim();
 }
 
 // ── view state ──────────────────────────────────────────────────────
@@ -4824,7 +4654,7 @@ function cycRender(){
   groups.forEach(function(g){
     var on=(cycActiveGroup===g);
     var cnt=cycleStore.filter(function(s){return String(s.group)===g;}).length;
-    html+='<button onclick="cycSetGroup(\''+g+'\')" style="border:1px solid '+(on?'#0f7a6a':'var(--border)')+';background:'+(on?'#0f7a6a':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">مجموعة '+g+' <span style="font-size:11px;opacity:.8">('+cnt+')</span></button>';
+    html+='<button onclick="cycSetGroup(\''+g+'\')" style="border:1px solid '+(on?'#0E7C86':'var(--border)')+';background:'+(on?'#0E7C86':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">مجموعة '+g+' <span style="font-size:11px;opacity:.8">('+cnt+')</span></button>';
   });
   html+='</div>';
 
@@ -4843,12 +4673,12 @@ function cycRender(){
     var realIdx=cycleStore.indexOf(s);
     var tot=0, any=false;
     html+='<div style="display:grid;grid-template-columns:1fr 64px 64px 64px 64px 70px;gap:6px;padding:8px 14px;align-items:center;border-bottom:1px solid #f0f4f4">';
-    html+='<div style="font-weight:600;font-size:13px">'+s.name+'</div>';
+    html+='<div style="font-weight:600;font-size:13px">'+esc(s.name)+'</div>';
     for(var d=0; d<CYC_DAYS; d++){
       var v=s.days[d]||''; var n=parseFloat(v); if(!isNaN(n)){tot+=n;any=true;}
       html+='<div style="text-align:center"><input value="'+v+'" placeholder="—" inputmode="decimal" oninput="cycSetGrade('+realIdx+','+d+',this.value)" style="width:52px;text-align:center;border:1px solid #cfe0de;border-radius:6px;padding:4px;font-size:13px"></div>';
     }
-    html+='<div style="text-align:center;font-weight:700;color:'+(any?'#0a5d50':'#ccc')+'">'+(any?Math.round(tot*100)/100:'—')+'</div>';
+    html+='<div style="text-align:center;font-weight:700;color:'+(any?'#0A6068':'#ccc')+'">'+(any?Math.round(tot*100)/100:'—')+'</div>';
     html+='</div>';
   });
   if(!students.length) html+='<div style="padding:18px;text-align:center;color:var(--muted)">لا يوجد طلاب في هذه المجموعة.</div>';
@@ -4866,23 +4696,9 @@ function cycRender(){
 }
 function cycSetHospital(val){ cycHospital=val; cycSaveDebounced(); }
 function cycSetGroup(g){ cycActiveGroup=g; cycRender(); }
-function cycSanitizeGrade(val){
-  // keep only digits and a single decimal point; clamp 0..15
-  var s=String(val).replace(/[^0-9.]/g,'');
-  var firstDot=s.indexOf('.');
-  if(firstDot>=0){
-    var secondDot=s.indexOf('.', firstDot+1);
-    if(secondDot>=0) s=s.slice(0, secondDot);          // drop everything from the 2nd dot on
-    var parts=s.split('.'); s=parts[0]+'.'+(parts[1]||'').slice(0,2); // ≤2 decimals
-  }
-  if(s===''||s==='.') return '';
-  var n=parseFloat(s); if(isNaN(n)) return '';
-  if(n<0)n=0; if(n>15)n=15;
-  return String(n);
-}
 function cycSetGrade(idx, d, val){
-  var clean=cycSanitizeGrade(val);
-  cycleStore[idx].days[d]=clean;
+  if(val!==''){ var n=parseFloat(val); if(!isNaN(n)){ if(n<0)n=0; if(n>15)n=15; } }
+  cycleStore[idx].days[d]=val;
   cycSaveDebounced();
   clearTimeout(window.__cycRR); window.__cycRR=setTimeout(function(){ cycRender(); }, 700);
 }
@@ -5004,7 +4820,7 @@ function paRenderCycleMode(){
   var html='';
   // header + manual re-import
   html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
-  html+='<div><div style="font-size:15px;font-weight:700;color:var(--primary)">دورة المجموعة '+g.group+' · '+(g.type||'')+'</div>';
+  html+='<div><div style="font-size:15px;font-weight:700;color:var(--primary)">دورة المجموعة '+esc(g.group)+' · '+esc(g.type||'')+'</div>';
   html+='<div style="font-size:12px;color:var(--muted)">'+(g.hospital||'')+' · '+(g.names?g.names.length:0)+' طالب · يُحفظ كل يوم بشكل منفصل</div></div>';
   html+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
   html+='<button class="btn ba" style="font-size:12px" onclick="paExportDay()">📄 تصدير اليوم الحالي</button>';
@@ -5016,7 +4832,7 @@ function paRenderCycleMode(){
   html+='<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">';
   for(var d=1;d<=4;d++){
     var on=(paCycDay===d);
-    html+='<button onclick="paLoadCycleDay('+d+')" style="border:1px solid '+(on?'#0f7a6a':'var(--border)')+';background:'+(on?'#0f7a6a':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">اليوم '+d+'</button>';
+    html+='<button onclick="paLoadCycleDay('+d+')" style="border:1px solid '+(on?'#0E7C86':'var(--border)')+';background:'+(on?'#0E7C86':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">اليوم '+d+'</button>';
   }
   html+='</div>';
   // mini stats for this day
@@ -5049,7 +4865,7 @@ function paRenderCycleList(){
     var sc=rec.total!==undefined?rec.total.toFixed(2):null;
     html+='<div class="srow'+(att==='absent'?' ar':'')+'">';
     html+='<div class="snum">'+shown+'</div>';
-    html+='<div class="sname" onclick="openEval('+i+');setTimeout(paAfterEval,50)" style="display:flex;align-items:center;gap:4px">'+s.name+'</div>';
+    html+='<div class="sname" onclick="openEval('+i+');setTimeout(paAfterEval,50)" style="display:flex;align-items:center;gap:4px">'+esc(s.name)+'</div>';
     html+='<div class="atg"><button class="ab '+(att==='present'?'abap':'abp')+'" onclick="setAtt(event,'+i+',\'present\');setTimeout(paRenderCycleMode,30)">✓</button><button class="ab '+(att==='absent'?'abaa':'aba')+'" onclick="setAtt(event,'+i+',\'absent\');setTimeout(paRenderCycleMode,30)">✗</button></div>';
     html+='<div class="sbadge'+(sc===null?' empty':'')+'"><span>'+(sc!==null?sc+'/15':'—')+'</span></div>';
     html+='<div class="ecell"><div class="ei '+(rec.evaluated?'done':'pend')+'" onclick="openEval('+i+');setTimeout(paAfterEval,50)">'+(rec.evaluated?'✏️':'📝')+'</div></div>';
@@ -5066,7 +4882,7 @@ function paRenderCyclePaper(){
   for(var i=0;i<sts.length;i++){
     var rec=day[i]||{}, delivered=!!rec.paperDelivered;
     html+='<div class="srow"><div class="snum">'+(i+1)+'</div>';
-    html+='<div class="sname">'+sts[i].name+'</div>';
+    html+='<div class="sname">'+esc(sts[i].name)+'</div>';
     html+='<div class="atg"><button class="ab '+(delivered?'abap':'abp')+'" onclick="paTogglePaper('+i+')">'+(delivered?'✓ سلّم':'تسليم')+'</button></div>';
     html+='</div>';
   }
@@ -5255,7 +5071,7 @@ function statRender(){
 
   var html='';
   html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px">';
-  html+=statKpi('عدد الطلاب', totalStudents, '#0f7a6a');
+  html+=statKpi('عدد الطلاب', totalStudents, '#0E7C86');
   html+=statKpi('عدد الدورات', data.cycles.length, '#185FA5');
   html+=statKpi('المتوسط العام', overallAvg!=null?overallAvg.toFixed(2)+' /15':'—', '#534AB7');
   html+=statKpi('نسبة الحضور', attRate!=null?attRate+'%':'—', '#1e8449');
@@ -5271,7 +5087,7 @@ function statRender(){
   data.cycles.forEach(function(c,i){
     html+='<tr style="background:'+(i%2?'#f8fafc':'#fff')+'">'
       +'<td style="padding:7px 10px;font-weight:700">دورة '+c.group+'</td>'
-      +'<td style="padding:7px;text-align:center;font-weight:700;color:#0f7a6a">'+(c.avg!=null?c.avg:'—')+'</td>'
+      +'<td style="padding:7px;text-align:center;font-weight:700;color:#0E7C86">'+(c.avg!=null?c.avg:'—')+'</td>'
       +'<td style="padding:7px;text-align:center;color:#1e8449">'+(c.hi!=null?c.hi:'—')+'</td>'
       +'<td style="padding:7px;text-align:center;color:#c0392b">'+(c.lo!=null?c.lo:'—')+'</td>'
       +'<td style="padding:7px;text-align:center;font-weight:700;color:#1e8449">'+c.pass+'</td>'
@@ -5290,7 +5106,7 @@ function statRender(){
   html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><span style="font-size:13px;color:var(--muted);align-self:center">اختر الدورة:</span>';
   data.cycles.forEach(function(c){
     var on=(statSelCycle===c.group);
-    html+='<button onclick="statPickCycle(\''+c.group+'\')" style="border:1px solid '+(on?'#0f7a6a':'var(--border)')+';background:'+(on?'#0f7a6a':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">دورة '+c.group+'</button>';
+    html+='<button onclick="statPickCycle(\''+c.group+'\')" style="border:1px solid '+(on?'#0E7C86':'var(--border)')+';background:'+(on?'#0E7C86':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">دورة '+c.group+'</button>';
   });
   html+='</div>';
   html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';
@@ -5331,7 +5147,7 @@ function statCard(title, canvasId){
 }
 
 function statDrawCharts(data){
-  var TEAL='#0f7a6a', BLUE='#185FA5', GREEN='#1e8449', AMBER='#BA7517', RED='#c0392b', PURPLE='#534AB7';
+  var TEAL='#0E7C86', BLUE='#185FA5', GREEN='#1e8449', AMBER='#BA7517', RED='#c0392b', PURPLE='#534AB7';
   var PALETTE=[BLUE,AMBER,PURPLE,TEAL,RED,GREEN];
 
   // ===== ACROSS CYCLES =====
@@ -5553,6 +5369,18 @@ function loadGasConfig(){
   }catch(e){}
 }
 
+function saveUploadProxyConfig(){
+  var el = document.getElementById('uploadProxyUrl');
+  if(el) setUploadProxyUrl(el.value);
+}
+function loadUploadProxyConfig(){
+  try{
+    var el = document.getElementById('uploadProxyUrl');
+    var url = getUploadProxyUrl();
+    if(el && url) el.value = url;
+  }catch(e){}
+}
+
 function openEmailPanel(){
   loadGasConfig();
   var sts = getStudents();
@@ -5607,12 +5435,12 @@ function openEmailPanel(){
     html += '<tr style="background:'+rowBg+'">';
     html += '<td style="padding:8px 10px;font-weight:500">';
     html += '<input type="checkbox" class="emailCheck" data-idx="'+i+'"'+(email?' checked':'')+(email?'':' disabled')+' style="margin-left:6px">';
-    html += name;
+    html += esc(name);
     if(!email) html += ' <span style="font-size:11px;color:#c0392b">(لا يوجد بريد)</span>';
     html += '</td>';
     html += '<td style="padding:8px 10px;text-align:center">';
     if(email){
-      html += '<input type="text" value="'+email+'" data-student-idx="'+i+'" class="emailAddr" style="border:1px solid #ddd;border-radius:6px;padding:3px 6px;font-size:11px;width:170px;direction:ltr">';
+      html += '<input type="text" value="'+esc(email)+'" data-student-idx="'+i+'" class="emailAddr" style="border:1px solid #ddd;border-radius:6px;padding:3px 6px;font-size:11px;width:170px;direction:ltr">';
     } else {
       html += '<span style="color:#aaa;font-size:11px">—</span>';
     }
@@ -5776,14 +5604,14 @@ function sendEmails(selectedOnly){
 
 // ═══════════════════════════════════════════════════════════
 // TEACHING MATERIALS — Complete isolated feature
-// Uses ImgBB for image hosting + Firebase Realtime DB for metadata
+// Image hosting via server-side proxy (no API key in client).
+// Configure the proxy URL once in the Database tab. See UPLOAD_PROXY_SETUP.
 // ═══════════════════════════════════════════════════════════
-var IMGBB_KEY = 'c5d9f7f0c0e4b8d882213286812b2757';
 
 var TM_CATEGORIES = [
-  { id:'pharmacology',         name:'الأدوية والعلاج',          icon:'💊', color:'#0f7a6a' },
+  { id:'pharmacology',         name:'الأدوية والعلاج',          icon:'💊', color:'#1a5276' },
   { id:'pregnancy_comp',       name:'مضاعفات الحمل',            icon:'🤰', color:'#6c3483' },
-  { id:'normal_postpartum',    name:'ما بعد الولادة الطبيعي',   icon:'👶', color:'#0f7a6a' },
+  { id:'normal_postpartum',    name:'ما بعد الولادة الطبيعي',   icon:'👶', color:'#117a65' },
   { id:'complicated_postpartum',name:'ما بعد الولادة المعقد',   icon:'⚕️', color:'#b7770d' },
   { id:'gynecological',        name:'أمراض النساء',              icon:'🏥', color:'#922b21' }
 ];
@@ -5884,12 +5712,12 @@ function tmRenderTopics(catId){
     var thumb = t.photos && t.photos.length > 0 ? t.photos[0] : null;
     html += '<div class="topic-card" data-cat="'+catId+'" data-key="'+key+'" onclick="tmViewTopicEl(this)">';
     if(thumb){
-      html += '<img class="tc-thumb" src="'+thumb+'" alt="'+t.name+'" loading="lazy" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">';
+      html += '<img class="tc-thumb" src="'+esc(thumb)+'" alt="'+esc(t.name)+'" loading="lazy" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">';
       html += '<div class="tc-thumb-placeholder" style="display:none">'+cat.icon+'</div>';
     } else {
       html += '<div class="tc-thumb-placeholder">'+cat.icon+'</div>';
     }
-    html += '<div class="tc-name">'+t.name+'</div>';
+    html += '<div class="tc-name">'+esc(t.name)+'</div>';
     html += '<div class="tc-photos">'+(t.photos?t.photos.length:0)+' صورة</div>';
     html += '</div>';
   });
@@ -5913,8 +5741,8 @@ function tmViewTopic(catId, topicKey){
   html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">';
   html += '<div>';
   html += '<div style="font-size:11px;color:var(--muted);margin-bottom:3px">'+cat.icon+' '+cat.name+'</div>';
-  html += '<div style="font-size:18px;font-weight:700;color:var(--primary)">'+topic.name+'</div>';
-  if(topic.notes) html += '<div style="font-size:13px;color:var(--muted);margin-top:4px">'+topic.notes+'</div>';
+  html += '<div style="font-size:18px;font-weight:700;color:var(--primary)">'+esc(topic.name)+'</div>';
+  if(topic.notes) html += '<div style="font-size:13px;color:var(--muted);margin-top:4px">'+esc(topic.notes)+'</div>';
   html += '</div>';
   html += '<div style="display:flex;gap:8px">';
     html += '<button class="btn" style="background:#e74c3c;color:#fff;font-size:12px" data-cat="'+catId+'" data-key="'+topicKey+'" onclick="tmSendTopicEl(this)">📧 إرسال للطلاب</button>';
@@ -6025,18 +5853,31 @@ function tmRemovePreview(i){
 
 // ── UPLOAD TO IMGBB ───────────────────────────────────────────────────
 function tmUploadToImgBB(file){
+  // Uploads through your Google Apps Script proxy — the API key lives on the
+  // server, never in this page. Proxy returns { success:true, url:"https://..." }.
   return new Promise(function(resolve, reject){
-    var form = new FormData();
-    form.append('image', file);
-    fetch('https://api.imgbb.com/1/upload?key='+IMGBB_KEY, {
-      method:'POST', body:form
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if(d.success) resolve(d.data.display_url);
-      else reject(new Error(d.error&&d.error.message?d.error.message:'Upload failed'));
-    })
-    .catch(reject);
+    var proxy = getUploadProxyUrl();
+    if(!proxy){
+      reject(new Error('لم يتم ضبط رابط رفع الصور. افتح تبويب قاعدة البيانات وأدخل رابط الرفع.'));
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(){
+      var base64 = String(reader.result).split(',')[1] || '';
+      fetch(proxy, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain'},
+        body: JSON.stringify({ image: base64, name: file.name || 'upload' })
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d && d.success && d.url) resolve(d.url);
+        else reject(new Error(d && d.error ? d.error : 'فشل رفع الصورة'));
+      })
+      .catch(reject);
+    };
+    reader.onerror = function(){ reject(new Error('تعذّر قراءة الملف')); };
+    reader.readAsDataURL(file);
   });
 }
 
