@@ -657,7 +657,7 @@ window.addEventListener('load', function() {
       <aside class="sidenav">
         <div class="nav-group">
           <div class="nav-group-label">نظام الكورس (جديد)</div>
-          <button class="tab-btn" id="tbcourse" onclick="showTab('course')">🎓 إعداد الكورس <span style="font-size:9px;opacity:.6">v6</span></button>
+          <button class="tab-btn" id="tbcourse" onclick="showTab('course')">🎓 إعداد الكورس <span style="font-size:9px;opacity:.6">v7</span></button>
         </div>
         <div class="nav-group">
           <div class="nav-group-label">العمل اليومي</div>
@@ -5896,7 +5896,33 @@ function courseImportStudents(event){
   };
   reader.readAsArrayBuffer(file);
 }
-
+// Import students into a course group from the existing «جدول المجموعات» (roster)
+// already loaded in the classic system — no file needed. Matches by group
+// number + shift, the same logic as the Excel import.
+function courseImportFromRoster(gid){
+  var g=(courseConfig.groups||[]).filter(function(x){return x.id===gid;})[0];
+  if(!g){ toast('المجموعة غير معروفة'); return; }
+  if(typeof roster==='undefined' || !Array.isArray(roster) || !roster.length){
+    toast('جدول المجموعات فارغ — استورد إليه أولاً من تبويب «جدول المجموعات»'); return;
+  }
+  var shiftWord=(g.shift==='morning')?'صباح':'مسائ';
+  var names=[];
+  roster.forEach(function(rec){
+    var nm=String(rec.name||'').trim(); if(!nm) return;
+    var gNum=String(rec.group||'').replace(/[^0-9]/g,'');
+    if(gNum && gNum!==String(g.number)) return;
+    var t=String(rec.type||'');
+    if(t && t.indexOf(shiftWord)<0) return;
+    names.push(nm);
+  });
+  if(!names.length){ toast('لا طلاب لهذه المجموعة في جدول المجموعات'); return; }
+  // de-duplicate while preserving order
+  var seen={}, uniq=[];
+  names.forEach(function(n){ if(!seen[n]){ seen[n]=1; uniq.push(n); } });
+  courseSetGroupStudents(gid,uniq);
+  courseRender();
+  toast('✅ تم استيراد '+uniq.length+' طالب من جدول المجموعات');
+}
 function courseSetCellScore(gid,hid,day,name,val){
   var n=parseFloat(val); if(isNaN(n)) n=null;
   if(n!==null){ n=Math.max(0,Math.min(15,n)); }
@@ -5949,6 +5975,7 @@ function courseRenderGroupCenters(){
     html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">';
     html+='<button class="btn bp" onclick="courseEditStudents(\''+g.id+'\')" style="font-size:12px">👥 إدارة طلاب المجموعة (يدوي)</button>';
     html+='<button class="btn bo" onclick="document.getElementById(\'courseStudentFile\').dataset.gid=\''+g.id+'\';document.getElementById(\'courseStudentFile\').click()" style="font-size:12px">📥 استيراد من Excel</button>';
+    html+='<button class="btn bo" onclick="courseImportFromRoster(\''+g.id+'\')" style="font-size:12px">📋 استيراد من جدول المجموعات</button>';
     html+='</div>';
     html+='<div style="font-size:13px;font-weight:700;margin-bottom:8px">المحطات (المستشفيات):</div>';
     html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">';
