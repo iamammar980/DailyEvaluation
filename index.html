@@ -4,6 +4,67 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>تقييم الممارسة اليومية في المستشفى</title>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     PHASE B: ERROR MONITORING (Sentry) — privacy-strict, DSN-gated.
+     HOW TO ENABLE (one-time, by you):
+       1. Create a free account at sentry.io, add a "Browser JavaScript" project.
+       2. Copy your DSN (looks like https://abc123@o0.ingest.sentry.io/123).
+       3. Paste it into SENTRY_DSN below. Until then, monitoring stays OFF
+          and the app behaves exactly as before (nothing is sent anywhere).
+     PRIVACY: we deliberately scrub student names/grades before sending,
+     disable Session Replay, and send only error type + code location.
+     If university policy forbids any external data, use a self-hosted
+     GlitchTip instead — same code, just a different DSN host.
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+  // ⬇⬇⬇ PASTE YOUR SENTRY DSN HERE TO TURN ON MONITORING. Leave '' to keep OFF.
+  window.SENTRY_DSN = '';
+  // Configure BEFORE the loader runs. Only initialises if a DSN is present.
+  window.sentryOnLoad = function () {
+    if (!window.SENTRY_DSN) return; // no DSN → stay completely inert
+    Sentry.init({
+      dsn: window.SENTRY_DSN,
+      environment: 'production',
+      // privacy: do not attach IPs / request bodies / user identity
+      sendDefaultPii: false,
+      // capture a small sample of performance traces; errors are always sent
+      tracesSampleRate: 0.1,
+      // scrub anything that could carry student names or grades before sending
+      beforeSend: function (event) {
+        try {
+          // drop the request URL query/hash (may carry identifiers)
+          if (event.request && event.request.url) {
+            event.request.url = String(event.request.url).split(/[?#]/)[0];
+          }
+          // strip user context entirely
+          delete event.user;
+          // redact long Arabic-name-like strings from the message
+          if (event.message && typeof event.message === 'string' && event.message.length > 200) {
+            event.message = event.message.slice(0, 200) + '…';
+          }
+        } catch (e) {}
+        return event;
+      }
+    });
+  };
+  // Lightweight helper the app can call to report a handled error with context,
+  // safe to call whether or not Sentry is loaded/enabled.
+  window.reportIssue = function (where, err) {
+    try {
+      if (window.Sentry && window.SENTRY_DSN) {
+        Sentry.captureException(err instanceof Error ? err : new Error(String(err)), { tags: { where: where } });
+      } else if (typeof console !== 'undefined') {
+        console.error('[issue]', where, err);
+      }
+    } catch (e) {}
+  };
+</script>
+<!-- Sentry Loader: replace PUBLIC_KEY in the URL with your own from the Loader Script page.
+     This tag is harmless when SENTRY_DSN is empty (init is skipped above). -->
+<!-- <script src="https://js.sentry-cdn.com/PUBLIC_KEY.min.js" crossorigin="anonymous"></script> -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+
 <!-- PWA: installable app metadata -->
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#1a5276">
@@ -456,31 +517,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// ── BOOT WATCHDOG ──────────────────────────────────────────────────────
-// Hard guarantee: the loading spinner can NEVER hang forever. If neither the
-// app nor the login card is visible within 8s of the page starting (e.g.
-// Firebase scripts blocked on a mobile network, or iOS Safari stalls the
-// auth callback because storage is partitioned), force the login screen so
-// the user can at least choose online retry or offline mode.
-(function(){
-  var BOOT_TIMEOUT = 8000;
-  window.__appBooted = false;
-  setTimeout(function(){
-    if (window.__appBooted) return;
-    var ls   = document.getElementById('loadingScreen');
-    var app  = document.getElementById('appRoot');
-    var login= document.getElementById('loginScreen');
-    var appVisible   = app   && app.style.display   === 'block';
-    var loginVisible = login && (login.style.display === 'flex' || login.style.display === 'block');
-    if (appVisible || loginVisible) return; // something already took over
-    if (ls) ls.style.display = 'none';
-    if (login) {
-      login.style.display = 'flex';
-      try { showLoginSection(navigator.onLine ? 'online' : 'offline'); } catch(e){}
-    }
-  }, BOOT_TIMEOUT);
-})();
-
 // ── OFFLINE REDIRECT (Option C) ──
 // If no service worker AND no internet → go to offline.html
 window.addEventListener('load', function() {
@@ -828,10 +864,12 @@ window.addEventListener('load', function() {
               <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <button class="btn" style="background:#fff;color:#117a65;font-weight:700" onclick="backupDownload()">💾 تنزيل نسخة احتياطية</button>
                 <button class="btn" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4)" onclick="document.getElementById('backupFileInput').click()">📂 استعادة من ملف</button>
+                <button class="btn" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4)" onclick="runIntegrityCheck()">🔎 فحص سلامة البيانات</button>
                 <input type="file" id="backupFileInput" accept=".json" style="display:none" onchange="backupRestore(event)">
               </div>
             </div>
             <div style="padding:14px 18px">
+              <div id="integrityReport" style="display:none;margin-bottom:12px"></div>
               <div id="backupStatus" style="font-size:13px;color:var(--muted);margin-bottom:10px"></div>
               <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">📸 النسخ التلقائية اليومية (آخر 7 أيام):</div>
               <div id="snapList" style="display:flex;gap:8px;flex-wrap:wrap"></div>
@@ -1586,7 +1624,13 @@ function guardedSet(path, data, onOk){
   setSyncStatus('saving');
   dbRef(path).set(data)
     .then(function(){ dequeueWrite(path); setSyncStatus('saved'); if(onOk) onOk(); })
-    .catch(function(e){ setSyncStatus('offline'); console.warn('queued for retry:', path, e && e.message); });
+    .catch(function(e){
+      setSyncStatus('offline');
+      console.warn('queued for retry:', path, e && e.message);
+      // PHASE B: surface persistent write failures (the data is still safe in
+      // the local queue, but a failing write is exactly what we want to know).
+      if (window.reportIssue) window.reportIssue('guardedSet:' + String(path).split('_')[0], e);
+    });
 }
 
 // ── Auto snapshots: daily safety copies, 7-day rotation ───────────────
@@ -1669,7 +1713,6 @@ function initConnectivityCheck() {
 }
 
 function detectAndShowLogin() {
-  window.__appBooted = true;
   document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display   = 'flex';
   showLoginSection(navigator.onLine ? 'online' : 'offline');
@@ -1759,7 +1802,6 @@ function attachAuthListener() {
 
   auth.onAuthStateChanged(function(user) {
     // Always hide loading screen when auth state is known
-    window.__appBooted = true;
     document.getElementById('loadingScreen').style.display = 'none';
     if (user) {
       if (typeof optimisticUid !== 'undefined') optimisticUid = null; // restore confirmed
@@ -1941,6 +1983,9 @@ function startListeners() {
       takeSnapshot();
       flushQueue(); // re-send anything that failed before the reload
       flushAudit(); // ★ re-send any offline audit entries
+      // PHASE C: remind about backups once data is safely loaded (delayed so it
+      // doesn't compete with first render)
+      setTimeout(function(){ if(typeof checkBackupReminder==='function') checkBackupReminder(); }, 4000);
     }
   }
 
@@ -1996,6 +2041,15 @@ function startListeners() {
       var pc=document.getElementById('pcyc'); if(pc && pc.classList.contains('active')) cycRender(); }
   });
   dbListeners.push({ ref: cycHRef, event: 'value' });
+
+  // PHASE 5: sync the per-group active-hospital map across devices
+  var cycAHRef = dbRef('cycActiveHospMap');
+  cycAHRef.on('value', function(snap){
+    if (!isStillMe()) return;
+    var v = snap.val();
+    if (v && typeof v === 'object'){ cycActiveHospMap = v; try{ localStorage.setItem('hsp_cyc_acthosp', JSON.stringify(v)); }catch(e){} }
+  });
+  dbListeners.push({ ref: cycAHRef, event: 'value' });
 
   var rRef = dbRef('roster');
   rRef.on('value', function(snap) {
@@ -2562,6 +2616,11 @@ function saveEval(){
   rec.total=Math.min(t,15);
   rec.notes=document.getElementById('eNotes').value;
   rec.evaluated=true;
+  // ★ stamp the student's NAME into the record. The record is keyed by list
+  // index (day[curSt]); if the list order ever changes, the index alone would
+  // silently mis-attribute grades. Storing the name makes attribution robust
+  // and lets the cycle tab aggregate by name across hospitals. Additive only.
+  try{ var __nm=getStudents()[curSt]; if(__nm && __nm.name) rec.name=__nm.name; }catch(e){}
   logChange(sessionKey(), curSt, getStudents()[curSt].name, oldRec, rec); // ★ audit trail
   clearEvalDraft(); // ★ committed — discard the in-progress draft
   saveDay(sessionKey()); closeMod(); renderList(); toast('تم حفظ التقييم ✓');
@@ -3980,10 +4039,15 @@ function exportFullPDF(){
 // ═══════════════════════════════════════════
 function backupDownload(){
   var data = {
-    app: 'hospital-daily-evaluation', version: 2, exportedAt: new Date().toISOString(),
+    app: 'hospital-daily-evaluation', version: 3, exportedAt: new Date().toISOString(),
     account: currentUser ? (currentUser.email || currentUser.uid) : 'offline',
     history: history, roster: roster, studentDb: studentDb,
     studentsMorning: studentsMorning, studentsEvening: studentsEvening,
+    // PHASE C fix: the cycle-evaluation data was previously omitted from
+    // backups, so a restore silently wiped all rotation grades. Now included.
+    cycleStore: (typeof cycleStore!=='undefined') ? cycleStore : [],
+    cycHospital: (typeof cycHospital!=='undefined') ? cycHospital : '',
+    cycActiveHospMap: (typeof cycActiveHospMap!=='undefined') ? cycActiveHospMap : {},
     settings: {
       hospitalName: document.getElementById('hName').value,
       hospitalNo: document.getElementById('hNo').value,
@@ -3996,7 +4060,30 @@ function backupDownload(){
   a.download = 'نسخة_احتياطية_'+today()+'.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+  try{ localStorage.setItem('hsp_last_backup', String(Date.now())); }catch(e){}
   toast('✅ تم تنزيل النسخة الاحتياطية الكاملة');
+}
+
+// PHASE C: gentle reminder if no manual backup taken in over 7 days.
+// Backups protect irreplaceable grades; a backup never taken is no backup.
+function checkBackupReminder(){
+  try{
+    var last = parseInt(localStorage.getItem('hsp_last_backup')||'0', 10);
+    var days = last ? (Date.now()-last)/86400000 : Infinity;
+    if(days >= 7){
+      if(typeof Swal!=='undefined'){
+        Swal.fire({
+          icon:'info', title:'تذكير بالنسخ الاحتياطي',
+          text: last ? ('مضى '+Math.floor(days)+' يوماً منذ آخر نسخة احتياطية. ننصح بأخذ نسخة الآن لحماية الدرجات.')
+                     : 'لم تأخذ نسخة احتياطية بعد. ننصح بأخذ نسخة لحماية بيانات الطلاب.',
+          showCancelButton:true, confirmButtonText:'تنزيل نسخة الآن', cancelButtonText:'لاحقاً',
+          confirmButtonColor:'#0E7C86'
+        }).then(function(r){ if(r.isConfirmed && typeof backupDownload==='function') backupDownload(); });
+      } else {
+        if(confirm('مضى وقت طويل منذ آخر نسخة احتياطية. تنزيل نسخة الآن؟') && typeof backupDownload==='function') backupDownload();
+      }
+    }
+  }catch(e){}
 }
 
 function backupRestore(event){
@@ -4030,8 +4117,15 @@ function applyBackup(d){
   if (d.se && d.se.length) studentsEvening = d.se;
   if (d.studentsMorning && d.studentsMorning.length) studentsMorning = d.studentsMorning;
   if (d.studentsEvening && d.studentsEvening.length) studentsEvening = d.studentsEvening;
+  // PHASE C fix: restore cycle-evaluation data too (was previously lost).
+  if (typeof cycleStore!=='undefined' && Array.isArray(d.cycleStore) && d.cycleStore.length){
+    cycleStore = (typeof cycNormalize==='function') ? cycNormalize(d.cycleStore) : d.cycleStore;
+  }
+  if (typeof cycHospital!=='undefined' && typeof d.cycHospital==='string' && d.cycHospital) cycHospital = d.cycHospital;
+  if (typeof cycActiveHospMap!=='undefined' && d.cycActiveHospMap && typeof d.cycActiveHospMap==='object') cycActiveHospMap = d.cycActiveHospMap;
   // persist everything (queue-protected)
   cacheLocally(); dbSave();
+  if (typeof cycSave==='function') { try{ cycSave(); }catch(e){} }
   if (!isOfflineMode && currentUser && db){
     Object.keys(history).forEach(function(k){
       var dbKey = k.replace(/^(\d{4})-(\d{2})-(\d{2})_/, '$1_$2_$3_');
@@ -4057,6 +4151,90 @@ function restoreSnapshot(key){
     applyBackup(d);
     toast('✅ تمت استعادة النسخة التلقائية');
   }catch(e){ toast('خطأ في الاستعادة'); }
+}
+
+// ── PHASE C part 2: data integrity check (READ-ONLY, never auto-fixes) ──
+// Scans for silent inconsistencies and reports them so YOU decide what to do.
+// Categories: orphan grades (a saved cycle record whose name is in no group),
+// students with no grades, groups with no students, and out-of-range totals.
+function runIntegrityCheck(){
+  var issues = [];
+  var info = [];
+  try{
+    var store = (typeof cycleStore!=='undefined' && Array.isArray(cycleStore)) ? cycleStore : [];
+    // set of known names per group key, and all known names
+    var allNames = {};
+    var byGroup = {};
+    store.forEach(function(s){
+      var nm=(s.name||'').trim(); if(nm) allNames[nm]=true;
+      var gk=(typeof cycStudentGKey==='function')?cycStudentGKey(s):'';
+      if(gk){ (byGroup[gk]=byGroup[gk]||[]).push(nm); }
+    });
+
+    // 1) groups with no students
+    Object.keys(byGroup).forEach(function(gk){
+      if(!byGroup[gk].filter(function(n){return n;}).length){
+        issues.push('مجموعة بلا طلاب: '+((typeof cycGLabel==='function')?cycGLabel(gk):gk));
+      }
+    });
+    if(!store.length) info.push('لا يوجد طلاب في الدورة التقييمية بعد.');
+
+    // 2) scan history cycle sessions for orphan grades + out-of-range totals
+    var hist = (typeof history!=='undefined' && history) ? history : {};
+    var orphanNames = {};
+    var outOfRange = 0;
+    Object.keys(hist).forEach(function(k){
+      if(k.indexOf('cyc_')!==0) return;        // only cycle sessions
+      var sess = hist[k]; if(!sess || typeof sess!=='object') return;
+      Object.keys(sess).forEach(function(idx){
+        var rec = sess[idx]; if(!rec || typeof rec!=='object') return;
+        // out-of-range total
+        if(typeof rec.total==='number' && (rec.total<0 || rec.total>15)){ outOfRange++; }
+        // orphan: a named record whose name is in no current group
+        var nm=(rec.name||'').trim();
+        if(nm && !allNames[nm]) orphanNames[nm]=true;
+      });
+    });
+    var orphans=Object.keys(orphanNames);
+    if(orphans.length){
+      issues.push('درجات لأسماء غير موجودة في أي مجموعة حالية ('+orphans.length+'): '+orphans.slice(0,5).join('، ')+(orphans.length>5?' …':''));
+    }
+    if(outOfRange){ issues.push('سجلات بدرجة خارج النطاق (0–15): '+outOfRange); }
+
+    // 3) students with no grades anywhere (informational, not an error)
+    var graded = {};
+    Object.keys(hist).forEach(function(k){
+      if(k.indexOf('cyc_')!==0) return;
+      var sess=hist[k]; if(!sess) return;
+      Object.keys(sess).forEach(function(idx){ var r=sess[idx]; if(r && (r.name||'').trim()) graded[(r.name||'').trim()]=true; });
+    });
+    var ungraded = Object.keys(allNames).filter(function(n){ return !graded[n]; });
+    if(ungraded.length){ info.push('طلاب بلا أي درجة بعد ('+ungraded.length+'): '+ungraded.slice(0,5).join('، ')+(ungraded.length>5?' …':'')); }
+  }catch(e){
+    if(window.reportIssue) window.reportIssue('integrityCheck', e);
+    issues.push('تعذّر إكمال الفحص: '+(e&&e.message));
+  }
+
+  // render report
+  var box=document.getElementById('integrityReport'); if(!box) return;
+  box.style.display='';
+  var html='';
+  if(!issues.length){
+    html='<div style="background:#eafaf1;border:1px solid #a9dfbf;border-radius:10px;padding:12px 14px;color:#1e8449;font-size:13px;font-weight:700">✅ لا توجد تناقضات حرجة في البيانات.</div>';
+  } else {
+    html='<div style="background:#fdf2e9;border:1px solid #f5cba7;border-radius:10px;padding:12px 14px">';
+    html+='<div style="font-size:13px;font-weight:700;color:#b9770e;margin-bottom:8px">⚠️ نقاط تحتاج مراجعتك ('+issues.length+'):</div>';
+    html+='<ul style="margin:0;padding-inline-start:18px;font-size:13px;color:var(--text);line-height:1.9">';
+    issues.forEach(function(it){ html+='<li>'+esc(it)+'</li>'; });
+    html+='</ul><div style="font-size:11px;color:var(--muted);margin-top:8px">الفحص لا يُصلح تلقائياً — القرار لك حفاظاً على البيانات.</div></div>';
+  }
+  if(info.length){
+    html+='<div style="background:#f4f6f7;border:1px solid #d5dbdb;border-radius:10px;padding:10px 14px;margin-top:8px;font-size:12px;color:var(--muted);line-height:1.9">';
+    info.forEach(function(it){ html+='• '+esc(it)+'<br>'; });
+    html+='</div>';
+  }
+  box.innerHTML=html;
+  if(typeof toast==='function') toast(issues.length?('انتهى الفحص: '+issues.length+' نقطة'):'انتهى الفحص: لا تناقضات','info');
 }
 
 function renderBackupCenter(){
@@ -4574,6 +4752,64 @@ function applyGrpLoader(){
 var CYC_DAYS = 4;
 var cycHospital = '';
 function cycBlankDays(){ return ['','','','']; }
+
+// ── PHASE 1: multi-hospital rotation model ──────────────────────────────
+// Each student now also carries a `rounds` map keyed by hospital name:
+//   rounds["مستشفى الكندي"] = { startDate:"", days:[rec,rec,rec,rec] }
+// where each rec = { scores:{}, paperDelivered, notes, attendance,
+//                    manualTotal:null, locked:false }.
+// NOTE: the paper's MARK is entered inside scores.dailynote (the /5 axis), so
+// it is already part of the 15. `paperDelivered` is only a delivered/not flag.
+// The legacy `days:[str,str,str,str]` field is PRESERVED untouched for
+// backward-compatibility with all existing cycle UI/export code. The new
+// `rounds` layer is additive and isolated — nothing reads it yet until the
+// later phases wire it in, so this change cannot break the current screens.
+// Derived totals are NEVER stored here; they are computed at display time
+// (see cycDayTotal). Only raw components live in the record.
+var CYC_HOSP_PLACEHOLDER = '__غير_محدد__'; // bucket when no hospital named yet
+function cycBlankRec(){
+  return { scores:{}, paperGrade:'', paperDelivered:null, notes:'',
+           attendance:'', manualTotal:null, locked:false };
+}
+function cycNormalizeRec(r){
+  r = (r && typeof r==='object') ? r : {};
+  return {
+    scores:        (r.scores && typeof r.scores==='object') ? r.scores : {},
+    paperGrade:    (r.paperGrade!==undefined && r.paperGrade!==null) ? String(r.paperGrade) : '',
+    paperDelivered:(r.paperDelivered===true||r.paperDelivered===false) ? r.paperDelivered : null,
+    notes:         r.notes ? String(r.notes) : '',
+    attendance:    r.attendance ? String(r.attendance) : '',
+    manualTotal:   (typeof r.manualTotal==='number') ? r.manualTotal : null,
+    locked:        r.locked===true
+  };
+}
+function cycNormalizeRound(rd){
+  rd = (rd && typeof rd==='object') ? rd : {};
+  var d = Array.isArray(rd.days) ? rd.days : [];
+  while(d.length<CYC_DAYS) d.push(cycBlankRec());
+  d = d.slice(0,CYC_DAYS).map(cycNormalizeRec);
+  return { startDate: rd.startDate ? String(rd.startDate) : '', days: d };
+}
+function cycNormalizeRounds(rounds, legacyDays, fallbackHospital){
+  var out = {};
+  if(rounds && typeof rounds==='object' && !Array.isArray(rounds)){
+    Object.keys(rounds).forEach(function(h){ out[h] = cycNormalizeRound(rounds[h]); });
+  }
+  // Non-destructive migration: if there are NO rounds yet but legacy day
+  // strings carry data, seed one round under the current/fallback hospital
+  // so no previously-entered grade is lost. Legacy `days` stays in place.
+  if(!Object.keys(out).length && Array.isArray(legacyDays) && legacyDays.some(function(x){ return String(x||'').trim()!==''; })){
+    var key = (fallbackHospital && String(fallbackHospital).trim()) || CYC_HOSP_PLACEHOLDER;
+    var seeded = cycNormalizeRound({});
+    legacyDays.slice(0,CYC_DAYS).forEach(function(v,i){
+      var num = parseFloat(v);
+      if(!isNaN(num)) seeded.days[i].manualTotal = num; // legacy = a single manual day total
+    });
+    out[key] = seeded;
+  }
+  return out;
+}
+
 function cycNormalizeStudent(s){
   s=s||{};
   var d=Array.isArray(s.days)?s.days:[];
@@ -4582,19 +4818,75 @@ function cycNormalizeStudent(s){
   return {
     sid: s.sid || ('st_'+Date.now()+'_'+Math.floor(Math.random()*99999)),
     name: s.name||'', group: (s.group!==undefined?String(s.group):''), type: s.type||'',
-    days: d
+    days: d,                                              // legacy — preserved as-is
+    rounds: cycNormalizeRounds(s.rounds, d, cycHospital)  // new isolated multi-hospital layer
   };
 }
+
+// ── derived score helpers (compute, never store) ────────────────────────
+// Sum of the 5 evaluation axes for a cycle record (mirrors FIELDS, max 15).
+function cycAxisSum(rec){
+  var sc=(rec&&rec.scores)||{}, t=0, any=false;
+  for(var fi=0; fi<FIELDS.length; fi++){
+    FIELDS[fi].items.forEach(function(it){ if(sc[it.k]!==undefined){ t+=(parseFloat(sc[it.k])||0); any=true; } });
+  }
+  return any ? Math.round(t*100)/100 : null;
+}
+// Final day total = manual override if set, else the sum of the 5 axes (max 15).
+// IMPORTANT: the daily paper grade is NOT a separate addend — it is entered as
+// the "الملاحظة اليومية" (dailynote, /5) axis, so it is already counted inside
+// the 15. We deliberately do NOT add any paperGrade on top.
+// Returns null when the day has no data at all, so the UI can show "—".
+function cycDayTotal(rec){
+  if(!rec) return null;
+  if(typeof rec.manualTotal==='number') return Math.round(rec.manualTotal*100)/100;
+  var axes = cycAxisSum(rec);
+  if(axes===null) return null;
+  return Math.min(15, Math.round(axes*100)/100);
+}
+// Hospital round total = sum of its (up to 4) day totals.
+function cycRoundTotal(round){
+  if(!round || !Array.isArray(round.days)) return null;
+  var t=0, any=false;
+  round.days.forEach(function(rec){ var dt=cycDayTotal(rec); if(dt!==null){ t+=dt; any=true; } });
+  return any ? Math.round(t*100)/100 : null;
+}
+// Grand total across all hospitals the student has rotated through.
+function cycStudentTotal(student){
+  if(!student || !student.rounds) return null;
+  var t=0, any=false;
+  Object.keys(student.rounds).forEach(function(h){ var rt=cycRoundTotal(student.rounds[h]); if(rt!==null){ t+=rt; any=true; } });
+  return any ? Math.round(t*100)/100 : null;
+}
 function cycNormalize(arr){ return (Array.isArray(arr)?arr:[]).map(cycNormalizeStudent); }
+// ── PHASE 5: remember the active rotation hospital PER GROUP ─────────────
+// Each group can be at a different hospital, so we keep a map keyed by the
+// composite group key: { "1||صباحي":"مستشفى الكندي", ... }. Persisted to
+// localStorage (+ mirrored into cacheLocally's blob) so it survives reloads.
+var cycActiveHospMap = {};
+function cycLoadActiveHospMap(){
+  try{ var r=localStorage.getItem('hsp_cyc_acthosp'); if(r){ var o=JSON.parse(r); if(o&&typeof o==='object') cycActiveHospMap=o; } }catch(e){}
+}
+function cycSaveActiveHospMap(){
+  try{ localStorage.setItem('hsp_cyc_acthosp', JSON.stringify(cycActiveHospMap)); }catch(e){}
+}
+function cycGetActiveHosp(gkey){ return (gkey && cycActiveHospMap[gkey]) ? cycActiveHospMap[gkey] : ''; }
+function cycSetActiveHosp(gkey, hosp){
+  if(!gkey) return;
+  if(hosp) cycActiveHospMap[gkey]=hosp; else delete cycActiveHospMap[gkey];
+  cycSaveActiveHospMap();
+}
 function cycLocalLoad(){
   try{var r=localStorage.getItem('hsp_cyc'); if(r){var d=JSON.parse(r); if(Array.isArray(d)) cycleStore=cycNormalize(d);}}catch(e){}
   try{var h=localStorage.getItem('hsp_cyc_hosp'); if(h!==null) cycHospital=h;}catch(e){}
+  cycLoadActiveHospMap();
 }
 function cycSave(){
   cycleStore=cycNormalize(cycleStore);
   try{ localStorage.setItem('hsp_cyc', JSON.stringify(cycleStore)); }catch(e){}
   try{ localStorage.setItem('hsp_cyc_hosp', cycHospital); }catch(e){}
-  if (!isOfflineMode && currentUser && db){ guardedSet('cycleStore', cycleStore); guardedSet('cycleHospital', cycHospital); }
+  cycSaveActiveHospMap();
+  if (!isOfflineMode && currentUser && db){ guardedSet('cycleStore', cycleStore); guardedSet('cycleHospital', cycHospital); guardedSet('cycActiveHospMap', cycActiveHospMap); }
   else cacheLocally();
 }
 var cycSaveTimer=null;
@@ -4621,14 +4913,18 @@ function cycImportPrompt(){
   }
   var groups=cycGroupsInDb();
   if(!groups.length){ toast('لا توجد مجموعات في قاعدة البيانات'); return; }
+  // present grouped by shift (صباحي/مسائي) so the distribution is clear
   var opts={};
-  groups.forEach(function(g,i){ opts[i]='مجموعة '+g.group+' · '+(g.type||'')+' ('+g.count+' طالب)'; });
+  groups.forEach(function(g,i){
+    var shift=g.type||'بدون وردية';
+    opts[i]=shift+' — مجموعة '+g.group+' ('+g.count+' طالب)'+(g.hospital?(' · '+g.hospital):'');
+  });
   if(typeof Swal!=='undefined'){
     Swal.fire({title:'اختر المجموعة لاستيرادها',input:'select',inputOptions:opts,inputPlaceholder:'اختر مجموعة',
       showCancelButton:true,confirmButtonText:'استيراد',cancelButtonText:'إلغاء',confirmButtonColor:'#0E7C86'
     }).then(function(res){ if(res.isConfirmed && res.value!==''){ cycImportGroup(groups[parseInt(res.value)]); } });
   } else {
-    var idx=prompt('اكتب رقم المجموعة:\n'+groups.map(function(g,i){return i+': مجموعة '+g.group+' '+(g.type||'');}).join('\n'));
+    var idx=prompt('اكتب رقم المجموعة:\n'+groups.map(function(g,i){return i+': '+(g.type||'')+' مجموعة '+g.group;}).join('\n'));
     if(idx!==null && groups[parseInt(idx)]) cycImportGroup(groups[parseInt(idx)]);
   }
 }
@@ -4645,16 +4941,31 @@ function cycImportGroup(g){
     if(!exists){ cycleStore.push(cycNormalizeStudent({name:nm,group:g.group,type:g.type,days:cycBlankDays()})); added++; }
   });
   cycSave();
-  cycActiveGroup=g.group;
+  cycActiveGroup=cycGKey(g.group, g.type);
   cycRender();
   toast('تم استيراد المجموعة '+g.group+' ('+members.length+' طالب) ✓','success');
 }
 
 // ── view state ──────────────────────────────────────────────────────
-var cycActiveGroup=null;
+var cycActiveGroup=null;   // now holds a composite key "group||type"
+// ── PHASE 3: composite group identity ───────────────────────────────────
+// Group numbers repeat across shifts (مجموعة 1 صباحي ≠ مجموعة 1 مسائي), so a
+// group must be identified by group+type together, never by number alone.
+function cycGKey(group, type){ return String(group||'')+'||'+String(type||''); }
+function cycGParse(key){ var p=String(key||'').split('||'); return {group:p[0]||'', type:p[1]||''}; }
+function cycGLabel(key){ var g=cycGParse(key); return 'مجموعة '+g.group+(g.type?(' · '+g.type):''); }
+function cycStudentGKey(s){ return cycGKey(s.group, s.type); }
 function cycGroupsPresent(){
-  var gs=[]; cycleStore.forEach(function(s){ var g=String(s.group||''); if(g && gs.indexOf(g)<0) gs.push(g); });
-  return gs.sort(function(a,b){ return (parseInt(a)||999)-(parseInt(b)||999); });
+  var seen={}, list=[];
+  cycleStore.forEach(function(s){
+    var k=cycStudentGKey(s);
+    if(k!=='||' && !seen[k]){ seen[k]=true; list.push(k); }
+  });
+  return list.sort(function(a,b){
+    var A=cycGParse(a), B=cycGParse(b);
+    return (parseInt(A.group)||999)-(parseInt(B.group)||999)
+        || (A.type||'').localeCompare(B.type||'','ar');
+  });
 }
 
 function cycRender(){
@@ -4676,37 +4987,65 @@ function cycRender(){
   html+='<input value="'+(cycHospital||'').replace(/"/g,'&quot;')+'" placeholder="اكتب اسم مستشفاك" oninput="cycSetHospital(this.value)" style="flex:1;min-width:180px;border:1px solid #cfe0de;border-radius:7px;padding:6px 10px;font-size:13px;background:#f7fbfa">';
   html+='</div>';
 
-  // group tabs (the 3 groups that rotate to me)
+  // group tabs (each shift's group is distinct: مجموعة 1 صباحي ≠ مجموعة 1 مسائي)
   html+='<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">';
-  groups.forEach(function(g){
-    var on=(cycActiveGroup===g);
-    var cnt=cycleStore.filter(function(s){return String(s.group)===g;}).length;
-    html+='<button onclick="cycSetGroup(\''+g+'\')" style="border:1px solid '+(on?'#0E7C86':'var(--border)')+';background:'+(on?'#0E7C86':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">مجموعة '+g+' <span style="font-size:11px;opacity:.8">('+cnt+')</span></button>';
+  groups.forEach(function(gk){
+    var on=(cycActiveGroup===gk);
+    var cnt=cycleStore.filter(function(s){return cycStudentGKey(s)===gk;}).length;
+    html+='<button onclick="cycSetGroup(\''+gk.replace(/'/g,"\\'")+'\')" style="border:1px solid '+(on?'#0E7C86':'var(--border)')+';background:'+(on?'#0E7C86':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">'+cycGLabel(gk)+' <span style="font-size:11px;opacity:.8">('+cnt+')</span></button>';
   });
   html+='</div>';
 
   // search
   var q=(document.getElementById('cycSearch')&&document.getElementById('cycSearch').value||'').trim();
-  var students=cycleStore.filter(function(s){ return String(s.group)===cycActiveGroup; });
+  var students=cycleStore.filter(function(s){ return cycStudentGKey(s)===cycActiveGroup; });
   if(q && typeof Fuse!=='undefined'){
     var fuse=new Fuse(students,{keys:['name'],threshold:0.4}); students=fuse.search(q).map(function(r){return r.item;});
   } else if(q){ students=students.filter(function(s){return (s.name||'').indexOf(q)>=0;}); }
 
-  // grade grid: student + 4 day-grades
+  // ── PHASE 4: cross-hospital aggregation (READ-ONLY) ───────────────────
+  // Grades come from the authoritative eval store (attendance cycle mode),
+  // matched by name across every hospital this group rotated through. Manual
+  // entry lives in the attendance tab now; this is the consolidated picture.
+  html+='<div style="background:#eef7f6;border:1px solid var(--border);border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12px;color:var(--primary);line-height:1.7">'
+    +'📊 هذه شاشة تجميع للقراءة فقط. الإدخال التفصيلي يتم في تبويب «الحضور والتقييم» (وضع الدورة). الدرجات هنا تُجمَع تلقائياً بالاسم عبر كل المستشفيات.</div>';
+
   html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">';
-  html+='<div style="display:grid;grid-template-columns:1fr 64px 64px 64px 64px 70px;gap:6px;padding:10px 14px;background:#eef7f6;font-size:12px;color:var(--primary);font-weight:700;border-bottom:1px solid var(--border)">'
-    +'<div>الطالب</div><div style="text-align:center">يوم ١</div><div style="text-align:center">يوم ٢</div><div style="text-align:center">يوم ٣</div><div style="text-align:center">يوم ٤</div><div style="text-align:center">المجموع</div></div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 1.2fr 60px 60px 60px 60px 64px 70px;gap:4px;padding:10px 12px;background:#eef7f6;font-size:11px;color:var(--primary);font-weight:700;border-bottom:1px solid var(--border)">'
+    +'<div>الطالب</div><div>المستشفى</div><div style="text-align:center">ي١</div><div style="text-align:center">ي٢</div><div style="text-align:center">ي٣</div><div style="text-align:center">ي٤</div><div style="text-align:center">مج. المستشفى</div><div style="text-align:center">الكلي</div></div>';
+
   students.forEach(function(s){
-    var realIdx=cycleStore.indexOf(s);
-    var tot=0, any=false;
-    html+='<div style="display:grid;grid-template-columns:1fr 64px 64px 64px 64px 70px;gap:6px;padding:8px 14px;align-items:center;border-bottom:1px solid #f0f4f4">';
-    html+='<div style="font-weight:600;font-size:13px">'+esc(s.name)+'</div>';
-    for(var d=0; d<CYC_DAYS; d++){
-      var v=s.days[d]||''; var n=parseFloat(v); if(!isNaN(n)){tot+=n;any=true;}
-      html+='<div style="text-align:center"><input value="'+v+'" placeholder="—" inputmode="decimal" oninput="cycSetGrade('+realIdx+','+d+',this.value)" style="width:52px;text-align:center;border:1px solid #cfe0de;border-radius:6px;padding:4px;font-size:13px"></div>';
+    var idxFallback=cycleStore.indexOf(s);
+    var agg=cycAggregateStudent(s, cycActiveGroup, idxFallback);
+    var rowspan=Math.max(1, agg.hospitals.length);
+    if(!agg.hospitals.length){
+      // no detailed records yet — show legacy s.days if present, else dashes
+      var legacyTot=0, legacyAny=false;
+      var legacyCells=s.days.map(function(g){ var n=parseFloat(g); if(!isNaN(n)){legacyTot+=n;legacyAny=true;} return isNaN(n)?'—':n; });
+      html+='<div style="display:grid;grid-template-columns:1fr 1.2fr 60px 60px 60px 60px 64px 70px;gap:4px;padding:8px 12px;align-items:center;border-bottom:1px solid #f0f4f4">';
+      html+='<div style="font-weight:600;font-size:13px">'+esc(s.name)+'</div>';
+      html+='<div style="font-size:11px;color:var(--muted)">'+(legacyAny?'درجة قديمة (يدوية)':'لم يُقيَّم بعد')+'</div>';
+      for(var d=0;d<4;d++) html+='<div style="text-align:center;font-size:12px;color:#888">'+(legacyAny?legacyCells[d]:'—')+'</div>';
+      html+='<div style="text-align:center;font-size:12px;color:#888">'+(legacyAny?Math.round(legacyTot*100)/100:'—')+'</div>';
+      html+='<div style="text-align:center;font-weight:700;color:'+(legacyAny?'#888':'#ccc')+'">'+(legacyAny?Math.round(legacyTot*100)/100:'—')+'</div>';
+      html+='</div>';
+      return;
     }
-    html+='<div style="text-align:center;font-weight:700;color:'+(any?'#0A6068':'#ccc')+'">'+(any?Math.round(tot*100)/100:'—')+'</div>';
-    html+='</div>';
+    agg.hospitals.forEach(function(rd, hi){
+      var hname=(rd.hospital===CYC_HOSP_PLACEHOLDER)?'(غير محدد)':rd.hospital;
+      html+='<div style="display:grid;grid-template-columns:1fr 1.2fr 60px 60px 60px 60px 64px 70px;gap:4px;padding:8px 12px;align-items:center;border-bottom:1px solid #f0f4f4">';
+      // student name only on first hospital row
+      html+='<div style="font-weight:600;font-size:13px">'+(hi===0?esc(s.name):'')+'</div>';
+      html+='<div style="font-size:12px;color:var(--text)">🏥 '+esc(hname)+'</div>';
+      for(var d=0;d<4;d++){
+        var v=rd.dayTotals[d];
+        html+='<div style="text-align:center;font-size:12px;color:'+(v!==null?'#0A6068':'#ccc')+'">'+(v!==null?v:'—')+'</div>';
+      }
+      html+='<div style="text-align:center;font-weight:700;font-size:12px;color:#0A6068">'+(rd.roundTotal!==null?rd.roundTotal:'—')+'</div>';
+      // grand total spans all hospital rows; show on first row only
+      html+='<div style="text-align:center;font-weight:800;color:var(--primary)">'+(hi===0?(agg.grand!==null?agg.grand:'—'):'')+'</div>';
+      html+='</div>';
+    });
   });
   if(!students.length) html+='<div style="padding:18px;text-align:center;color:var(--muted)">لا يوجد طلاب في هذه المجموعة.</div>';
   html+='</div>';
@@ -4715,12 +5054,63 @@ function cycRender(){
   html+='<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">';
   html+='<button class="btn ba" onclick="cycExportExcel()">📊 تصدير السجل الكامل</button>';
   html+='<span style="font-size:12px;color:var(--muted)">تصدير مجموعة:</span>';
-  groups.forEach(function(g){ html+='<button class="btn bo" style="font-size:12px" onclick="cycExportGroup(\''+g+'\')">📥 مجموعة '+g+'</button>'; });
+  groups.forEach(function(gk){ html+='<button class="btn bo" style="font-size:12px" onclick="cycExportGroup(\''+gk.replace(/'/g,"\\'")+'\')">📥 '+cycGLabel(gk)+'</button>'; });
   html+='<button class="btn" style="background:#fdecea;color:#c0392b;border-color:#f5b7b1" onclick="cycResetAll()">🗑️ مسح الكل</button>';
   html+='</div>';
 
   cont.innerHTML=html;
 }
+// ── PHASE 4: read the REAL grades from the detailed eval store, by NAME ──
+// The cycle grid used to read s.days (a parallel, disconnected manual store).
+// Instead we now aggregate the authoritative records saved in the attendance
+// cycle-mode (history[ cyc_<grp>_<type>_dN[_h_<hosp>]_morning ]). Records are
+// matched by NAME (rec.name), falling back to list index for legacy records.
+// Returns: { hospitals:[{hospital, dayTotals:[..4], roundTotal}], grand }
+function cycHistKeysForGroup(gkey){
+  var gp=cycGParse(gkey);
+  var prefix='cyc_'+gp.group+'_'+(gp.type||'')+'_d';
+  return Object.keys(history||{}).filter(function(k){ return k.indexOf(prefix)===0; });
+}
+// pull a single student's record out of a session, by name then index
+function cycFindRec(sessionObj, name, idxFallback){
+  if(!sessionObj) return null;
+  // 1) exact name match (robust against list reordering)
+  var keys=Object.keys(sessionObj);
+  for(var i=0;i<keys.length;i++){
+    var r=sessionObj[keys[i]];
+    if(r && typeof r==='object' && (r.name||'').trim()===(name||'').trim()) return r;
+  }
+  // 2) legacy fallback: positional index (records saved before name-stamping)
+  if(idxFallback!=null && sessionObj[idxFallback] && !sessionObj[idxFallback].name) return sessionObj[idxFallback];
+  return null;
+}
+// parse hospital + day number out of a session key
+function cycKeyMeta(k){
+  var dm=k.match(/_d(\d+)/); var hm=k.match(/_h_(.+)_morning$/);
+  return { day: dm?parseInt(dm[1]):null, hospital: hm?hm[1]:'' };
+}
+// aggregate one student across all hospitals/days of their group
+function cycAggregateStudent(student, gkey, idxFallback){
+  var byHosp={}; // hospital -> [d1,d2,d3,d4] of dayTotals (null if none)
+  cycHistKeysForGroup(gkey).forEach(function(k){
+    var meta=cycKeyMeta(k); if(!meta.day) return;
+    var rec=cycFindRec(history[k], student.name, idxFallback);
+    if(!rec) return;
+    var dt=cycDayTotal(rec); if(dt===null) return;
+    var h=meta.hospital||CYC_HOSP_PLACEHOLDER;
+    if(!byHosp[h]) byHosp[h]=[null,null,null,null];
+    if(meta.day>=1 && meta.day<=CYC_DAYS) byHosp[h][meta.day-1]=dt;
+  });
+  var hospitals=Object.keys(byHosp).map(function(h){
+    var days=byHosp[h], t=0, any=false;
+    days.forEach(function(v){ if(v!==null){ t+=v; any=true; } });
+    return { hospital:h, dayTotals:days, roundTotal: any?Math.round(t*100)/100:null };
+  });
+  var grand=0, anyG=false;
+  hospitals.forEach(function(r){ if(r.roundTotal!==null){ grand+=r.roundTotal; anyG=true; } });
+  return { hospitals:hospitals, grand: anyG?Math.round(grand*100)/100:null };
+}
+
 function cycSetHospital(val){ cycHospital=val; cycSaveDebounced(); }
 function cycSetGroup(g){ cycActiveGroup=g; cycRender(); }
 function cycSetGrade(idx, d, val){
@@ -4745,32 +5135,53 @@ function cycResetAll(){
 function cycExportExcel(){
   if(!cycleStore.length){ toast('لا توجد بيانات للتصدير'); return; }
   if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
-  var rows=[['اسم الطالب','المجموعة','نوع الدراسة','يوم ١','يوم ٢','يوم ٣','يوم ٤','المجموع']];
-  cycleStore.slice().sort(function(a,b){ return (parseInt(a.group)||999)-(parseInt(b.group)||999); }).forEach(function(s){
-    var tot=0, any=false; var dd=s.days.map(function(g){ var n=parseFloat(g); if(!isNaN(n)){tot+=n;any=true;} return g||''; });
-    rows.push([s.name,s.group||'',s.type||''].concat(dd).concat([any?Math.round(tot*100)/100:'']));
-  });
+  var rows=[cycExportHeader()];
+  cycleStore.slice().sort(function(a,b){
+    return (parseInt(a.group)||999)-(parseInt(b.group)||999) || (a.type||'').localeCompare(b.type||'','ar');
+  }).forEach(function(s){ cycExportRowsFor(s).forEach(function(r){ rows.push(r); }); });
   var ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[{wch:24},{wch:9},{wch:11},{wch:6},{wch:6},{wch:6},{wch:6},{wch:9}];
+  ws['!cols']=[{wch:24},{wch:8},{wch:10},{wch:20},{wch:6},{wch:6},{wch:6},{wch:6},{wch:12},{wch:10}];
   var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws, (cycHospital||'السجل').slice(0,28));
   XLSX.writeFile(wb,'سجل_درجات_'+(cycHospital||'الطلاب')+'.xlsx');
   toast('تم تصدير السجل ✓','success');
 }
-// export ONE group
-function cycExportGroup(groupNum){
-  if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
-  var members=cycleStore.filter(function(s){ return String(s.group)===String(groupNum); });
-  if(!members.length){ toast('لا يوجد طلاب في هذه المجموعة'); return; }
-  var rows=[['اسم الطالب','المجموعة','نوع الدراسة','يوم ١','يوم ٢','يوم ٣','يوم ٤','المجموع']];
-  members.forEach(function(s){
-    var tot=0, any=false; var dd=s.days.map(function(g){ var n=parseFloat(g); if(!isNaN(n)){tot+=n;any=true;} return g||''; });
-    rows.push([s.name,s.group||'',s.type||''].concat(dd).concat([any?Math.round(tot*100)/100:'']));
+// shared export shape — reads the authoritative by-name aggregation
+function cycExportHeader(){
+  return ['اسم الطالب','المجموعة','الوردية','المستشفى','يوم ١','يوم ٢','يوم ٣','يوم ٤','مجموع المستشفى','المجموع الكلي'];
+}
+function cycExportRowsFor(s){
+  var gkey=cycStudentGKey(s), idxFallback=cycleStore.indexOf(s);
+  var agg=cycAggregateStudent(s, gkey, idxFallback);
+  var out=[];
+  if(!agg.hospitals.length){
+    // no detailed records — fall back to legacy manual s.days so nothing is lost
+    var tot=0, any=false; var dd=s.days.map(function(g){ var n=parseFloat(g); if(!isNaN(n)){tot+=n;any=true;} return isNaN(n)?'':n; });
+    out.push([s.name,s.group||'',s.type||'','(درجة قديمة يدوية)'].concat(dd).concat([any?Math.round(tot*100)/100:'', any?Math.round(tot*100)/100:'']));
+    return out;
+  }
+  agg.hospitals.forEach(function(rd, hi){
+    var hname=(rd.hospital===CYC_HOSP_PLACEHOLDER)?'(غير محدد)':rd.hospital;
+    var cells=rd.dayTotals.map(function(v){ return v!==null?v:''; });
+    out.push([ hi===0?s.name:'', hi===0?(s.group||''):'', hi===0?(s.type||''):'', hname ]
+      .concat(cells)
+      .concat([ rd.roundTotal!==null?rd.roundTotal:'', hi===0?(agg.grand!==null?agg.grand:''):'' ]));
   });
+  return out;
+}
+// export ONE group (key = "group||type")
+function cycExportGroup(gkey){
+  if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
+  var members=cycleStore.filter(function(s){ return cycStudentGKey(s)===gkey; });
+  if(!members.length){ toast('لا يوجد طلاب في هذه المجموعة'); return; }
+  var gp=cycGParse(gkey);
+  var rows=[cycExportHeader()];
+  members.forEach(function(s){ cycExportRowsFor(s).forEach(function(r){ rows.push(r); }); });
   var ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[{wch:24},{wch:9},{wch:11},{wch:6},{wch:6},{wch:6},{wch:6},{wch:9}];
-  var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'مجموعة '+groupNum);
-  XLSX.writeFile(wb,'درجات_مجموعة_'+groupNum+'.xlsx');
-  toast('تم تصدير المجموعة '+groupNum+' ✓','success');
+  ws['!cols']=[{wch:24},{wch:8},{wch:10},{wch:20},{wch:6},{wch:6},{wch:6},{wch:6},{wch:12},{wch:10}];
+  var sheetName=('م'+gp.group+(gp.type?('_'+gp.type):'')).slice(0,28);
+  var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,sheetName);
+  XLSX.writeFile(wb,'درجات_مجموعة_'+gp.group+(gp.type?('_'+gp.type):'')+'.xlsx');
+  toast('تم تصدير '+cycGLabel(gkey)+' ✓','success');
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -4786,18 +5197,19 @@ var paCycGroup=null;           // {group,type,hospital,names:[]}
 var __savedClassicDate=null;
 
 function paDetectCycleGroup(){
-  // pick the group with the most students present in the gradebook
   if(!cycleStore || !cycleStore.length) return null;
-  var byGroup={};
+  // bucket by composite key so shifts with the same number stay separate
+  var byKey={};
   cycleStore.forEach(function(s){
-    var g=String(s.group||''); if(!g) return;
-    if(!byGroup[g]) byGroup[g]={group:g,type:s.type||'',names:[]};
-    byGroup[g].names.push(s.name);
+    var k=cycStudentGKey(s); if(k==='||') return;
+    if(!byKey[k]) byKey[k]={group:String(s.group||''),type:s.type||'',names:[]};
+    byKey[k].names.push(s.name);
   });
-  var keys=Object.keys(byGroup); if(!keys.length) return null;
-  keys.sort(function(a,b){ return byGroup[b].names.length-byGroup[a].names.length; });
-  var g=byGroup[keys[0]];
-  // hospital is the single instructor hospital (one context for all groups)
+  var keys=Object.keys(byKey); if(!keys.length) return null;
+  // prefer the group currently selected in the cycle tab; else the largest
+  var pick=(cycActiveGroup && byKey[cycActiveGroup]) ? cycActiveGroup
+           : keys.sort(function(a,b){ return byKey[b].names.length-byKey[a].names.length; })[0];
+  var g=byKey[pick];
   g.hospital=cycHospital||'';
   return g;
 }
@@ -4812,10 +5224,12 @@ function paSetMode(m){
     var g=paDetectCycleGroup();
     if(!g){ toast('لا توجد مجموعة في الدورة التقييمية بعد — استورد مجموعة أولاً'); return; }
     paMode='cycle'; paCycGroup=g; paCycDay=1;
+    // restore this group's last active rotation hospital (if any)
+    paCycHospital = cycGetActiveHosp(cycGKey(g.group, g.type)) || '';
     if(__savedClassicDate===null) __savedClassicDate=curDate;
     cls.style.display='none'; cyc.style.display='';
     bC.className='btn bo'; bY.className='btn bp';
-    if(hint) hint.textContent='مجموعة '+g.group+' · '+(g.type||'')+(g.hospital?(' · '+g.hospital):'');
+    if(hint) hint.textContent='مجموعة '+g.group+' · '+(g.type||'')+(paCycHospital?(' · '+paCycHospital):'');
     paLoadCycleDay(1);
   } else {
     paMode='classic';
@@ -4828,17 +5242,80 @@ function paSetMode(m){
 }
 
 // load the cycle group's names into the active list, bound to a day session
+// ── PHASE 2: the active hospital becomes part of the session key so the same
+// group can rotate through several hospitals without its day data colliding.
+// When no hospital is chosen yet (paCycHospital empty) we fall back to the
+// EXACT legacy key, so every existing record stays reachable untouched.
+var paCycHospital = '';
+function paCycKey(day, hosp){
+  var h = (hosp!==undefined ? hosp : paCycHospital);
+  h = (h && String(h).trim()) ? String(h).trim() : '';
+  var base = 'cyc_'+paCycGroup.group+'_'+(paCycGroup.type||'')+'_d'+day;
+  return h ? (base+'_h_'+h) : base;   // legacy key when no hospital set
+}
 function paLoadCycleDay(day){
   if(!paCycGroup) return;
   paCycDay=day;
-  // distinct session per day so the 4 days never collide in history
+  // distinct session per day (and per hospital) so days/hospitals never collide
   curGroup='morning';
-  curDate='cyc_'+paCycGroup.group+'_'+(paCycGroup.type||'')+'_d'+day;
+  curDate=paCycKey(day);
   // ensure the active student array matches the group (names only; eval data lives in history keyed by curDate)
   var names=paCycGroup.names||[];
   // only (re)seed names if this day session has no student list yet
   studentsMorning = names.map(function(n){ return {name:n}; });
   paRenderCycleMode();
+}
+
+// ── PHASE 2 helpers: hospital rotation for the active cycle group ────────
+// Discover which hospitals this group already has data under, by scanning
+// history keys of the shape cyc_<group>_<type>_dN_h_<hospital>_morning.
+function paCycHospitalsKnown(){
+  if(!paCycGroup) return [];
+  var prefix='cyc_'+paCycGroup.group+'_'+(paCycGroup.type||'')+'_d';
+  var set={};
+  Object.keys(history||{}).forEach(function(k){
+    if(k.indexOf(prefix)!==0) return;
+    var m=k.match(/_h_(.+)_morning$/);   // hospital-tagged keys only
+    if(m && m[1]) set[m[1]]=true;
+  });
+  return Object.keys(set);
+}
+function paCycHospitalBar(){
+  var known=paCycHospitalsKnown();
+  // make sure the currently-active hospital always shows, even if brand new
+  if(paCycHospital && known.indexOf(paCycHospital)<0) known.unshift(paCycHospital);
+  var h='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:10px">';
+  h+='<div style="font-size:12px;color:var(--muted);margin-bottom:8px">🏥 المستشفى الحالي للتدوير — كل مستشفى يحفظ ٤ أيامه بشكل مستقل</div>';
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">';
+  if(!known.length){
+    h+='<span style="font-size:13px;color:var(--muted)">لم يُحدَّد مستشفى بعد (تعمل حالياً بالوضع القديم) — </span>';
+  }
+  known.forEach(function(hn){
+    var on=(paCycHospital===hn);
+    h+='<button onclick="paSetCycHospital(\''+esc(hn).replace(/'/g,"\\'")+'\')" style="border:1px solid '+(on?'#0E7C86':'var(--border)')+';background:'+(on?'#0E7C86':'#fff')+';color:'+(on?'#fff':'var(--text)')+';border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer">🏥 '+esc(hn)+'</button>';
+  });
+  h+='<button onclick="paAddCycHospital()" style="border:1px dashed #0E7C86;background:#eef7f6;color:#0E7C86;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer">➕ إضافة مستشفى</button>';
+  h+='</div></div>';
+  return h;
+}
+function paSetCycHospital(hn){
+  paCycHospital=hn||'';
+  if(paCycGroup) cycSetActiveHosp(cycGKey(paCycGroup.group, paCycGroup.type), paCycHospital);
+  paLoadCycleDay(paCycDay||1);   // reload day 1..4 under the chosen hospital key
+}
+function paAddCycHospital(){
+  var go=function(val){
+    val=(val||'').trim(); if(!val) return;
+    paCycHospital=val;
+    if(paCycGroup) cycSetActiveHosp(cycGKey(paCycGroup.group, paCycGroup.type), val);
+    paLoadCycleDay(1);
+    toast('تم التبديل إلى '+val+' — ابدأ تقييم اليوم ١ ✓','success');
+  };
+  if(typeof Swal!=='undefined'){
+    Swal.fire({title:'اسم المستشفى الجديد',input:'text',inputPlaceholder:'مثال: مستشفى ابن سينا',
+      showCancelButton:true,confirmButtonText:'إضافة',cancelButtonText:'إلغاء',confirmButtonColor:'#0E7C86'
+    }).then(function(r){ if(r.isConfirmed) go(r.value); });
+  } else { go(prompt('اسم المستشفى الجديد:')); }
 }
 
 function paRenderCycleMode(){
@@ -4855,6 +5332,8 @@ function paRenderCycleMode(){
   html+='<button class="btn bo" style="font-size:12px" onclick="paReimportCycle()">🔄 إعادة استيراد المجموعة</button>';
   html+='</div>';
   html+='</div>';
+  // ── PHASE 2: hospital rotation bar (the same group rotates over 3 hospitals)
+  html+=paCycHospitalBar();
   // 4 day sub-tabs
   html+='<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">';
   for(var d=1;d<=4;d++){
@@ -4919,6 +5398,7 @@ function paRenderCyclePaper(){
 function paTogglePaper(i){
   var day=getSession(); if(!day[i]) day[i]={};
   day[i].paperDelivered=!day[i].paperDelivered;
+  try{ var s=getStudents()[i]; if(s && s.name && !day[i].name) day[i].name=s.name; }catch(e){}
   saveDay(sessionKey());
   paRenderCyclePaper();
 }
@@ -4943,7 +5423,8 @@ function paAxisTotals(rec){
 // build the session key + day object for a given day number in the active cycle
 function paDaySession(dayNo){
   if(!paCycGroup) return {};
-  var key='cyc_'+paCycGroup.group+'_'+(paCycGroup.type||'')+'_d'+dayNo+'_morning';
+  // mirror the editor's key (paCycKey) + the '_morning' suffix that sessionKey() appends
+  var key=paCycKey(dayNo)+'_morning';
   return history[key]||{};
 }
 function paDayRows(dayNo){
@@ -5025,17 +5506,36 @@ function statDestroyCharts(){ __statCharts.forEach(function(c){ try{c.destroy();
 
 // gather a flat list of graded "/15" data points from BOTH sources
 function statGather(){
-  // Each GROUP in cycleStore is a CYCLE (one group = 4 days).
-  // cycles = [ { group, type, students:[{name, days:[g1..g4]}], dayAvg:[..], avg } ]
+  // ── PHASE 6: integrated multi-level statistics, sourced from the
+  // authoritative by-name eval history (NOT the dead s.days field).
+  // A "cycle" = one group (group||type). Each student carries:
+  //   days[4]  → kept for the existing day-progression charts. With multi-
+  //              hospital data, day d = the AVERAGE of that day across hospitals.
+  //   hospitals[] → {hospital, dayTotals[4], roundTotal} for within-hospital and
+  //                 between-hospital views.
+  //   grand    → total across all hospitals.
   var cycles = [];
   var byG = {};
   (cycleStore||[]).forEach(function(s){
-    var g = String(s.group||'');
-    if(!byG[g]){ byG[g] = { group:g, type:s.type||'', students:[] }; cycles.push(byG[g]); }
-    byG[g].students.push({ name:s.name, days:(s.days||[]).map(function(x){var n=parseFloat(x);return isNaN(n)?null:n;}) });
+    var gk = cycStudentGKey(s); if(gk==='||') return;
+    if(!byG[gk]){ var gp=cycGParse(gk); byG[gk] = { gkey:gk, group:gp.group, type:gp.type, students:[] }; cycles.push(byG[gk]); }
+    var idxFallback = cycleStore.indexOf(s);
+    var agg = cycAggregateStudent(s, gk, idxFallback);
+    // per-day average across hospitals (keeps the 4-day charts meaningful)
+    var dayAvg4=[null,null,null,null];
+    for(var d=0; d<4; d++){
+      var vals=[]; agg.hospitals.forEach(function(h){ if(h.dayTotals[d]!=null) vals.push(h.dayTotals[d]); });
+      if(vals.length) dayAvg4[d]=+(vals.reduce(function(a,b){return a+b;},0)/vals.length).toFixed(2);
+    }
+    byG[gk].students.push({
+      name: s.name,
+      days: dayAvg4,                 // legacy-compatible 4-slot array (now per-day avg across hospitals)
+      hospitals: agg.hospitals,      // NEW: per-hospital detail
+      grand: agg.grand               // NEW: total across hospitals
+    });
   });
-  cycles.sort(function(a,b){ return (parseInt(a.group)||999)-(parseInt(b.group)||999); });
-  // compute per-day averages and overall average for each cycle
+  cycles.sort(function(a,b){ return (parseInt(a.group)||999)-(parseInt(b.group)||999) || (a.type||'').localeCompare(b.type||'','ar'); });
+  // compute per-day averages and overall average for each cycle (unchanged logic)
   cycles.forEach(function(c){
     var dayAvg=[null,null,null,null], all=[];
     for(var d=0; d<4; d++){
@@ -5046,7 +5546,6 @@ function statGather(){
     c.dayAvg=dayAvg;
     c.avg = all.length ? +(all.reduce(function(a,b){return a+b;},0)/all.length).toFixed(2) : null;
     c.count = c.students.length;
-    // ★ simple stats: highest/lowest single grade, and pass/fail by student 4-day average
     c.hi = all.length ? Math.max.apply(null, all) : null;
     c.lo = all.length ? Math.min.apply(null, all) : null;
     var pass=0, fail=0, graded=0;
@@ -5057,14 +5556,38 @@ function statGather(){
       if(m>=RISK_AVG) pass++; else fail++;
     });
     c.pass=pass; c.fail=fail; c.graded=graded;
+    // ── LEVEL 3: between-hospital rollup for this cycle ──────────────────
+    var hMap={}; // hospital -> {sum, n, days:[ [..students day1], .. ]}
+    c.students.forEach(function(st){
+      (st.hospitals||[]).forEach(function(h){
+        if(!hMap[h.hospital]) hMap[h.hospital]={hospital:h.hospital, totals:[], dayBuckets:[[],[],[],[]]};
+        if(h.roundTotal!=null) hMap[h.hospital].totals.push(h.roundTotal);
+        for(var d=0; d<4; d++){ if(h.dayTotals[d]!=null) hMap[h.hospital].dayBuckets[d].push(h.dayTotals[d]); }
+      });
+    });
+    c.hospitals = Object.keys(hMap).map(function(hn){
+      var o=hMap[hn];
+      var avg=o.totals.length?+(o.totals.reduce(function(a,b){return a+b;},0)/o.totals.length).toFixed(2):null;
+      var dayAvgH=o.dayBuckets.map(function(b){ return b.length?+(b.reduce(function(x,y){return x+y;},0)/b.length).toFixed(2):null; });
+      return { hospital:hn, avgRound:avg, count:o.totals.length, dayAvg:dayAvgH };
+    });
   });
+  // ── LEVEL 2: cross-student ranking by grand total (all hospitals) ──────
+  var ranking=[];
+  cycles.forEach(function(c){
+    c.students.forEach(function(st){
+      ranking.push({ name:st.name, gkey:c.gkey, group:c.group, type:c.type,
+                     grand: st.grand, hospitals: st.hospitals });
+    });
+  });
+  ranking.sort(function(a,b){ return (b.grand==null?-1:b.grand)-(a.grand==null?-1:a.grand); });
   // daily-evaluation source (kept for KPIs/attendance)
   var daily = [];
   var prof = (typeof buildStudentProfiles==='function') ? buildStudentProfiles() : {};
   Object.keys(prof).forEach(function(nm){ prof[nm].sessions.forEach(function(s){
     daily.push({ name:nm, shift:s.group, total:(s.total!=null?s.total:null), att:s.att, paper:s.paper, date:s.date });
   }); });
-  return { cycles:cycles, daily:daily };
+  return { cycles:cycles, daily:daily, ranking:ranking };
 }
 
 var statSelCycle = null; // which group/cycle is shown in the within-cycle view
@@ -5141,6 +5664,47 @@ function statRender(){
   html+=statCard('درجات الطلاب (متوسط ٤ أيام)', 'cInStud');
   html+='</div>';
 
+  // ===== LEVEL 2: cross-student ranking (between students) =====
+  html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:18px 0 10px;border-right:4px solid var(--primary);padding-right:8px">ترتيب الطلاب (المجموع الكلي عبر المستشفيات)</div>';
+  html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow-x:auto;margin-bottom:16px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:480px">';
+  html+='<thead><tr style="background:var(--primary);color:#fff"><th style="padding:8px 10px;text-align:right">#</th><th style="padding:8px;text-align:right">الطالب</th><th style="padding:8px">المجموعة</th><th style="padding:8px">عدد المستشفيات</th><th style="padding:8px">المجموع الكلي</th></tr></thead><tbody>';
+  var rk=data.ranking.filter(function(r){ return r.grand!=null; });
+  if(!rk.length){ html+='<tr><td colspan="5" style="padding:12px;text-align:center;color:var(--muted)">لا توجد درجات معتمدة بعد</td></tr>'; }
+  rk.forEach(function(r,i){
+    html+='<tr style="background:'+(i%2?'#f8fafc':'#fff')+'">'
+      +'<td style="padding:7px 10px;font-weight:700;color:var(--muted)">'+(i+1)+'</td>'
+      +'<td style="padding:7px 10px;font-weight:700">'+esc(r.name)+'</td>'
+      +'<td style="padding:7px;text-align:center;font-size:12px;color:var(--muted)">'+cycGLabel(r.gkey)+'</td>'
+      +'<td style="padding:7px;text-align:center">'+(r.hospitals?r.hospitals.length:0)+'</td>'
+      +'<td style="padding:7px;text-align:center;font-weight:800;color:#0E7C86">'+r.grand+'</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';
+  html+=statCard('أعلى ١٠ طلاب (المجموع الكلي)', 'cRankTop');
+  html+='</div>';
+
+  // ===== LEVEL 3: between-hospital (for the selected cycle) =====
+  var selC=null; data.cycles.forEach(function(c){ if(c.group===statSelCycle) selC=c; });
+  if(selC && selC.hospitals && selC.hospitals.length){
+    html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:18px 0 10px;border-right:4px solid var(--primary);padding-right:8px">مقارنة المستشفيات — '+cycGLabel(selC.gkey)+'</div>';
+    html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow-x:auto;margin-bottom:16px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:420px">';
+    html+='<thead><tr style="background:#185FA5;color:#fff"><th style="padding:8px 10px;text-align:right">المستشفى</th><th style="padding:8px">متوسط المجموع</th><th style="padding:8px">عدد الطلاب</th></tr></thead><tbody>';
+    selC.hospitals.forEach(function(h,i){
+      var hn=(h.hospital===CYC_HOSP_PLACEHOLDER)?'(غير محدد)':h.hospital;
+      html+='<tr style="background:'+(i%2?'#f8fafc':'#fff')+'">'
+        +'<td style="padding:7px 10px;font-weight:700">🏥 '+esc(hn)+'</td>'
+        +'<td style="padding:7px;text-align:center;font-weight:700;color:#185FA5">'+(h.avgRound!=null?h.avgRound:'—')+'</td>'
+        +'<td style="padding:7px;text-align:center">'+h.count+'</td>'
+        +'</tr>';
+    });
+    html+='</tbody></table></div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';
+    html+=statCard('متوسط كل مستشفى', 'cHospAvg');
+    html+=statCard('تطور الأيام لكل مستشفى', 'cHospDays');
+    html+='</div>';
+  }
+
   // ===== distribution + pass (overall, from cycles) =====
   html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:18px 0 10px;border-right:4px solid var(--primary);padding-right:8px">نظرة عامة</div>';
   html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';
@@ -5204,6 +5768,33 @@ function statDrawCharts(data){
         data:studs.map(function(s){return s.avg;}),
         backgroundColor:studs.map(function(s){return s.avg>=RISK_AVG?GREEN:RED;})}]},
       {indexAxis:'y',scales:{x:{beginAtZero:true,max:15}},plugins:{legend:{display:false}}});
+  }
+
+  // ===== LEVEL 2: top-10 students by grand total =====
+  if(document.getElementById('cRankTop') && data.ranking){
+    var top=data.ranking.filter(function(r){return r.grand!=null;}).slice(0,10);
+    statMake('cRankTop','bar',{labels:top.map(function(r){return r.name;}),datasets:[{label:'المجموع الكلي',
+        data:top.map(function(r){return r.grand;}),
+        backgroundColor:top.map(function(_,i){return PALETTE[i%PALETTE.length];})}]},
+      {indexAxis:'y',scales:{x:{beginAtZero:true}},plugins:{legend:{display:false}}});
+  }
+
+  // ===== LEVEL 3: between-hospital for selected cycle =====
+  var selC=null; data.cycles.forEach(function(c){ if(c.group===statSelCycle) selC=c; });
+  if(selC && selC.hospitals && selC.hospitals.length){
+    var hlabels=selC.hospitals.map(function(h){ return h.hospital===CYC_HOSP_PLACEHOLDER?'(غير محدد)':h.hospital; });
+    if(document.getElementById('cHospAvg')){
+      statMake('cHospAvg','bar',{labels:hlabels,datasets:[{label:'متوسط المجموع',
+          data:selC.hospitals.map(function(h){return h.avgRound;}),
+          backgroundColor:selC.hospitals.map(function(_,i){return PALETTE[i%PALETTE.length];})}]},
+        {scales:{y:{beginAtZero:true}},plugins:{legend:{display:false}}});
+    }
+    if(document.getElementById('cHospDays')){
+      statMake('cHospDays','line',{labels:['يوم ١','يوم ٢','يوم ٣','يوم ٤'],
+        datasets:selC.hospitals.map(function(h,i){ return {label:hlabels[i],data:h.dayAvg,
+          borderColor:PALETTE[i%PALETTE.length],backgroundColor:'transparent',tension:.3,spanGaps:true}; })},
+        {scales:{y:{beginAtZero:true,max:15}},plugins:{legend:{position:'bottom'}}});
+    }
   }
 
   // ===== OVERALL =====
@@ -5308,7 +5899,6 @@ function optimisticRestore(sess){
       if (c.sn) document.getElementById('supName').value = c.sn;
     }
   } catch(e) {}
-  window.__appBooted = true;
   document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display   = 'none';
   document.getElementById('appRoot').style.display       = 'block';
