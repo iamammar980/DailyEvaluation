@@ -520,151 +520,6 @@ body{font-family:"Cairo",Tahoma,Arial,sans-serif;background:var(--bg);color:var(
   #printArea, #printArea * { visibility: visible; }
   #printArea { position: fixed; left: 0; top: 0; width: 100%; }
 }
-
-/* ═══════════════════════════════════════════════════════════════════
-   ENHANCEMENT LAYER · per-tab identity + tab-adaptive motion
-   Additive only — overrides via [data-tab] on #appBody. Layout untouched.
-   Skills applied: impeccable/animate (state-conveying motion, 100/300/500,
-   ease-out, no bounce, reduced-motion safe) + ui-ux-pro-max (contrast,
-   focus visibility, 150–300ms, motion conveys meaning).
-   ═══════════════════════════════════════════════════════════════════ */
-:root{
-  --ease-out-quint:cubic-bezier(.22,1,.36,1);
-  --ease-out-expo:cubic-bezier(.16,1,.3,1);
-  --ease-out-quart:cubic-bezier(.25,1,.5,1);
-  /* live tab tokens (overridden per data-tab) */
-  --tab:#14746b;--tab-deep:#0f574f;--tab-tint:#e3f1ee;
-  --tab-a:#1a8c80;--tab-b:#14746b;
-  /* motion character (overridden per tab): speed + travel of entrances */
-  --mo-dur:.42s;--mo-rise:14px;--mo-ease:var(--ease-out-quint);--mo-stagger:55ms;
-}
-
-/* ── TAB IDENTITIES ────────────────────────────────────────────────
-   Color tuned to function; motion vars tuned to the tab's "nature". */
-/* Course setup — the new flagship: confident, deliberate, longer travel */
-#appBody[data-tab="course"]{--tab:#0e6e8c;--tab-deep:#0a5169;--tab-tint:#e2f1f6;--tab-a:#1486a8;--tab-b:#0e6e8c;
-  --mo-dur:.6s;--mo-rise:22px;--mo-ease:var(--ease-out-expo);--mo-stagger:70ms}
-/* Daily work — fast, snappy, minimal travel (users are in a task) */
-#appBody[data-tab="att"]{--tab:#14746b;--tab-deep:#0f574f;--tab-tint:#e3f1ee;--tab-a:#1a8c80;--tab-b:#14746b;
-  --mo-dur:.34s;--mo-rise:10px;--mo-ease:var(--ease-out-quart);--mo-stagger:42ms}
-#appBody[data-tab="paper"]{--tab:#1d8f5a;--tab-deep:#155f3d;--tab-tint:#e4f5ec;--tab-a:#23a566;--tab-b:#1d8f5a;
-  --mo-dur:.32s;--mo-rise:10px;--mo-ease:var(--ease-out-quart);--mo-stagger:40ms}
-#appBody[data-tab="roster"]{--tab:#3f6079;--tab-deep:#2c4659;--tab-tint:#eaeff4;--tab-a:#4d7290;--tab-b:#3f6079;
-  --mo-dur:.38s;--mo-rise:12px;--mo-ease:var(--ease-out-quint);--mo-stagger:50ms}
-/* Cycle system — rotation feel: teal, measured */
-#appBody[data-tab="cycle"]{--tab:#0f8c7e;--tab-deep:#0a665b;--tab-tint:#e1f4f1;--tab-a:#13a08f;--tab-b:#0f8c7e;
-  --mo-dur:.44s;--mo-rise:16px;--mo-ease:var(--ease-out-quint);--mo-stagger:58ms}
-#appBody[data-tab="rot"]{--tab:#0f8c7e;--tab-deep:#0a665b;--tab-tint:#e1f4f1;--tab-a:#13a08f;--tab-b:#0f8c7e;
-  --mo-dur:.44s;--mo-rise:16px;--mo-ease:var(--ease-out-quint);--mo-stagger:58ms}
-/* Analytics — data rises into place, measured and even */
-#appBody[data-tab="stat"]{--tab:#4a4fa8;--tab-deep:#363a85;--tab-tint:#ebecf8;--tab-a:#5a60c0;--tab-b:#4a4fa8;
-  --mo-dur:.5s;--mo-rise:20px;--mo-ease:var(--ease-out-expo);--mo-stagger:65ms}
-#appBody[data-tab="prog"]{--tab:#2b6fb0;--tab-deep:#1f5489;--tab-tint:#e8f1fa;--tab-a:#3a82c4;--tab-b:#2b6fb0;
-  --mo-dur:.48s;--mo-rise:18px;--mo-ease:var(--ease-out-expo);--mo-stagger:60ms}
-/* Records & data — archival: gentle settle, soft and unhurried */
-#appBody[data-tab="hist"]{--tab:#5b5170;--tab-deep:#443c56;--tab-tint:#efecf4;--tab-a:#6c6186;--tab-b:#5b5170;
-  --mo-dur:.5s;--mo-rise:14px;--mo-ease:var(--ease-out-quint);--mo-stagger:60ms}
-#appBody[data-tab="audit"]{--tab:#7a5a3a;--tab-deep:#5e452b;--tab-tint:#f2ece4;--tab-a:#8e6c49;--tab-b:#7a5a3a;
-  --mo-dur:.5s;--mo-rise:14px;--mo-ease:var(--ease-out-quint);--mo-stagger:60ms}
-#appBody[data-tab="db"]{--tab:#445566;--tab-deep:#30404e;--tab-tint:#ebeef2;--tab-a:#52677a;--tab-b:#445566;
-  --mo-dur:.4s;--mo-rise:12px;--mo-ease:var(--ease-out-quart);--mo-stagger:45ms}
-/* Teaching materials — warm gallery: content blooms in slightly */
-#appBody[data-tab="teach"]{--tab:#b06a1f;--tab-deep:#8a5114;--tab-tint:#f8efe2;--tab-a:#c47d2c;--tab-b:#b06a1f;
-  --mo-dur:.5s;--mo-rise:18px;--mo-ease:var(--ease-out-expo);--mo-stagger:65ms}
-
-/* ── APPLY IDENTITY to shell (header, active nav, accents) ───────── */
-#appBody[data-tab] .hdr{background:linear-gradient(135deg,var(--tab-deep),var(--tab));transition:background .55s var(--ease-out-quint)}
-#appBody[data-tab] .tab-btn.active{background:linear-gradient(135deg,var(--tab-a),var(--tab-b));box-shadow:0 4px 12px -2px rgba(20,116,107,.4);box-shadow:0 4px 12px -2px color-mix(in srgb,var(--tab) 55%,transparent)}
-#appBody[data-tab] .sc::before{content:'';position:absolute;top:0;right:0;left:0;height:3px;background:var(--tab);opacity:.9}
-#appBody[data-tab] .sc{position:relative;overflow:hidden}
-#appBody[data-tab] .srow:hover,#appBody[data-tab] .hst-row:hover{background:var(--tab-tint)}
-#appBody[data-tab] .sbadge span,#appBody[data-tab] .dm-score-big{background:var(--tab)}
-#appBody[data-tab] .db-tbl th{background:var(--tab)}
-#appBody[data-tab] .db-tbl tr:hover td{background:var(--tab-tint)}
-#appBody[data-tab] .hday-hdr{background:var(--tab-tint)}
-#appBody[data-tab] .hday-date{color:var(--tab-deep)}
-#appBody[data-tab] .cat-card:hover,#appBody[data-tab] .topic-card:hover{border-color:var(--tab)}
-#appBody[data-tab] .cat-card .cat-name{color:var(--tab)}
-#appBody[data-tab] .sbox:focus,#appBody[data-tab] .add-area input:focus{border-color:var(--tab);box-shadow:0 0 0 3px var(--tab-tint)}
-
-/* Focus visibility — accessibility (ui-ux-pro-max priority 1) */
-#appBody :focus-visible{outline:3px solid var(--tab,#14746b);outline-offset:2px;border-radius:6px}
-
-/* ── TAB-ADAPTIVE ENTRANCE ───────────────────────────────────────
-   The active panel re-runs this on every switch (showTab resets the
-   animation). Duration/travel/easing come from the tab's motion vars,
-   so each tab "enters" with its own character. */
-@keyframes tabPanelIn{from{opacity:0;transform:translateY(var(--mo-rise)) scale(.995)}to{opacity:1;transform:none}}
-.tab-panel.active{animation:tabPanelIn var(--mo-dur) var(--mo-ease)}
-
-/* Staggered children — lists, cards, stat tiles ride the tab's stagger.
-   Cap: nth-child(n+11) share one delay so long lists stay under budget. */
-@keyframes itemRise{from{opacity:0;transform:translateY(calc(var(--mo-rise) * .7))}to{opacity:1;transform:none}}
-.tab-panel.active .srow,
-.tab-panel.active .prow,
-.tab-panel.active .hday-card,
-.tab-panel.active .gcard,
-.tab-panel.active .cat-card,
-.tab-panel.active .topic-card,
-.tab-panel.active .sc{animation:itemRise var(--mo-dur) var(--mo-ease) both}
-.tab-panel.active .sc:nth-child(1){animation-delay:calc(var(--mo-stagger) * 0)}
-.tab-panel.active .sc:nth-child(2){animation-delay:calc(var(--mo-stagger) * 1)}
-.tab-panel.active .sc:nth-child(3){animation-delay:calc(var(--mo-stagger) * 2)}
-.tab-panel.active .sc:nth-child(4){animation-delay:calc(var(--mo-stagger) * 3)}
-.tab-panel.active .srow:nth-child(1),.tab-panel.active .prow:nth-child(1),.tab-panel.active .gcard:nth-child(1),.tab-panel.active .hday-card:nth-child(1),.tab-panel.active .cat-card:nth-child(1),.tab-panel.active .topic-card:nth-child(1){animation-delay:calc(var(--mo-stagger) * 0)}
-.tab-panel.active .srow:nth-child(2),.tab-panel.active .prow:nth-child(2),.tab-panel.active .gcard:nth-child(2),.tab-panel.active .hday-card:nth-child(2),.tab-panel.active .cat-card:nth-child(2),.tab-panel.active .topic-card:nth-child(2){animation-delay:calc(var(--mo-stagger) * 1)}
-.tab-panel.active .srow:nth-child(3),.tab-panel.active .prow:nth-child(3),.tab-panel.active .gcard:nth-child(3),.tab-panel.active .hday-card:nth-child(3),.tab-panel.active .cat-card:nth-child(3),.tab-panel.active .topic-card:nth-child(3){animation-delay:calc(var(--mo-stagger) * 2)}
-.tab-panel.active .srow:nth-child(4),.tab-panel.active .prow:nth-child(4),.tab-panel.active .gcard:nth-child(4),.tab-panel.active .hday-card:nth-child(4),.tab-panel.active .cat-card:nth-child(4),.tab-panel.active .topic-card:nth-child(4){animation-delay:calc(var(--mo-stagger) * 3)}
-.tab-panel.active .srow:nth-child(5),.tab-panel.active .prow:nth-child(5),.tab-panel.active .gcard:nth-child(5),.tab-panel.active .hday-card:nth-child(5),.tab-panel.active .cat-card:nth-child(5),.tab-panel.active .topic-card:nth-child(5){animation-delay:calc(var(--mo-stagger) * 4)}
-.tab-panel.active .srow:nth-child(6),.tab-panel.active .prow:nth-child(6),.tab-panel.active .gcard:nth-child(6),.tab-panel.active .hday-card:nth-child(6){animation-delay:calc(var(--mo-stagger) * 5)}
-.tab-panel.active .srow:nth-child(7),.tab-panel.active .prow:nth-child(7){animation-delay:calc(var(--mo-stagger) * 6)}
-.tab-panel.active .srow:nth-child(8),.tab-panel.active .prow:nth-child(8){animation-delay:calc(var(--mo-stagger) * 7)}
-.tab-panel.active .srow:nth-child(9),.tab-panel.active .prow:nth-child(9){animation-delay:calc(var(--mo-stagger) * 8)}
-.tab-panel.active .srow:nth-child(n+10),.tab-panel.active .prow:nth-child(n+10){animation-delay:calc(var(--mo-stagger) * 9)}
-
-/* Sidebar active indicator — a rail that slides to the active tab's color */
-.tab-btn{position:relative}
-.tab-btn::before{content:'';position:absolute;top:18%;bottom:18%;right:0;width:3px;border-radius:3px;background:#fff;transform:scaleY(0);transform-origin:center;transition:transform .28s var(--ease-out-quint)}
-.tab-btn.active::before{transform:scaleY(1)}
-@media(max-width:820px){.tab-btn::before{display:none}}
-
-/* Course setup hero entrance — the flagship tab gets a signature reveal */
-@keyframes courseHero{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
-#appBody[data-tab="course"] #pcourse.active > *{animation:courseHero .6s var(--ease-out-expo) both}
-#appBody[data-tab="course"] #pcourse.active > *:nth-child(2){animation-delay:.08s}
-#appBody[data-tab="course"] #pcourse.active > *:nth-child(3){animation-delay:.16s}
-#appBody[data-tab="course"] #pcourse.active > *:nth-child(n+4){animation-delay:.22s}
-
-/* Micro-interactions — feedback layer (subtle, state-conveying) */
-.btn{transition:transform .15s var(--ease-out-quart),box-shadow .2s,background .2s,filter .2s}
-.btn:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(0,0,0,.13);filter:brightness(1.04)}
-.btn:active{transform:scale(.96);box-shadow:none}
-.tab-btn{transition:background .22s var(--ease-out-quart),color .2s,box-shadow .25s}
-.ab,.pb{transition:transform .14s var(--ease-out-quart),background .18s,color .18s}
-.ab:active,.pb:active{transform:scale(.9)}
-.sc{transition:transform .25s var(--ease-out-quint),box-shadow .25s}
-.sc:hover{transform:translateY(-3px);box-shadow:0 10px 24px -10px rgba(20,116,107,.3)}
-.hday-card,.gcard,.cat-card,.topic-card{transition:transform .25s var(--ease-out-quint),box-shadow .25s,border-color .2s}
-.cat-card:hover,.topic-card:hover{transform:translateY(-3px)}
-.ei{transition:transform .16s var(--ease-out-quart)}
-.ei:hover{transform:scale(1.16)}
-.eck{transition:all .15s var(--ease-out-quart)}
-@keyframes ckPop{0%{transform:scale(1)}45%{transform:scale(1.18)}100%{transform:scale(1)}}
-.eck:checked{animation:ckPop .3s var(--ease-out-quart)}
-
-/* Count-up pop when a stat number changes (JS toggles .bump elsewhere) */
-@keyframes numPop{0%{transform:scale(1)}45%{transform:scale(1.24)}100%{transform:scale(1)}}
-.sc .num.bump{animation:numPop .4s var(--ease-out-quart)}
-
-/* Modal entrance refinement */
-.overlay{transition:opacity .26s ease,visibility .26s}
-.overlay>div,.overlay .modal,.overlay .dmodal,.overlay .tm-modal,.overlay .email-modal,.overlay .cal-modal,.overlay .grp-loader-modal{transition:transform .34s var(--ease-out-quint),opacity .3s}
-
-/* Respect reduced motion — disable all entrances/micro-motion */
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
-  .tab-panel.active,.tab-panel.active *{animation:none!important}
-}
 </style>
 <script>
 // ── SERVICE WORKER REGISTRATION (Option A) ──
@@ -797,7 +652,7 @@ window.addEventListener('load', function() {
     </div>
   </div>
 
-  <div class="app-body" id="appBody" data-tab="att">
+  <div class="app-body" id="appBody">
     <div class="main">
       <aside class="sidenav">
         <div class="nav-group">
@@ -2470,8 +2325,6 @@ function showTab(n){
   var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',rot:'tbrot',cycle:'tbcyc',stat:'tbstat',course:'tbcourse'};
   var panel=document.getElementById(panels[n]);
   panel.classList.add('active');
-  // per-tab visual identity: re-skin shell + animate to fit each tab's nature
-  var ab=document.getElementById('appBody'); if(ab) ab.setAttribute('data-tab', n);
   // restart the entrance animation so every switch feels alive
   panel.style.animation='none'; void panel.offsetWidth; panel.style.animation='';
   document.getElementById(btns[n]).classList.add('active');
@@ -5836,6 +5689,14 @@ function statGather(){
 
 var statSelCycle = null; // which group/cycle is shown in the within-cycle view
 
+// Select a cycle/group in the statistics "within-cycle" view, then re-render.
+// (This function was referenced by the cycle-selector buttons but never defined,
+//  which threw "statPickCycle is not defined" and left the dashboard blank.)
+function statPickCycle(group){
+  statSelCycle = group;
+  if(typeof statRender==='function') statRender();
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // NEW COURSE SYSTEM (separate from classic + cycle systems).
 // Embedded plain-function mirror of project/src/course.js (which is unit-tested).
@@ -6966,6 +6827,7 @@ var TM_CATEGORIES = [
 var tmCurrentCat = null;   // current category id
 var tmTopics     = {};     // cached topics per category
 var tmListener   = null;   // active Firebase listener
+var tmListenerRef = null;  // the ref the active listener is attached to (for correct detach)
 var fsImages     = [];     // fullscreen viewer images
 var fsIndex      = 0;      // current fullscreen index
 
@@ -7013,6 +6875,9 @@ function tmShowCategories(){
 }
 
 function tmSelectCategory(catId){
+  // Detach the previous category's listener BEFORE switching paths.
+  if(tmListener && tmListenerRef){ tmListenerRef.off('value', tmListener); }
+  tmListener=null; tmListenerRef=null;
   tmCurrentCat = catId;
   var cat = TM_CATEGORIES.find(function(c){ return c.id===catId; });
   document.getElementById('tmBreadCat').style.display = 'inline';
@@ -7021,9 +6886,9 @@ function tmSelectCategory(catId){
   document.getElementById('tmBackBtn').style.display  = '';
   tmRenderTopics(catId);
   // Attach live listener for this category
-  if(tmListener){ tmListener(); tmListener=null; }
   if(currentUser){
     var ref = db.ref('materials/'+catId);
+    tmListenerRef = ref;
     tmListener = ref.on('value', function(snap){
       tmTopics[catId] = snap.val()||{};
       if(tmCurrentCat===catId) tmRenderTopics(catId);
