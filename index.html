@@ -657,7 +657,7 @@ window.addEventListener('load', function() {
       <aside class="sidenav">
         <div class="nav-group">
           <div class="nav-group-label">نظام الكورس (جديد)</div>
-          <button class="tab-btn" id="tbcourse" onclick="showTab('course')">🎓 إعداد الكورس <span style="font-size:9px;opacity:.6">v7</span></button>
+          <button class="tab-btn" id="tbcourse" onclick="showTab('course')">🎓 إعداد الكورس <span style="font-size:9px;opacity:.6">v8</span></button>
         </div>
         <div class="nav-group">
           <div class="nav-group-label">العمل اليومي</div>
@@ -1055,6 +1055,18 @@ window.addEventListener('load', function() {
     <div class="mftr">
       <button class="btn bo" onclick="closeMod()">إلغاء</button>
       <button class="btn bp" onclick="saveEval()">💾 حفظ التقييم</button>
+    </div>
+  </div>
+</div>
+
+<!-- COURSE-SYSTEM EVALUATION MODAL (separate; writes to courseEval) -->
+<div class="overlay" id="courseEvalM">
+  <div class="modal">
+    <div class="mhdr"><h2 id="ceSN">تقييم طالب</h2><button class="mcl" onclick="courseEvalClose()">✕</button></div>
+    <div class="mbody" id="ceBody"></div>
+    <div class="mftr">
+      <button class="btn bo" onclick="courseEvalClose()">إلغاء</button>
+      <button class="btn bp" onclick="courseEvalSaveModal()">💾 حفظ التقييم</button>
     </div>
   </div>
 </div>
@@ -5943,6 +5955,106 @@ function courseToggleAtt(gid,hid,day,name,present){
   courseRender();
 }
 
+// ── Course evaluation modal: same 5-axis detail as the classic system,
+//    plus attendance + paper status, but reads/writes courseEval. ──
+var courseEvalCtx = null; // {gid,hid,day,name}
+function courseOpenEval(gid,hid,day,idx){
+  var names=courseGroupStudents(gid); var name=names[idx]; if(name==null) return;
+  courseEvalCtx={gid:gid,hid:hid,day:day,name:name};
+  var rec=courseGetCell(gid,hid,day,name)||{};
+  var sc=rec.scores||{};
+  var pd=rec.paperDelivered;
+  document.getElementById('ceSN').textContent=name+' — اليوم '+day;
+  var colors=['#14746b','#117a65','#6c3483','#b7770d','#922b21'];
+  var html='';
+  // attendance row
+  html+='<div style="background:#f0f7ff;border:1px solid #bde0ff;border-radius:8px;padding:10px 12px;margin-bottom:11px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
+  html+='<div style="font-size:13px;font-weight:700;color:var(--text)">الحضور</div><div style="display:flex;gap:6px">';
+  html+='<button id="ceAttP" onclick="courseEvalSetAtt(\'present\')" style="cursor:pointer;border-radius:20px;padding:5px 14px;font-size:13px;font-weight:700;border:1.5px solid var(--success);background:'+(rec.attendance==='present'?'var(--success)':'#e8f8f0')+';color:'+(rec.attendance==='present'?'#fff':'var(--success)')+'">✓ حاضر</button>';
+  html+='<button id="ceAttA" onclick="courseEvalSetAtt(\'absent\')" style="cursor:pointer;border-radius:20px;padding:5px 14px;font-size:13px;font-weight:700;border:1.5px solid var(--danger);background:'+(rec.attendance==='absent'?'var(--danger)':'#fdf2f2')+';color:'+(rec.attendance==='absent'?'#fff':'var(--danger)')+'">✗ غائب</button>';
+  html+='</div></div>';
+  // paper row
+  html+='<div style="background:#fef9f0;border:1px solid #f5d9a8;border-radius:8px;padding:10px 12px;margin-bottom:11px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
+  html+='<div style="font-size:13px;font-weight:700;color:var(--text)">حالة الورقة اليومية</div><div style="display:flex;gap:6px">';
+  html+='<button id="cePaperY" onclick="courseEvalSetPaper(true)" style="cursor:pointer;border-radius:20px;padding:5px 14px;font-size:13px;font-weight:700;border:1.5px solid var(--success);background:'+(pd===true?'var(--success)':'#e8f8f0')+';color:'+(pd===true?'#fff':'var(--success)')+'">✓ سلّم</button>';
+  html+='<button id="cePaperN" onclick="courseEvalSetPaper(false)" style="cursor:pointer;border-radius:20px;padding:5px 14px;font-size:13px;font-weight:700;border:1.5px solid var(--danger);background:'+(pd===false?'var(--danger)':'#fdf2f2')+';color:'+(pd===false?'#fff':'var(--danger)')+'">✗ لم يسلّم</button>';
+  html+='</div></div>';
+  // 5 axes (reuse FIELDS structure)
+  for(var fi=0;fi<FIELDS.length;fi++){
+    var f=FIELDS[fi]; var secTotal=f.items.reduce(function(s,x){return s+x.m;},0);
+    var col=colors[fi]||'var(--primary)';
+    html+='<div class="esec" style="border-top:3px solid '+col+'"><div class="estit" style="color:'+col+'">'+f.s;
+    html+='<div style="display:flex;align-items:center;gap:8px"><span id="cesectot_'+fi+'" style="font-size:13px;font-weight:700;color:'+col+'">0.00</span><span class="mp">/ '+secTotal.toFixed(2)+'</span></div></div>';
+    html+='<div class="egrid">';
+    for(var ii=0;ii<f.items.length;ii++){
+      var it=f.items[ii], v=sc[it.k]!==undefined?sc[it.k]:0;
+      if(it.m===0.25){
+        var chk=parseFloat(v)===0.25;
+        html+='<div class="eitem"><div class="eck-wrap"><input type="checkbox" class="eck" id="cef_'+it.k+'"'+(chk?' checked':'')+' onchange="courseEvalRecalc()"><label for="cef_'+it.k+'" style="cursor:pointer;font-size:14px">'+it.l+'</label><span class="eck-max">/ 0.25</span></div></div>';
+      } else {
+        html+='<div class="eitem eitem-num"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><label style="font-size:14px;font-weight:600">'+it.l+'</label><span style="font-size:12px;color:var(--muted)">الحد الأقصى: '+it.m+'</span></div>';
+        html+='<input type="number" min="0" max="'+it.m+'" step="0.01" value="'+parseFloat(v).toFixed(2)+'" id="cef_'+it.k+'" inputmode="decimal" oninput="courseEvalRecalc()" style="width:90px;border:2px solid var(--border);border-radius:8px;padding:6px 8px;font-size:20px;font-weight:700;color:var(--primary);text-align:center;direction:ltr"></div>';
+      }
+    }
+    html+='</div></div>';
+  }
+  html+='<div class="tbar"><span class="tl">المجموع الكلي</span><div style="display:flex;align-items:baseline;gap:5px"><span class="tv" id="ceTot">0.00</span><span class="tm">/ 15</span></div></div>';
+  html+='<div class="narea"><label>ملاحظات:</label><textarea id="ceNotes">'+esc(rec.notes||'')+'</textarea></div>';
+  document.getElementById('ceBody').innerHTML=html;
+  courseEvalRecalc();
+  document.getElementById('courseEvalM').classList.add('open');
+}
+function courseEvalSetAtt(val){
+  var c=courseEvalCtx; if(!c) return;
+  var rec=courseGetCell(c.gid,c.hid,c.day,c.name)||{}; rec.attendance=val;
+  courseSetCell(c.gid,c.hid,c.day,c.name,rec);
+  document.getElementById('ceAttP').style.background=val==='present'?'var(--success)':'#e8f8f0';
+  document.getElementById('ceAttP').style.color=val==='present'?'#fff':'var(--success)';
+  document.getElementById('ceAttA').style.background=val==='absent'?'var(--danger)':'#fdf2f2';
+  document.getElementById('ceAttA').style.color=val==='absent'?'#fff':'var(--danger)';
+}
+function courseEvalSetPaper(val){
+  var c=courseEvalCtx; if(!c) return;
+  var rec=courseGetCell(c.gid,c.hid,c.day,c.name)||{}; rec.paperDelivered=val;
+  courseSetCell(c.gid,c.hid,c.day,c.name,rec);
+  document.getElementById('cePaperY').style.background=val===true?'var(--success)':'#e8f8f0';
+  document.getElementById('cePaperY').style.color=val===true?'#fff':'var(--success)';
+  document.getElementById('cePaperN').style.background=val===false?'var(--danger)':'#fdf2f2';
+  document.getElementById('cePaperN').style.color=val===false?'#fff':'var(--danger)';
+}
+function courseEvalRecalc(){
+  var t=0;
+  for(var fi=0;fi<FIELDS.length;fi++){
+    var sec=0;
+    for(var ii=0;ii<FIELDS[fi].items.length;ii++){
+      var it=FIELDS[fi].items[ii], el=document.getElementById('cef_'+it.k);
+      if(el){ var v; if(it.m===0.25) v=el.checked?0.25:0; else v=Math.min(Math.max(parseFloat(el.value)||0,0),it.m); sec+=v; t+=v; }
+    }
+    var sel=document.getElementById('cesectot_'+fi); if(sel) sel.textContent=sec.toFixed(2);
+  }
+  var te=document.getElementById('ceTot'); if(te) te.textContent=Math.min(t,15).toFixed(2);
+}
+function courseEvalSaveModal(){
+  var c=courseEvalCtx; if(!c) return;
+  var rec=courseGetCell(c.gid,c.hid,c.day,c.name)||{};
+  var scores={}, t=0;
+  for(var fi=0;fi<FIELDS.length;fi++){
+    for(var ii=0;ii<FIELDS[fi].items.length;ii++){
+      var it=FIELDS[fi].items[ii], el=document.getElementById('cef_'+it.k);
+      var v=0; if(el){ if(it.m===0.25) v=el.checked?0.25:0; else v=Math.min(Math.max(parseFloat(el.value)||0,0),it.m); }
+      scores[it.k]=v; t+=v;
+    }
+  }
+  rec.scores=scores; rec.total=Math.min(t,15); rec.evaluated=true;
+  var nt=document.getElementById('ceNotes'); rec.notes=nt?nt.value:'';
+  courseSetCell(c.gid,c.hid,c.day,c.name,rec);
+  courseEvalClose();
+  courseRender();
+  toast('✅ تم حفظ التقييم ('+rec.total.toFixed(2)+'/15)');
+}
+function courseEvalClose(){ document.getElementById('courseEvalM').classList.remove('open'); courseEvalCtx=null; }
+
+
 function courseRenderGroupCenters(){
   // injected into a dedicated container appended after setup
   var host=document.getElementById('courseContent'); if(!host) return;
@@ -6007,10 +6119,13 @@ function courseRenderGroupCenters(){
         html+='<tr style="background:'+(i%2?'#f8fafc':'#fff')+'"><td style="padding:8px;font-weight:600">'+esc(nm)+'</td>';
         for(var d=1;d<=dps;d++){
           var rec=courseGetCell(g3.id,hosp.id,d,nm)||{};
-          var val=(rec.total!=null?rec.total:'');
-          html+='<td style="padding:6px;text-align:center"><input type="number" min="0" max="15" step="0.25" value="'+val+'" '
-            +'onchange="courseCellInput(\''+g3.id+'\',\''+hosp.id+'\','+d+','+i+',this.value);this.style.background=this.value!==\'\'?\'#eafaf1\':\'#fff\'" '
-            +'style="width:64px;border:1px solid var(--border);border-radius:6px;padding:5px;text-align:center;font-family:inherit;background:'+(val!==''?'#eafaf1':'#fff')+'"></td>';
+          var has=(rec.total!=null && rec.evaluated);
+          var lbl=has?rec.total.toFixed(2):'تقييم';
+          var bg=has?'#eafaf1':'#fff', bc=has?'var(--success)':'var(--border)', tc=has?'var(--success)':'var(--muted)';
+          var att=rec.attendance==='present'?'✓':rec.attendance==='absent'?'✗':'';
+          html+='<td style="padding:6px;text-align:center"><button onclick="courseOpenEval(\''+g3.id+'\',\''+hosp.id+'\','+d+','+i+')" '
+            +'style="min-width:66px;border:1.5px solid '+bc+';border-radius:8px;padding:6px 4px;background:'+bg+';color:'+tc+';font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">'
+            +lbl+(att?'<span style="font-size:10px;margin-right:3px">'+att+'</span>':'')+'</button></td>';
         }
         html+='</tr>';
       });
