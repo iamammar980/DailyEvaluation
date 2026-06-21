@@ -657,7 +657,7 @@ window.addEventListener('load', function() {
       <aside class="sidenav">
         <div class="nav-group">
           <div class="nav-group-label">نظام الكورس (جديد)</div>
-          <button class="tab-btn" id="tbcourse" onclick="showTab('course')">🎓 إعداد الكورس <span style="font-size:9px;opacity:.6">v5</span></button>
+          <button class="tab-btn" id="tbcourse" onclick="showTab('course')">🎓 إعداد الكورس <span style="font-size:9px;opacity:.6">v6</span></button>
         </div>
         <div class="nav-group">
           <div class="nav-group-label">العمل اليومي</div>
@@ -683,6 +683,7 @@ window.addEventListener('load', function() {
       <div class="content-area">
       <!-- TAB: COURSE SETUP (new system, separate) -->
       <div class="tab-panel" id="pcourse">
+        <input type="file" id="courseStudentFile" accept=".xlsx,.xls" style="display:none" onchange="courseImportStudents(event)">
         <div id="courseContent"></div>
       </div>
       <!-- TAB: ATTENDANCE -->
@@ -5847,6 +5848,54 @@ function courseEditStudents(gid){
   courseRender();
   toast('✅ تم حفظ قائمة الطلاب');
 }
+// Import students into a course group from Excel. Uses the SAME column
+// convention as the existing roster import: "اسم الطالب", "المجموعة",
+// "نوع الدراسة" (صباحي/مسائي). Filters rows to this group by number+shift;
+// if no group column matches, imports ALL names (single-group sheets).
+function courseImportStudents(event){
+  var file=event.target.files[0]; if(!file) return;
+  var gid=event.target.dataset.gid;
+  var g=(courseConfig.groups||[]).filter(function(x){return x.id===gid;})[0];
+  if(!g){ toast('المجموعة غير معروفة'); event.target.value=''; return; }
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var data=new Uint8Array(e.target.result);
+      var wb=XLSX.read(data,{type:'array',cellDates:true});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      var hr=-1;
+      for(var i=0;i<rows.length;i++){for(var j=0;j<rows[i].length;j++){if(String(rows[i][j]).indexOf('اسم الطالب')>=0){hr=i;break;}}if(hr>=0)break;}
+      if(hr<0){toast('لم يُعثر على عمود «اسم الطالب»'); event.target.value=''; return;}
+      var hdrs=rows[hr].map(function(c){return String(c).trim();});
+      function ci(n){for(var x=0;x<hdrs.length;x++){if(hdrs[x].indexOf(n)>=0)return x;}return -1;}
+      var iN=ci('الطالب'), iG=ci('المجموعة'), iT=ci('الدراسة');
+      var shiftWord=(g.shift==='morning')?'صباح':'مسائ';
+      var names=[];
+      for(var r=hr+1;r<rows.length;r++){
+        var name=String(rows[r][iN]||'').trim(); if(!name) continue;
+        // if group/shift columns exist, filter to THIS group; else take all
+        if(iG>=0){
+          var gv=String(rows[r][iG]||'').trim();
+          // exact group-number match (avoid '1' matching '11')
+          var gvNum=gv.replace(/[^0-9]/g,'');
+          if(gvNum!==String(g.number)) continue;
+        }
+        if(iT>=0){
+          var tv=String(rows[r][iT]||'');
+          if(tv && tv.indexOf(shiftWord)<0) continue;
+        }
+        names.push(name);
+      }
+      if(!names.length){ toast('لم يُعثر على طلاب لهذه المجموعة في الملف'); event.target.value=''; return; }
+      courseSetGroupStudents(gid,names);
+      courseRender();
+      toast('✅ تم استيراد '+names.length+' طالب');
+    }catch(err){ toast('خطأ في قراءة الملف'); if(window.reportIssue) window.reportIssue('courseImportStudents',err); }
+    event.target.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
 
 function courseSetCellScore(gid,hid,day,name,val){
   var n=parseFloat(val); if(isNaN(n)) n=null;
@@ -5897,7 +5946,10 @@ function courseRenderGroupCenters(){
     html+='<div style="font-size:16px;font-weight:800;color:var(--primary);margin-bottom:4px">📁 '+esc(g.label)+'</div>';
     var sc=courseGroupStudents(g.id).length;
     html+='<div style="font-size:12px;color:var(--muted);margin-bottom:6px">'+(sc?sc+' طالب':'⚠️ لا طلاب بعد')+'</div>';
-    html+='<button class="btn bp" onclick="courseEditStudents(\''+g.id+'\')" style="font-size:12px;margin-bottom:14px">👥 إدارة طلاب المجموعة</button>';
+    html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">';
+    html+='<button class="btn bp" onclick="courseEditStudents(\''+g.id+'\')" style="font-size:12px">👥 إدارة طلاب المجموعة (يدوي)</button>';
+    html+='<button class="btn bo" onclick="document.getElementById(\'courseStudentFile\').dataset.gid=\''+g.id+'\';document.getElementById(\'courseStudentFile\').click()" style="font-size:12px">📥 استيراد من Excel</button>';
+    html+='</div>';
     html+='<div style="font-size:13px;font-weight:700;margin-bottom:8px">المحطات (المستشفيات):</div>';
     html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">';
     (sched?sched.stations:[]).forEach(function(s){
