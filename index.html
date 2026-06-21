@@ -657,7 +657,7 @@ window.addEventListener('load', function() {
       <aside class="sidenav">
         <div class="nav-group">
           <div class="nav-group-label">نظام الكورس (جديد)</div>
-          <button class="tab-btn" id="tbcourse" onclick="showTab('course')">🎓 إعداد الكورس <span style="font-size:9px;opacity:.6">v4</span></button>
+          <button class="tab-btn" id="tbcourse" onclick="showTab('course')">🎓 إعداد الكورس <span style="font-size:9px;opacity:.6">v5</span></button>
         </div>
         <div class="nav-group">
           <div class="nav-group-label">العمل اليومي</div>
@@ -2083,7 +2083,7 @@ function startListeners() {
     if(!isStillMe()) return;
     var val=snap.val();
     if(val && typeof val==='object'){
-      courseConfig=val;
+      courseConfig=courseNormalize(val);
       try{ localStorage.setItem('hsp_course', JSON.stringify(courseConfig)); }catch(e){}
       var pc=document.getElementById('pcourse');
       if(pc && pc.classList.contains('active')) courseRender();
@@ -4961,7 +4961,7 @@ function cycSetActiveHosp(gkey, hosp){
 function cycLocalLoad(){
   try{var r=localStorage.getItem('hsp_cyc'); if(r){var d=JSON.parse(r); if(Array.isArray(d)) cycleStore=cycNormalize(d);}}catch(e){}
   try{var h=localStorage.getItem('hsp_cyc_hosp'); if(h!==null) cycHospital=h;}catch(e){}
-  try{var cc=localStorage.getItem('hsp_course'); if(cc){var cd=JSON.parse(cc); if(cd&&typeof cd==='object') courseConfig=cd;}}catch(e){}
+  try{var cc=localStorage.getItem('hsp_course'); if(cc){var cd=JSON.parse(cc); if(cd&&typeof cd==='object') courseConfig=courseNormalize(cd);}}catch(e){}
   try{ courseEvalLoadLocal(); }catch(e){}
   cycLoadActiveHospMap();
 }
@@ -5718,6 +5718,19 @@ function courseBuild(input){
   cfg.schedule=courseGenerateRotation(cfg);
   return cfg;
 }
+// repair a loaded config so missing arrays never crash render; regenerate
+// schedule/groups from saved counts when they're absent (stale older saves).
+function courseNormalize(cfg){
+  if(!cfg || typeof cfg!=='object') return null;
+  if(!Array.isArray(cfg.hospitals)) cfg.hospitals=[];
+  if(!Array.isArray(cfg.groups) || !cfg.groups.length){
+    cfg.groups=courseMakeGroups(cfg.morningGroups,cfg.eveningGroups);
+  }
+  if(!Array.isArray(cfg.schedule) || !cfg.schedule.length){
+    cfg.schedule=courseGenerateRotation(cfg);
+  }
+  return cfg;
+}
 function courseSave(){
   try{ localStorage.setItem('hsp_course', JSON.stringify(courseConfig)); }catch(e){}
   if(!isOfflineMode && currentUser && db){ guardedSet('courseConfig', courseConfig); }
@@ -5760,13 +5773,13 @@ function courseRender(){
   html+=field('عدد أسابيع المحطة','crsWeeks',c?c.weeksPerStation:2);
   html+='</div>';
   html+='<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px"><label style="font-size:11px;font-weight:700;color:var(--muted)">أسماء المستشفيات (افصل بفاصلة أو سطر جديد)</label>';
-  html+='<textarea id="crsHospitals" rows="2" placeholder="مثال: ابن سينا، الكندي، اليرموك" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--bg);color:var(--text);font-family:inherit;resize:vertical">'+(c?c.hospitals.map(function(h){return h.name;}).join('، '):'')+'</textarea></div>';
+  html+='<textarea id="crsHospitals" rows="2" placeholder="مثال: ابن سينا، الكندي، اليرموك" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--bg);color:var(--text);font-family:inherit;resize:vertical">'+((c&&c.hospitals)?c.hospitals.map(function(h){return h.name;}).join('، '):'')+'</textarea></div>';
   html+='<div style="font-size:11px;color:var(--muted);margin-bottom:12px">📤 رفع ملف Excel: سيُضاف في الخطوة التالية. حالياً الإدخال اليدوي.</div>';
   html+='<button class="btn bp" onclick="courseGenerate()" style="font-weight:700">⚙️ توليد المجاميع وجدول التناوب</button>';
   html+='</div>';
 
   // schedule preview
-  if(c && c.schedule && c.schedule.length){
+  if(c && Array.isArray(c.schedule) && c.schedule.length && Array.isArray(c.hospitals) && Array.isArray(c.groups)){
     var dps=courseDaysPerStation(c), H=c.hospitals.length;
     html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(20,116,107,.05)">';
     html+='<div style="font-size:16px;font-weight:800;color:var(--primary);margin-bottom:4px">📅 جدول التناوب المُولّد</div>';
@@ -5784,7 +5797,7 @@ function courseRender(){
   }
   cont.innerHTML=html;
   // after setup, also render the generated group centers below
-  if(courseConfig && courseConfig.groups && courseConfig.groups.length){
+  if(courseConfig && Array.isArray(courseConfig.groups) && courseConfig.groups.length && Array.isArray(courseConfig.schedule)){
     courseRenderGroupCenters();
   }
 }
