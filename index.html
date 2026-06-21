@@ -656,6 +656,10 @@ window.addEventListener('load', function() {
     <div class="main">
       <aside class="sidenav">
         <div class="nav-group">
+          <div class="nav-group-label">نظام الكورس (جديد)</div>
+          <button class="tab-btn" id="tbcourse" onclick="showTab('course')">🎓 إعداد الكورس</button>
+        </div>
+        <div class="nav-group">
           <div class="nav-group-label">العمل اليومي</div>
           <button class="tab-btn active" id="tba" onclick="showTab('att')">👥 الحضور والتقييم</button>
           <button class="tab-btn" id="tbp" onclick="showTab('paper')">📄 الورقة اليومية</button>
@@ -677,6 +681,10 @@ window.addEventListener('load', function() {
         </div>
       </aside>
       <div class="content-area">
+      <!-- TAB: COURSE SETUP (new system, separate) -->
+      <div class="tab-panel" id="pcourse">
+        <div id="courseContent"></div>
+      </div>
       <!-- TAB: ATTENDANCE -->
       <div class="tab-panel active" id="pa">
         <!-- ★ MODE TOGGLE: classic day-view (default) vs 4-day cycle assessment -->
@@ -2070,6 +2078,32 @@ function startListeners() {
   });
   dbListeners.push({ ref: cycRef, event: 'value' });
 
+  var courseRef = dbRef('courseConfig');
+  courseRef.on('value', function(snap){
+    if(!isStillMe()) return;
+    var val=snap.val();
+    if(val && typeof val==='object'){
+      courseConfig=val;
+      try{ localStorage.setItem('hsp_course', JSON.stringify(courseConfig)); }catch(e){}
+      var pc=document.getElementById('pcourse');
+      if(pc && pc.classList.contains('active')) courseRender();
+    }
+  });
+  dbListeners.push({ ref: courseRef, event: 'value' });
+
+  var courseEvalRef = dbRef('courseEval');
+  courseEvalRef.on('value', function(snap){
+    if(!isStillMe()) return;
+    var val=snap.val();
+    if(val && typeof val==='object'){
+      courseEval=val;
+      try{ localStorage.setItem('hsp_course_eval', JSON.stringify(courseEval)); }catch(e){}
+      var pc=document.getElementById('pcourse');
+      if(pc && pc.classList.contains('active')) courseRender();
+    }
+  });
+  dbListeners.push({ ref: courseEvalRef, event: 'value' });
+
   var cycHRef = dbRef('cycleHospital');
   cycHRef.on('value', function(snap){
     if (!isStillMe()) return;
@@ -2274,8 +2308,8 @@ var FIELDS=[
 function showTab(n){
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',rot:'prot',cycle:'pcyc',stat:'pstat'};
-  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',rot:'tbrot',cycle:'tbcyc',stat:'tbstat'};
+  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',teach:'ptm',audit:'pal',prog:'ppg',rot:'prot',cycle:'pcyc',stat:'pstat',course:'pcourse'};
+  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',teach:'tbtm',audit:'tbal',prog:'tbpg',rot:'tbrot',cycle:'tbcyc',stat:'tbstat',course:'tbcourse'};
   var panel=document.getElementById(panels[n]);
   panel.classList.add('active');
   // restart the entrance animation so every switch feels alive
@@ -2293,6 +2327,7 @@ function showTab(n){
   if(n==='rot')    renderRotationTab();
   if(n==='cycle')  cycRender();
   if(n==='stat')   statRender();
+  if(n==='course') courseRender();
 }
 
 function switchGroup(g){
@@ -4085,6 +4120,8 @@ function backupDownload(){
     cycleStore: (typeof cycleStore!=='undefined') ? cycleStore : [],
     cycHospital: (typeof cycHospital!=='undefined') ? cycHospital : '',
     cycActiveHospMap: (typeof cycActiveHospMap!=='undefined') ? cycActiveHospMap : {},
+    courseConfig: (typeof courseConfig!=='undefined') ? courseConfig : null,
+    courseEval: (typeof courseEval!=='undefined') ? courseEval : {},
     settings: {
       hospitalName: document.getElementById('hName').value,
       hospitalNo: document.getElementById('hNo').value,
@@ -4160,6 +4197,8 @@ function applyBackup(d){
   }
   if (typeof cycHospital!=='undefined' && typeof d.cycHospital==='string' && d.cycHospital) cycHospital = d.cycHospital;
   if (typeof cycActiveHospMap!=='undefined' && d.cycActiveHospMap && typeof d.cycActiveHospMap==='object') cycActiveHospMap = d.cycActiveHospMap;
+  if (typeof courseConfig!=='undefined' && d.courseConfig && typeof d.courseConfig==='object'){ courseConfig = d.courseConfig; try{ localStorage.setItem('hsp_course', JSON.stringify(courseConfig)); }catch(e){} }
+  if (typeof courseEval!=='undefined' && d.courseEval && typeof d.courseEval==='object'){ courseEval = d.courseEval; try{ localStorage.setItem('hsp_course_eval', JSON.stringify(courseEval)); }catch(e){} }
   // persist everything (queue-protected)
   cacheLocally(); dbSave();
   if (typeof cycSave==='function') { try{ cycSave(); }catch(e){} }
@@ -4916,6 +4955,8 @@ function cycSetActiveHosp(gkey, hosp){
 function cycLocalLoad(){
   try{var r=localStorage.getItem('hsp_cyc'); if(r){var d=JSON.parse(r); if(Array.isArray(d)) cycleStore=cycNormalize(d);}}catch(e){}
   try{var h=localStorage.getItem('hsp_cyc_hosp'); if(h!==null) cycHospital=h;}catch(e){}
+  try{var cc=localStorage.getItem('hsp_course'); if(cc){var cd=JSON.parse(cc); if(cd&&typeof cd==='object') courseConfig=cd;}}catch(e){}
+  try{ courseEvalLoadLocal(); }catch(e){}
   cycLoadActiveHospMap();
 }
 function cycSave(){
@@ -5628,6 +5669,260 @@ function statGather(){
 }
 
 var statSelCycle = null; // which group/cycle is shown in the within-cycle view
+
+// ════════════════════════════════════════════════════════════════════════
+// NEW COURSE SYSTEM (separate from classic + cycle systems).
+// Embedded plain-function mirror of project/src/course.js (which is unit-tested).
+// Persists to Firebase under users/{uid}/courseConfig — its OWN path, touching
+// nothing else. The classic system and cycleStore are untouched.
+// ════════════════════════════════════════════════════════════════════════
+var courseConfig = null; // {name,startDate,morningGroups,eveningGroups,hospitals,daysPerWeek,weeksPerStation,groups,schedule}
+
+function courseMakeHospitals(namesOrCount){
+  if(Array.isArray(namesOrCount)){
+    return namesOrCount.map(function(nm,i){ return {id:'h'+(i+1), name:String(nm||('مستشفى '+(i+1))).trim()}; });
+  }
+  var n=parseInt(namesOrCount)||0, out=[];
+  for(var i=0;i<n;i++) out.push({id:'h'+(i+1), name:'مستشفى '+(i+1)});
+  return out;
+}
+function courseMakeGroups(m,e){
+  var g=[],i;
+  for(i=1;i<=(parseInt(m)||0);i++) g.push({id:'m'+i,number:i,shift:'morning',label:'صباحي '+i});
+  for(i=1;i<=(parseInt(e)||0);i++) g.push({id:'e'+i,number:i,shift:'evening',label:'مسائي '+i});
+  return g;
+}
+function courseDaysPerStation(cfg){ return (parseInt(cfg.daysPerWeek)||0)*(parseInt(cfg.weeksPerStation)||0); }
+function courseGenerateRotation(cfg){
+  var hospitals=cfg.hospitals||[], groups=(cfg.groups&&cfg.groups.length)?cfg.groups:courseMakeGroups(cfg.morningGroups,cfg.eveningGroups);
+  var H=hospitals.length, dps=courseDaysPerStation(cfg), wps=parseInt(cfg.weeksPerStation)||0;
+  if(!H) return [];
+  var morning=groups.filter(function(g){return g.shift==='morning';}), evening=groups.filter(function(g){return g.shift==='evening';});
+  function buildFor(g){
+    var base=(g.shift==='morning'?morning:evening).indexOf(g), stations=[];
+    for(var k=0;k<H;k++){ var hi=(base+k)%H; stations.push({index:k+1,hospitalId:hospitals[hi].id,hospitalName:hospitals[hi].name,weekStart:k*wps+1,weekEnd:k*wps+wps,days:dps}); }
+    return {groupId:g.id,groupLabel:g.label,shift:g.shift,stations:stations};
+  }
+  return groups.map(buildFor);
+}
+function courseBuild(input){
+  var cfg={name:input.name||'',startDate:input.startDate||'',morningGroups:parseInt(input.morningGroups)||0,eveningGroups:parseInt(input.eveningGroups)||0,daysPerWeek:parseInt(input.daysPerWeek)||0,weeksPerStation:parseInt(input.weeksPerStation)||0};
+  cfg.hospitals=courseMakeHospitals(input.hospitals!=null?input.hospitals:[]);
+  cfg.groups=courseMakeGroups(cfg.morningGroups,cfg.eveningGroups);
+  cfg.schedule=courseGenerateRotation(cfg);
+  return cfg;
+}
+function courseSave(){
+  try{ localStorage.setItem('hsp_course', JSON.stringify(courseConfig)); }catch(e){}
+  if(!isOfflineMode && currentUser && db){ guardedSet('courseConfig', courseConfig); }
+}
+function courseGenerate(){
+  var hospInput=(document.getElementById('crsHospitals')||{}).value||'';
+  var hospitals=hospInput.split(/[,،\n]/).map(function(s){return s.trim();}).filter(Boolean);
+  var input={
+    name:(document.getElementById('crsName')||{}).value||'',
+    startDate:(document.getElementById('crsStart')||{}).value||'',
+    morningGroups:(document.getElementById('crsMorning')||{}).value||0,
+    eveningGroups:(document.getElementById('crsEvening')||{}).value||0,
+    hospitals:hospitals.length?hospitals:((document.getElementById('crsHospCount')||{}).value||0),
+    daysPerWeek:(document.getElementById('crsDaysWeek')||{}).value||0,
+    weeksPerStation:(document.getElementById('crsWeeks')||{}).value||0
+  };
+  if(!input.hospitals || (Array.isArray(input.hospitals)&&!input.hospitals.length) || (!Array.isArray(input.hospitals)&&!parseInt(input.hospitals))){
+    toast('أدخل المستشفيات أولاً'); return;
+  }
+  courseConfig=courseBuild(input);
+  courseSave();
+  courseRender();
+  toast('✅ تم توليد المجاميع وجدول التناوب');
+}
+function courseRender(){
+  var cont=document.getElementById('courseContent'); if(!cont) return;
+  var c=courseConfig;
+  var v=function(id,d){ var el=document.getElementById(id); return el?el.value:(d!=null?d:''); };
+  var html='';
+  html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,116,107,.05)">';
+  html+='<div style="font-size:17px;font-weight:800;color:var(--primary);margin-bottom:4px">🎓 إعداد الكورس</div>';
+  html+='<div style="font-size:12px;color:var(--muted);margin-bottom:14px">عرّف المجاميع والمستشفيات مرة واحدة — يولّد النظام جدول التناوب وكل المجاميع جاهزة. كل الأرقام مرنة وقابلة للتعديل. (نظام منفصل لا يؤثر على بياناتك الحالية)</div>';
+  function field(label,id,val,type){ return '<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:11px;font-weight:700;color:var(--muted)">'+label+'</label><input id="'+id+'" type="'+(type||'number')+'" value="'+val+'" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--bg);color:var(--text);font-family:inherit"></div>'; }
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">';
+  html+=field('اسم الكورس','crsName',c?esc(c.name):'','text');
+  html+=field('تاريخ البداية','crsStart',c?c.startDate:'','date');
+  html+=field('عدد المجاميع الصباحية','crsMorning',c?c.morningGroups:3);
+  html+=field('عدد المجاميع المسائية','crsEvening',c?c.eveningGroups:3);
+  html+=field('أيام العمل في الأسبوع','crsDaysWeek',c?c.daysPerWeek:2);
+  html+=field('عدد أسابيع المحطة','crsWeeks',c?c.weeksPerStation:2);
+  html+='</div>';
+  html+='<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px"><label style="font-size:11px;font-weight:700;color:var(--muted)">أسماء المستشفيات (افصل بفاصلة أو سطر جديد)</label>';
+  html+='<textarea id="crsHospitals" rows="2" placeholder="مثال: ابن سينا، الكندي، اليرموك" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--bg);color:var(--text);font-family:inherit;resize:vertical">'+(c?c.hospitals.map(function(h){return h.name;}).join('، '):'')+'</textarea></div>';
+  html+='<div style="font-size:11px;color:var(--muted);margin-bottom:12px">📤 رفع ملف Excel: سيُضاف في الخطوة التالية. حالياً الإدخال اليدوي.</div>';
+  html+='<button class="btn bp" onclick="courseGenerate()" style="font-weight:700">⚙️ توليد المجاميع وجدول التناوب</button>';
+  html+='</div>';
+
+  // schedule preview
+  if(c && c.schedule && c.schedule.length){
+    var dps=courseDaysPerStation(c), H=c.hospitals.length;
+    html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(20,116,107,.05)">';
+    html+='<div style="font-size:16px;font-weight:800;color:var(--primary);margin-bottom:4px">📅 جدول التناوب المُولّد</div>';
+    html+='<div style="font-size:12px;color:var(--muted);margin-bottom:12px">'+c.groups.length+' مجموعة • '+H+' مستشفيات • '+dps+' أيام لكل محطة</div>';
+    html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:480px">';
+    html+='<thead><tr style="background:var(--primary);color:#fff"><th style="padding:8px">المجموعة</th>';
+    for(var k=0;k<H;k++){ html+='<th style="padding:8px">المحطة '+(k+1)+'</th>'; }
+    html+='</tr></thead><tbody>';
+    c.schedule.forEach(function(g,i){
+      html+='<tr style="background:'+(i%2?'#f8fafc':'#fff')+'"><td style="padding:8px;font-weight:700;text-align:center">'+esc(g.groupLabel)+'</td>';
+      g.stations.forEach(function(s){ html+='<td style="padding:8px;text-align:center">'+esc(s.hospitalName)+'<div style="font-size:10px;color:var(--muted)">أسبوع '+s.weekStart+'–'+s.weekEnd+'</div></td>'; });
+      html+='</tr>';
+    });
+    html+='</tbody></table></div></div>';
+  }
+  cont.innerHTML=html;
+  // after setup, also render the generated group centers below
+  if(courseConfig && courseConfig.groups && courseConfig.groups.length){
+    courseRenderGroupCenters();
+  }
+}
+
+// ── Group Centers (Phase 4): all group×hospital workspaces, preset & saved ──
+// Navigation state + an independent eval store keyed by group/hospital/day/student.
+var courseNav = { groupId:null, hospitalId:null }; // null = show group list
+var courseEval = {}; // courseEval[groupId][hospitalId][dayIndex][studentName] = {scores,total,attendance,...}
+
+function courseEvalLoadLocal(){
+  try{ var r=localStorage.getItem('hsp_course_eval'); if(r){ var d=JSON.parse(r); if(d&&typeof d==='object') courseEval=d; } }catch(e){}
+}
+function courseEvalSave(){
+  try{ localStorage.setItem('hsp_course_eval', JSON.stringify(courseEval)); }catch(e){}
+  if(!isOfflineMode && currentUser && db){ guardedSet('courseEval', courseEval); }
+}
+function courseGetCell(gid,hid,day,name){
+  return (((courseEval[gid]||{})[hid]||{})[day]||{})[name] || null;
+}
+function courseSetCell(gid,hid,day,name,rec){
+  if(!courseEval[gid]) courseEval[gid]={};
+  if(!courseEval[gid][hid]) courseEval[gid][hid]={};
+  if(!courseEval[gid][hid][day]) courseEval[gid][hid][day]={};
+  courseEval[gid][hid][day][name]=rec;
+  courseEvalSave();
+}
+// students of a group: stored on the group, else empty (assignable here)
+function courseGroupStudents(gid){
+  var g=(courseConfig.groups||[]).filter(function(x){return x.id===gid;})[0];
+  return (g && g.students) ? g.students : [];
+}
+function courseSetGroupStudents(gid, names){
+  var g=(courseConfig.groups||[]).filter(function(x){return x.id===gid;})[0];
+  if(g){ g.students=names; courseSave(); }
+}
+function courseOpenGroup(gid){ courseNav={groupId:gid,hospitalId:null}; courseRender(); }
+function courseOpenStation(gid,hid){ courseNav={groupId:gid,hospitalId:hid}; courseRender(); }
+function courseBackToGroups(){ courseNav={groupId:null,hospitalId:null}; courseRender(); }
+function courseBackToStations(){ courseNav.hospitalId=null; courseRender(); }
+
+function courseEditStudents(gid){
+  var cur=courseGroupStudents(gid).join('\n');
+  var v=prompt('أدخل أسماء طلاب المجموعة (اسم في كل سطر):', cur);
+  if(v===null) return;
+  var names=v.split(/\n/).map(function(s){return s.trim();}).filter(Boolean);
+  courseSetGroupStudents(gid,names);
+  courseRender();
+  toast('✅ تم حفظ قائمة الطلاب');
+}
+
+function courseSetCellScore(gid,hid,day,name,val){
+  var n=parseFloat(val); if(isNaN(n)) n=null;
+  if(n!==null){ n=Math.max(0,Math.min(15,n)); }
+  var rec=courseGetCell(gid,hid,day,name)||{};
+  rec.total=n; rec.evaluated=(n!==null);
+  courseSetCell(gid,hid,day,name,rec);
+}
+// resolve student by index (safe against quotes in names), then save
+function courseCellInput(gid,hid,day,idx,val){
+  var names=courseGroupStudents(gid);
+  var name=names[idx]; if(name==null) return;
+  courseSetCellScore(gid,hid,day,name,val);
+}
+function courseToggleAtt(gid,hid,day,name,present){
+  var rec=courseGetCell(gid,hid,day,name)||{};
+  rec.attendance=present?'present':'absent';
+  courseSetCell(gid,hid,day,name,rec);
+  courseRender();
+}
+
+function courseRenderGroupCenters(){
+  // injected into a dedicated container appended after setup
+  var host=document.getElementById('courseContent'); if(!host) return;
+  var wrap=document.createElement('div'); wrap.id='courseCenters'; wrap.style.marginTop='14px';
+  var c=courseConfig, html='';
+
+  if(!courseNav.groupId){
+    // LEVEL 1: list of groups (well-structured, not 18 flat tabs)
+    html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(20,116,107,.05)">';
+    html+='<div style="font-size:16px;font-weight:800;color:var(--primary);margin-bottom:4px">📁 مراكز المجاميع</div>';
+    html+='<div style="font-size:12px;color:var(--muted);margin-bottom:14px">'+c.groups.length+' مجموعة × '+c.hospitals.length+' مستشفيات = '+(c.groups.length*c.hospitals.length)+' مساحة عمل جاهزة. اختر مجموعة.</div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">';
+    c.groups.forEach(function(g){
+      var sCount=courseGroupStudents(g.id).length;
+      html+='<button onclick="courseOpenGroup(\''+g.id+'\')" style="text-align:right;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;font-family:inherit">';
+      html+='<div style="font-weight:800;color:var(--primary);font-size:14px">📁 '+esc(g.label)+'</div>';
+      html+='<div style="font-size:11px;color:var(--muted);margin-top:4px">'+(sCount?sCount+' طالب':'لا طلاب بعد')+' • '+c.hospitals.length+' محطات</div>';
+      html+='</button>';
+    });
+    html+='</div></div>';
+  } else if(!courseNav.hospitalId){
+    // LEVEL 2: the chosen group's 3 stations (hospitals)
+    var sched=(c.schedule||[]).filter(function(x){return x.groupId===courseNav.groupId;})[0];
+    var g=(c.groups||[]).filter(function(x){return x.id===courseNav.groupId;})[0];
+    html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(20,116,107,.05)">';
+    html+='<button class="btn bo" onclick="courseBackToGroups()" style="font-size:12px;margin-bottom:12px">← المجاميع</button>';
+    html+='<div style="font-size:16px;font-weight:800;color:var(--primary);margin-bottom:4px">📁 '+esc(g.label)+'</div>';
+    var sc=courseGroupStudents(g.id).length;
+    html+='<div style="font-size:12px;color:var(--muted);margin-bottom:6px">'+(sc?sc+' طالب':'⚠️ لا طلاب بعد')+'</div>';
+    html+='<button class="btn bp" onclick="courseEditStudents(\''+g.id+'\')" style="font-size:12px;margin-bottom:14px">👥 إدارة طلاب المجموعة</button>';
+    html+='<div style="font-size:13px;font-weight:700;margin-bottom:8px">المحطات (المستشفيات):</div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">';
+    (sched?sched.stations:[]).forEach(function(s){
+      html+='<button onclick="courseOpenStation(\''+g.id+'\',\''+s.hospitalId+'\')" style="text-align:right;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;font-family:inherit">';
+      html+='<div style="font-weight:800;color:var(--primary);font-size:13px">🏥 '+esc(s.hospitalName)+'</div>';
+      html+='<div style="font-size:11px;color:var(--muted);margin-top:4px">المحطة '+s.index+' • '+s.days+' أيام • أسبوع '+s.weekStart+'–'+s.weekEnd+'</div>';
+      html+='</button>';
+    });
+    html+='</div></div>';
+  } else {
+    // LEVEL 3: the 4-day grid for this group at this hospital (the "tab")
+    var g3=(c.groups||[]).filter(function(x){return x.id===courseNav.groupId;})[0];
+    var hosp=(c.hospitals||[]).filter(function(x){return x.id===courseNav.hospitalId;})[0];
+    var students=courseGroupStudents(g3.id);
+    var dps=courseDaysPerStation(c);
+    html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(20,116,107,.05)">';
+    html+='<button class="btn bo" onclick="courseBackToStations()" style="font-size:12px;margin-bottom:12px">← محطات '+esc(g3.label)+'</button>';
+    html+='<div style="font-size:16px;font-weight:800;color:var(--primary);margin-bottom:2px">📁 '+esc(g3.label)+' — 🏥 '+esc(hosp.name)+'</div>';
+    html+='<div style="font-size:12px;color:var(--muted);margin-bottom:14px">قيّم كل طالب في كل يوم (0–15). البيانات تُحفظ تلقائياً في هذه المحطة.</div>';
+    if(!students.length){
+      html+='<div style="background:#fdf2e9;border:1px solid #f5cba7;border-radius:10px;padding:14px;color:#b9770e;font-size:13px">⚠️ لا طلاب في هذه المجموعة بعد. ارجع وأضف الطلاب أولاً.</div>';
+    } else {
+      html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:520px">';
+      html+='<thead><tr style="background:var(--primary);color:#fff"><th style="padding:8px;text-align:right">الطالب</th>';
+      for(var d=1;d<=dps;d++){ html+='<th style="padding:8px">اليوم '+d+'</th>'; }
+      html+='</tr></thead><tbody>';
+      students.forEach(function(nm,i){
+        html+='<tr style="background:'+(i%2?'#f8fafc':'#fff')+'"><td style="padding:8px;font-weight:600">'+esc(nm)+'</td>';
+        for(var d=1;d<=dps;d++){
+          var rec=courseGetCell(g3.id,hosp.id,d,nm)||{};
+          var val=(rec.total!=null?rec.total:'');
+          html+='<td style="padding:6px;text-align:center"><input type="number" min="0" max="15" step="0.25" value="'+val+'" '
+            +'onchange="courseCellInput(\''+g3.id+'\',\''+hosp.id+'\','+d+','+i+',this.value);this.style.background=this.value!==\'\'?\'#eafaf1\':\'#fff\'" '
+            +'style="width:64px;border:1px solid var(--border);border-radius:6px;padding:5px;text-align:center;font-family:inherit;background:'+(val!==''?'#eafaf1':'#fff')+'"></td>';
+        }
+        html+='</tr>';
+      });
+      html+='</tbody></table></div>';
+    }
+    html+='</div>';
+  }
+  wrap.innerHTML=html;
+  host.appendChild(wrap);
+}
 
 function statRender(){
   var cont=document.getElementById('statContent'); if(!cont) return;
