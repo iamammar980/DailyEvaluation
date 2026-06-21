@@ -657,7 +657,7 @@ window.addEventListener('load', function() {
       <aside class="sidenav">
         <div class="nav-group">
           <div class="nav-group-label">نظام الكورس (جديد)</div>
-          <button class="tab-btn" id="tbcourse" onclick="showTab('course')">🎓 إعداد الكورس</button>
+          <button class="tab-btn" id="tbcourse" onclick="showTab('course')">🎓 إعداد الكورس <span style="font-size:9px;opacity:.6">v4</span></button>
         </div>
         <div class="nav-group">
           <div class="nav-group-label">العمل اليومي</div>
@@ -2327,7 +2327,13 @@ function showTab(n){
   if(n==='rot')    renderRotationTab();
   if(n==='cycle')  cycRender();
   if(n==='stat')   statRender();
-  if(n==='course') courseRender();
+  if(n==='course'){
+    try{ courseRender(); }
+    catch(err){
+      var cc=document.getElementById('courseContent');
+      if(cc) cc.innerHTML='<div style="background:#fdf2f2;border:1px solid #c0504a;border-radius:10px;padding:16px;color:#922b21;font-size:13px;direction:ltr;text-align:left"><b>خطأ تشخيصي (صوّر هذا وأرسله):</b><br><br>'+String(err && err.message)+'<br><br><pre style="white-space:pre-wrap;font-size:11px">'+String(err && err.stack).slice(0,600)+'</pre></div>';
+    }
+  }
 }
 
 function switchGroup(g){
