@@ -3122,39 +3122,88 @@ function dlTemplate(){
 var RISK_AVG = 9, RISK_ABSENCES = 2;
 
 // Build {name: {sessions:[{date,group,total,att,paper,scores}], avg, present, absent, missingPaper, evals}}
+// ═══════════════════════════════════════════════════════════════════════
+// UNIFIED ANALYTICS MODEL — single source of truth for BOTH analytics tabs.
+//   `history` is the authoritative grade store: it holds daily sessions
+//   (keyed YYYY-MM-DD_morning|evening) AND cycle sessions (keyed cyc_…).
+//   buildStudentProfiles() walks it once, key-aware, and merges every grade
+//   per student. getProfiles() memoizes the result (rebuilds only when the
+//   data signature changes) so Progress, the student detail, Statistics and
+//   the exports all reuse one computed model instead of recomputing.
+// ═══════════════════════════════════════════════════════════════════════
+var DAILY_KEY_RE = /^\d{4}-\d{2}-\d{2}_(morning|evening)$/;
+// One shared "needs follow-up" rule used by BOTH tabs (was two definitions).
+function isAtRisk(p){ return !!(p && p.risk && p.risk.length); }
+
+var _profCache=null, _profSig=null;
+function _profilesSig(){
+  // cheap invalidation: changes whenever any session is (re)saved or the
+  // cycle roster changes. daily/cycle saves both stamp __savedAt__ in history.
+  var keys=Object.keys(history||{}), s=keys.length+'|';
+  for(var i=0;i<keys.length;i++){ var d=history[keys[i]]; if(d&&d.__savedAt__) s+=d.__savedAt__+','; }
+  s+='|'+((cycleStore&&cycleStore.length)||0);
+  if(cycleStore&&cycleStore.length){ for(var j=0;j<cycleStore.length;j++){ var st=cycleStore[j]; if(st&&st.days) s+=st.days.join(''); } }
+  return s;
+}
+// Cached accessor — prefer this everywhere over calling buildStudentProfiles directly.
+function getProfiles(force){
+  var sig=_profilesSig();
+  if(!force && _profCache && _profSig===sig) return _profCache;
+  _profCache=buildStudentProfiles(); _profSig=sig; return _profCache;
+}
+function invalidateProfiles(){ _profCache=null; _profSig=null; }
+
 function buildStudentProfiles(){
   var prof = {};
+  function ensure(nm){
+    if(!prof[nm]) prof[nm] = {name:nm, sessions:[], sum:0, cnt:0, present:0, absent:0, missingPaper:0, evals:0, hospitals:{}};
+    return prof[nm];
+  }
+  function addHosp(p, hospital, block, date, dayNo, unit, total){
+    if(!hospital) return;
+    var hk = hospital + (block?(' • '+block):'');
+    if(!p.hospitals[hk]) p.hospitals[hk] = {hospital:hospital, block:block, days:[], sum:0, cnt:0};
+    var h = p.hospitals[hk];
+    h.days.push({ date:date, dayNo:dayNo, unit:unit, total:total });
+    if(total!=null){ h.sum+=total; h.cnt++; }
+  }
   Object.keys(history).sort().forEach(function(dk){
-    var isM = dk.indexOf('_morning')>=0;
-    var names = (history[dk] && history[dk]['__names__']) ? history[dk]['__names__'] : null;
-    if(!names){
-      // fall back to current live lists if no stored names
-      var live = isM ? studentsMorning : studentsEvening;
-      names = live.map(function(s){ return s.name; });
-    }
     var day = history[dk] || {};
-    var clean = dk.replace('_morning','').replace('_evening','');
-    var rot = rotationOf(day); // hospital/block/dayNo/unit for this session
-    names.forEach(function(nm, i){
-      if(!nm) return;
-      var r = day[i] || {};
-      if(!r.attendance && !r.evaluated) return;
-      if(!prof[nm]) prof[nm] = {name:nm, sessions:[], sum:0, cnt:0, present:0, absent:0, missingPaper:0, evals:0, hospitals:{}};
-      var p = prof[nm];
-      p.sessions.push({ date:clean, group:isM?'صباحي':'مسائي', total:(r.total!==undefined?r.total:null), att:r.attendance||null, paper:r.paperDelivered, scores:r.scores||{}, hospital:rot.hospital, block:rot.block, dayNo:rot.dayNo, unit:rot.unit });
-      if(r.attendance==='present') p.present++;
-      if(r.attendance==='absent')  p.absent++;
-      if(r.paperDelivered===false) p.missingPaper++;
-      if(r.evaluated){ p.evals++; if(r.total!==undefined){ p.sum+=r.total; p.cnt++; } }
-      // ★ per-hospital rollup (keyed by hospital + block so two visits stay separate)
-      if(rot.hospital){
-        var hk = rot.hospital + (rot.block?(' • '+rot.block):'');
-        if(!p.hospitals[hk]) p.hospitals[hk] = {hospital:rot.hospital, block:rot.block, days:[], sum:0, cnt:0};
-        var h = p.hospitals[hk];
-        h.days.push({ date:clean, dayNo:rot.dayNo, unit:rot.unit, total:(r.total!==undefined?r.total:null) });
-        if(r.evaluated && r.total!==undefined){ h.sum+=r.total; h.cnt++; }
-      }
-    });
+    if(DAILY_KEY_RE.test(dk)){
+      // ── DAILY session (attendance + evaluation) ──
+      var isM = dk.indexOf('_morning')>=0;
+      var names = day['__names__'] ? day['__names__'] : (isM?studentsMorning:studentsEvening).map(function(s){ return s.name; });
+      var clean = dk.replace('_morning','').replace('_evening','');
+      var rot = rotationOf(day);
+      names.forEach(function(nm, i){
+        if(!nm) return;
+        var r = day[i] || {};
+        // prefer the name-stamped record if positions ever drifted
+        if((r.name||'')!==nm){ for(var kk in day){ if(/^\d+$/.test(kk) && day[kk] && day[kk].name===nm){ r=day[kk]; break; } } }
+        if(!r.attendance && !r.evaluated) return;
+        var p = ensure(nm);
+        var total = (r.total!==undefined ? r.total : null);
+        p.sessions.push({ date:clean, group:isM?'صباحي':'مسائي', source:'daily', total:total, att:r.attendance||null, paper:r.paperDelivered, scores:r.scores||{}, hospital:rot.hospital, block:rot.block, dayNo:rot.dayNo, unit:rot.unit });
+        if(r.attendance==='present') p.present++;
+        if(r.attendance==='absent')  p.absent++;
+        if(r.paperDelivered===false) p.missingPaper++;
+        if(r.evaluated){ p.evals++; if(r.total!==undefined){ p.sum+=r.total; p.cnt++; } }
+        addHosp(p, rot.hospital, rot.block, clean, rot.dayNo, rot.unit, (r.evaluated&&r.total!==undefined)?r.total:null);
+      });
+    } else if(dk.indexOf('cyc_')===0){
+      // ── CYCLE session (4-day assessment; grades only, no attendance) ──
+      var meta = cycKeyMeta(dk); if(!meta.day) return;
+      var hosp = meta.hospital || '';
+      Object.keys(day).forEach(function(kk){
+        var r = day[kk];
+        if(!r || typeof r!=='object' || !r.name) return; // by-name records only
+        var dt = cycDayTotal(r); if(dt===null) return;
+        var p = ensure(String(r.name).trim());
+        p.sessions.push({ date:'دورة', group:'يوم '+meta.day, source:'cycle', total:dt, att:null, paper:undefined, scores:r.scores||{}, hospital:hosp||null, block:null, dayNo:String(meta.day), unit:null });
+        p.evals++; p.sum+=dt; p.cnt++;
+        addHosp(p, hosp||CYC_HOSP_PLACEHOLDER, null, 'دورة', String(meta.day), null, dt);
+      });
+    }
   });
   Object.keys(prof).forEach(function(k){
     var p = prof[k];
@@ -3174,7 +3223,7 @@ function buildStudentProfiles(){
 var progSelected = null;
 
 function renderProgress(){
-  var prof = buildStudentProfiles();
+  var prof = getProfiles();
   var names = Object.keys(prof).sort(function(a,b){ return a.localeCompare(b,'ar'); });
   var atRisk = names.filter(function(n){ return prof[n].risk.length>0; });
   var cont = document.getElementById('progContent');
@@ -3202,43 +3251,59 @@ function renderProgress(){
   }
   html += '</div>';
 
-  // Search + all students table
+  // Search + all students table (search filters rows in-place; no full rebuild)
   html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">';
-  html += '<input type="text" class="sbox" id="progSearch" placeholder="🔍 ابحث عن طالب..." oninput="renderProgress()" value="'+(document.getElementById('progSearch')?document.getElementById('progSearch').value:'')+'" style="max-width:280px">';
-  html += '<span style="font-size:13px;color:var(--muted)">'+names.length+' طالب</span>';
+  html += '<input type="text" class="sbox" id="progSearch" placeholder="🔍 ابحث عن طالب..." oninput="filterProgress(this.value)" value="'+(document.getElementById('progSearch')?document.getElementById('progSearch').value:'')+'" style="max-width:280px">';
+  html += '<span id="progCount" style="font-size:13px;color:var(--muted)">'+names.length+' طالب</span>';
   html += '</div>';
 
-  var q = (document.getElementById('progSearch') && document.getElementById('progSearch').value || '').toLowerCase();
-  var shown = names.filter(function(n){ return !q || n.toLowerCase().indexOf(q)>=0; });
-
-  html += '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:560px">';
-  html += '<thead><tr style="background:var(--primary);color:#fff">';
+  html += '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:560px"><thead><tr style="background:var(--primary);color:#fff">';
   ['اسم الطالب','الجلسات','المتوسط /15','حاضر','غائب','ورقة ناقصة','الحالة'].forEach(function(h){
     html += '<th style="padding:9px 10px;text-align:right;font-size:12px;white-space:nowrap">'+h+'</th>';
   });
-  html += '</tr></thead><tbody>';
-  shown.forEach(function(n,i){
+  html += '</tr></thead><tbody id="progTbody">';
+  names.forEach(function(n,i){
     var p = prof[n];
     var avgTxt = p.avg!==null ? p.avg.toFixed(2) : '—';
-    var avgCol = p.avg===null ? '#aaa' : p.avg>=12 ? '#1e8449' : p.avg>=RISK_AVG ? '#4fa89b' : '#c0392b';
-    html += '<tr style="background:'+(i%2?'#f8fafc':'#fff')+';cursor:pointer" onclick="openProgressDetail(\''+encodeURIComponent(n)+'\')">';
-    html += '<td style="padding:8px 10px;font-weight:600">'+n+(p.risk.length?' <span style="font-size:11px">⚠️</span>':'')+'</td>';
+    var avgCol = p.avg===null ? '#aaa' : p.avg>=12 ? 'var(--success)' : p.avg>=RISK_AVG ? 'var(--pl)' : 'var(--danger)';
+    html += '<tr class="prog-trow" data-nm="'+esc(n.toLowerCase())+'" style="cursor:pointer" onclick="openProgressDetail(\''+encodeURIComponent(n)+'\')">';
+    html += '<td style="padding:8px 10px;font-weight:600">'+esc(n)+(p.risk.length?' <span style="font-size:11px">⚠️</span>':'')+'</td>';
     html += '<td style="padding:8px 10px;text-align:center">'+p.sessions.length+'</td>';
     html += '<td style="padding:8px 10px;text-align:center;font-weight:700;color:'+avgCol+'">'+avgTxt+'</td>';
-    html += '<td style="padding:8px 10px;text-align:center;color:#1e8449">'+p.present+'</td>';
-    html += '<td style="padding:8px 10px;text-align:center;color:#c0392b">'+p.absent+'</td>';
-    html += '<td style="padding:8px 10px;text-align:center;color:#b7770d">'+p.missingPaper+'</td>';
+    html += '<td style="padding:8px 10px;text-align:center;color:var(--success)">'+p.present+'</td>';
+    html += '<td style="padding:8px 10px;text-align:center;color:var(--danger)">'+p.absent+'</td>';
+    html += '<td style="padding:8px 10px;text-align:center;color:var(--warn)">'+p.missingPaper+'</td>';
     html += '<td style="padding:8px 10px;text-align:center">'+(p.risk.length?'<span style="color:var(--danger);font-weight:700">متابعة</span>':'<span style="color:var(--success)">جيد</span>')+'</td>';
     html += '</tr>';
   });
   html += '</tbody></table></div>';
   cont.innerHTML = html;
+  applyProgZebra();
+}
+
+// In-place search filter — hides non-matching rows + re-stripes, no recompute.
+function filterProgress(q){
+  q=(q||'').trim().toLowerCase();
+  var rows=document.querySelectorAll('#progTbody .prog-trow'), shown=0;
+  rows.forEach(function(r){
+    var match = !q || (r.getAttribute('data-nm')||'').indexOf(q)>=0;
+    r.style.display = match?'':'none'; if(match) shown++;
+  });
+  var c=document.getElementById('progCount'); if(c) c.textContent = shown+' طالب';
+  applyProgZebra();
+}
+function applyProgZebra(){
+  var i=0;
+  document.querySelectorAll('#progTbody .prog-trow').forEach(function(r){
+    if(r.style.display==='none') return;
+    r.style.background = (i%2)?'var(--surface-2)':'#fff'; i++;
+  });
 }
 
 // Per-student longitudinal detail (trend of the 5 sections over sessions)
 function openProgressDetail(encName){
   var name = decodeURIComponent(encName);
-  var prof = buildStudentProfiles();
+  var prof = getProfiles();
   var p = prof[name];
   if(!p){ toast('لا توجد بيانات لهذا الطالب'); return; }
   var colors=['#14746b','#117a65','#6c3483','#b7770d','#922b21'];
@@ -3253,6 +3318,32 @@ function openProgressDetail(encName){
   if(p.risk.length){
     html += '<div style="background:#fdf2f2;border:1px solid var(--danger);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--danger);font-weight:600">⚠️ '+p.risk.join(' • ')+'</div>';
   }
+
+  // ── Cohort comparison: this student vs every other student (rank + delta) ──
+  (function(){
+    var avgs=[]; Object.keys(prof).forEach(function(n){ if(prof[n].avg!=null) avgs.push({n:n,a:prof[n].avg}); });
+    if(p.avg==null || avgs.length<2) return;
+    var mean=avgs.reduce(function(s,x){return s+x.a;},0)/avgs.length;
+    var sorted=avgs.slice().sort(function(a,b){return b.a-a.a;});
+    var rank=0; for(var ri=0;ri<sorted.length;ri++){ if(sorted[ri].n===name){ rank=ri+1; break; } }
+    var below=avgs.filter(function(x){return x.a<=p.avg;}).length;
+    var pct=Math.round(below/avgs.length*100);
+    var delta=p.avg-mean, up=delta>=0, dcol=up?'var(--success)':'var(--danger)';
+    var spct=Math.min(100,p.avg/15*100), mpct=Math.min(100,mean/15*100);
+    html+='<div style="background:var(--surface-2);border:1px solid var(--line-soft);border-radius:12px;padding:12px 14px;margin-bottom:16px">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">';
+    html+='<span style="font-size:13px;font-weight:800;color:var(--text)">👥 مقارنة بالأقران</span>';
+    html+='<span style="font-size:12px;color:var(--muted)">المرتبة <b style="color:var(--primary)">'+rank+'</b> من '+avgs.length+' • أعلى من '+pct+'٪ من الطلاب</span>';
+    html+='</div>';
+    html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;min-width:84px;color:var(--ink-2)">هذا الطالب</span>'
+      +'<div style="flex:1;height:14px;background:var(--border);border-radius:7px;overflow:hidden"><div style="height:100%;width:'+spct+'%;background:var(--primary)"></div></div>'
+      +'<span style="font-size:12px;font-weight:800;min-width:46px;text-align:left;color:var(--primary)">'+p.avg.toFixed(2)+'</span></div>';
+    html+='<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;min-width:84px;color:var(--ink-2)">متوسط الأقران</span>'
+      +'<div style="flex:1;height:14px;background:var(--border);border-radius:7px;overflow:hidden"><div style="height:100%;width:'+mpct+'%;background:var(--muted)"></div></div>'
+      +'<span style="font-size:12px;font-weight:700;min-width:46px;text-align:left;color:var(--muted)">'+mean.toFixed(2)+'</span></div>';
+    html+='<div style="margin-top:8px;font-size:12px;font-weight:700;color:'+dcol+'">'+(up?'▲ أعلى من المتوسط بـ ':'▼ أقل من المتوسط بـ ')+Math.abs(delta).toFixed(2)+' درجة</div>';
+    html+='</div>';
+  })();
 
   // Total trend as horizontal bars per session
   html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">📈 تطور المجموع عبر الجلسات</div>';
@@ -3329,7 +3420,7 @@ function closeProgressDetail(){ document.getElementById('progDetailM').classList
 // Feature 4: printable per-student summary (read-only handout)
 function printStudentSummary(encName){
   var name = decodeURIComponent(encName);
-  var prof = buildStudentProfiles();
+  var prof = getProfiles();
   var p = prof[name];
   if(!p){ toast('لا توجد بيانات'); return; }
   var hN = document.getElementById('hName').value || '—';
@@ -5787,14 +5878,19 @@ function statGather(){
   var ranking=[];
   cycles.forEach(function(c){
     c.students.forEach(function(st){
+      // per-day average (0-15) — fair across students who visited a different
+      // number of hospitals/days, unlike the raw grand sum.
+      var dv=(st.days||[]).filter(function(x){return x!=null;});
+      var avg=dv.length?+(dv.reduce(function(a,b){return a+b;},0)/dv.length).toFixed(2):null;
       ranking.push({ name:st.name, gkey:c.gkey, group:c.group, type:c.type,
-                     grand: st.grand, hospitals: st.hospitals });
+                     grand: st.grand, avg: avg, days: dv.length, hospitals: st.hospitals });
     });
   });
-  ranking.sort(function(a,b){ return (b.grand==null?-1:b.grand)-(a.grand==null?-1:a.grand); });
+  // ★ rank by AVERAGE, not the raw sum (sum biased toward more hospital visits)
+  ranking.sort(function(a,b){ var av=(a.avg==null?-1:a.avg), bv=(b.avg==null?-1:b.avg); return bv-av || ((b.grand==null?-1:b.grand)-(a.grand==null?-1:a.grand)); });
   // daily-evaluation source (kept for KPIs/attendance)
   var daily = [];
-  var prof = (typeof buildStudentProfiles==='function') ? buildStudentProfiles() : {};
+  var prof = (typeof getProfiles==='function') ? getProfiles() : {};
   Object.keys(prof).forEach(function(nm){ prof[nm].sessions.forEach(function(s){
     daily.push({ name:nm, shift:s.group, total:(s.total!=null?s.total:null), att:s.att, paper:s.paper, date:s.date });
   }); });
@@ -6275,16 +6371,15 @@ function statRender(){
   var groups = data.cycles.map(function(c){return c.group;});
   if(statSelCycle===null || groups.indexOf(statSelCycle)<0) statSelCycle = groups[0]||null;
 
-  // ---- KPIs ----
-  var allCyc=[]; data.cycles.forEach(function(c){ c.students.forEach(function(st){ st.days.forEach(function(v){ if(v!=null) allCyc.push(v); }); }); });
-  var students={}; data.cycles.forEach(function(c){ c.students.forEach(function(st){ students[st.name]=1; }); });
-  var totalStudents=Object.keys(students).length;
-  var overallAvg=allCyc.length?(allCyc.reduce(function(a,b){return a+b;},0)/allCyc.length):null;
+  // ---- KPIs (unified model: daily + cycle grades, one shared at-risk rule) ----
+  var prof=getProfiles();
+  var profNames=Object.keys(prof);
+  var uTotals=[]; profNames.forEach(function(n){ prof[n].sessions.forEach(function(s){ if(s.total!=null) uTotals.push(s.total); }); });
+  var totalStudents=profNames.length; // every student with any grade (daily OR cycle)
+  var overallAvg=uTotals.length?(uTotals.reduce(function(a,b){return a+b;},0)/uTotals.length):null;
   var pres=0,abs=0; data.daily.forEach(function(d){ if(d.att==='present')pres++; if(d.att==='absent')abs++; });
   var attRate=(pres+abs)>0?Math.round(pres/(pres+abs)*100):null;
-  // at-risk: student combined cycle avg < RISK_AVG
-  var byStud={}; data.cycles.forEach(function(c){ c.students.forEach(function(st){ st.days.forEach(function(v){ if(v!=null)(byStud[st.name]=byStud[st.name]||[]).push(v); }); }); });
-  var atRisk=0; Object.keys(byStud).forEach(function(n){ var a=byStud[n]; if(a.reduce(function(x,y){return x+y;},0)/a.length < RISK_AVG) atRisk++; });
+  var atRisk=profNames.filter(function(n){ return isAtRisk(prof[n]); }).length;
 
   var html='';
   html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px">';
@@ -6296,7 +6391,7 @@ function statRender(){
   html+='</div>';
 
   // ===== ACROSS-CYCLE section =====
-  html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:6px 0 10px;border-right:4px solid var(--primary);padding-right:8px">المقارنة عبر الدورات</div>';
+  html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:6px 0 10px;border-bottom:2px solid var(--line-soft);padding-bottom:6px">المقارنة عبر الدورات</div>';
 
   // simple per-cycle stats table
   html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow-x:auto;margin-bottom:16px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:480px">';
@@ -6319,7 +6414,7 @@ function statRender(){
   html+='</div>';
 
   // ===== WITHIN-CYCLE section =====
-  html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:18px 0 10px;border-right:4px solid var(--primary);padding-right:8px">داخل دورة واحدة</div>';
+  html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:18px 0 10px;border-bottom:2px solid var(--line-soft);padding-bottom:6px">داخل دورة واحدة</div>';
   html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><span style="font-size:13px;color:var(--muted);align-self:center">اختر الدورة:</span>';
   data.cycles.forEach(function(c){
     var on=(statSelCycle===c.group);
@@ -6332,7 +6427,7 @@ function statRender(){
   html+='</div>';
 
   // ===== LEVEL 2: cross-student ranking (between students) — Grid.js pilot =====
-  html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:18px 0 10px;border-right:4px solid var(--primary);padding-right:8px">ترتيب الطلاب (المجموع الكلي عبر المستشفيات)</div>';
+  html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:18px 0 10px;border-bottom:2px solid var(--line-soft);padding-bottom:6px">ترتيب الطلاب (حسب المعدل عبر المستشفيات)</div>';
   var rk=data.ranking.filter(function(r){ return r.grand!=null; });
   if(!rk.length){
     html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;color:var(--muted);margin-bottom:16px">لا توجد درجات معتمدة بعد</div>';
@@ -6340,7 +6435,7 @@ function statRender(){
     // Grid.js mounts here after innerHTML is set (see statRender post-render hook).
     // Stash the rows for the hook to read — Grid.js needs a real DOM node.
     window.__rankingRows = rk.map(function(r,i){
-      return [ i+1, r.name, cycGLabel(r.gkey), (r.hospitals?r.hospitals.length:0), r.grand ];
+      return [ i+1, r.name, cycGLabel(r.gkey), (r.days!=null?r.days:(r.hospitals?r.hospitals.length:0)), (r.avg!=null?r.avg:'—'), r.grand ];
     });
     html+='<div id="rankingGrid" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px;margin-bottom:16px"></div>';
   }
@@ -6351,7 +6446,7 @@ function statRender(){
   // ===== LEVEL 3: between-hospital (for the selected cycle) =====
   var selC=null; data.cycles.forEach(function(c){ if(c.group===statSelCycle) selC=c; });
   if(selC && selC.hospitals && selC.hospitals.length){
-    html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:18px 0 10px;border-right:4px solid var(--primary);padding-right:8px">مقارنة المستشفيات — '+cycGLabel(selC.gkey)+'</div>';
+    html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:18px 0 10px;border-bottom:2px solid var(--line-soft);padding-bottom:6px">مقارنة المستشفيات — '+cycGLabel(selC.gkey)+'</div>';
     html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow-x:auto;margin-bottom:16px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:420px">';
     html+='<thead><tr style="background:#185FA5;color:#fff"><th style="padding:8px 10px;text-align:right">المستشفى</th><th style="padding:8px">متوسط المجموع</th><th style="padding:8px">عدد الطلاب</th></tr></thead><tbody>';
     selC.hospitals.forEach(function(h,i){
@@ -6370,7 +6465,7 @@ function statRender(){
   }
 
   // ===== distribution + pass (overall, from cycles) =====
-  html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:18px 0 10px;border-right:4px solid var(--primary);padding-right:8px">نظرة عامة</div>';
+  html+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin:18px 0 10px;border-bottom:2px solid var(--line-soft);padding-bottom:6px">نظرة عامة</div>';
   html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';
   html+=statCard('توزيع الدرجات', 'cDist');
   html+=statCard('ناجح مقابل متعثر', 'cPass');
@@ -6402,11 +6497,12 @@ function mountRankingGrid(){
   // is never hidden behind a missing dependency.
   if(typeof gridjs==='undefined'){
     var h='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:var(--primary);color:#fff">'
-      +'<th style="padding:8px">#</th><th style="padding:8px">الطالب</th><th style="padding:8px">المجموعة</th><th style="padding:8px">عدد المستشفيات</th><th style="padding:8px">المجموع الكلي</th></tr></thead><tbody>';
+      +'<th style="padding:8px">#</th><th style="padding:8px">الطالب</th><th style="padding:8px">المجموعة</th><th style="padding:8px">أيام</th><th style="padding:8px">المعدل /15</th><th style="padding:8px">المجموع</th></tr></thead><tbody>';
     rows.forEach(function(r,i){ h+='<tr style="background:'+(i%2?'#f8fafc':'#fff')+'">'
       +'<td style="padding:7px;text-align:center">'+r[0]+'</td><td style="padding:7px;font-weight:700">'+esc(r[1])+'</td>'
       +'<td style="padding:7px;text-align:center;color:var(--muted)">'+esc(r[2])+'</td><td style="padding:7px;text-align:center">'+r[3]+'</td>'
-      +'<td style="padding:7px;text-align:center;font-weight:800;color:#14746b">'+r[4]+'</td></tr>'; });
+      +'<td style="padding:7px;text-align:center;font-weight:800;color:var(--primary)">'+r[4]+'</td>'
+      +'<td style="padding:7px;text-align:center;color:var(--muted)">'+r[5]+'</td></tr>'; });
     h+='</tbody></table>';
     el.innerHTML=h;
     return;
@@ -6414,7 +6510,7 @@ function mountRankingGrid(){
   try{
     el.innerHTML=''; // clear any prior instance
     new gridjs.Grid({
-      columns: ['#', 'الطالب', 'المجموعة', 'عدد المستشفيات', { name:'المجموع الكلي', sort:true }],
+      columns: ['#', 'الطالب', 'المجموعة', 'أيام', { name:'المعدل /15', sort:true }, { name:'المجموع', sort:true }],
       data: rows,
       sort: true,
       search: true,
