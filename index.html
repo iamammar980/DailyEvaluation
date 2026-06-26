@@ -2972,6 +2972,7 @@ function renderAudit(){
 
 function exportAuditExcel(){
   if(!auditData.length){ toast('لا توجد تغييرات لتصديرها'); return; }
+  if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
   var wb = XLSX.utils.book_new();
   var rows = [['التاريخ والوقت','اليوم','المجموعة','اسم الطالب','الإجراء','المُحرِّر','الحقل','من','إلى']];
   auditData.forEach(function(e){
@@ -3105,6 +3106,7 @@ function importRoster(event){
 function clearRoster(){if(!confirm('مسح جدول المجموعات؟'))return;roster=[];saveRoster();renderRoster();toast('تم مسح الجدول');}
 
 function dlTemplate(){
+  if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
   var wb=XLSX.utils.book_new();
   var d=[['اسم المستشفى','رقم المجموعة','اسم الطالب','نوع الدراسة','تاريخ البدء','ملاحظات'],['مستشفى الكندي','1','أحمد محمد علي','صباحي','2025-03-03',''],['مستشفى الكندي','1','سارة خالد حسن','صباحي','2025-03-03',''],['مستشفى الكندي','2','نور أحمد سعيد','مسائي','2025-03-03',''],['مستشفى ابن سينا','3','زينب كريم طاهر','صباحي','2025-03-03',''],['مستشفى ابن سينا','4','ريم سامر نوري','مسائي','2025-03-03',''],['مستشفى الجمهوري','5','لينا فارس حيدر','صباحي','2025-03-10',''],['مستشفى الجمهوري','6','دينا أمير يوسف','مسائي','2025-03-10','']];
   var ws=XLSX.utils.aoa_to_sheet(d); ws['!cols']=[{wch:22},{wch:14},{wch:26},{wch:14},{wch:16},{wch:18}];
@@ -3597,6 +3599,7 @@ function exportDayExcel(){
   if (!stNames.length) {
     toast('لا توجد أسماء طلاب لهذا اليوم'); return;
   }
+  if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
 
   var wb = XLSX.utils.book_new();
   var hN  = document.getElementById('hName').value  || '';
@@ -3640,6 +3643,7 @@ function exportDayExcel(){
 }
 
 function exportSummaryExcel(){
+  if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
   // Collect all students from both groups with their full history
   var wb = XLSX.utils.book_new();
   var hN  = document.getElementById('hName').value  || '';
@@ -3838,6 +3842,7 @@ function exportSummaryExcel(){
 }
 
 function doExcelAll(){
+  if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
   var wb=XLSX.utils.book_new();
   var days=Object.keys(history).sort();
   var hN=document.getElementById('hName').value||'', sup=document.getElementById('supName').value||'';
@@ -3863,7 +3868,10 @@ function closeDayDetail(){document.getElementById('dayDetailM').classList.remove
 // EXCEL EXPORT (current day)
 // ═══════════════════════════════════════════
 function doExcel(){
-  var wb=XLSX.utils.book_new(), day=getSession(), sts=getStudents();
+  if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
+  var day=getSession(), sts=getStudents();
+  if(!sts.length){ toast('لا يوجد طلاب للتصدير'); return; }
+  var wb=XLSX.utils.book_new();
   var hN=document.getElementById('hName').value||'', hNo=document.getElementById('hNo').value||'', sup=document.getElementById('supName').value||'';
   var rows=[['اسم المستشفى: '+hN,'رقم: '+hNo,'المشرف: '+sup,'التاريخ: '+curDate],[],['م','اسم الطالب','الحضور','الملاحظة اليومية','م.جماعية','م.حالة','الطاقم','الطالب','المعلم','المريض','التأخر','الاجتماع','الموقع','الأوامر','الشارة','الحجاب','الزي','المعطف','المجموع','تسليم الورقة','ملاحظات']];
   for(var i=0;i<sts.length;i++){
@@ -4106,32 +4114,49 @@ function pdfDownload(html, filename, landscape){
     w.document.close();
     return;
   }
+  var W = landscape ? 1400 : 1000;
   var holder = document.createElement('div');
   // Render at a fixed, generous width so the canvas captures fine detail
   // before being scaled down into the PDF — this is what makes text crisp.
-  holder.style.cssText = 'position:absolute;left:-12000px;top:0;width:'+(landscape?'1400px':'1000px')
+  holder.style.cssText = 'position:absolute;left:-12000px;top:0;width:'+W+'px'
     +';background:#fff;font-smooth:always;-webkit-font-smoothing:antialiased';
   holder.innerHTML = html;
   document.body.appendChild(holder);
-  toast('⏳ جاري إنشاء ملف PDF بجودة عالية...');
+  var src = holder.firstElementChild || holder;
+  // ★ Guard: never emit a silent BLANK PDF from empty content.
+  if (!src || !(src.textContent || '').trim()) {
+    document.body.removeChild(holder);
+    toast('لا توجد بيانات لإنشاء الملف');
+    return;
+  }
+  // ★ Cap the capture scale so the single html2canvas canvas never exceeds the
+  // browser's max canvas side (~16384px) — that overflow is what produced blank
+  // or cut-off PDFs on long reports (e.g. a student with many sessions, or the
+  // full record). Tall content auto-reduces the scale; short content stays crisp.
+  var contentH = src.scrollHeight || 1200;
+  var scale = Math.max(1.3, Math.min(2.5, 15500 / Math.max(contentH, W)));
+  toast('⏳ جاري إنشاء ملف PDF...');
   html2pdf().set({
     margin: [8, 7, 10, 7],
     filename: filename,
-    image: { type: 'png' },                 // lossless — no JPEG compression artifacts
+    image: { type: 'jpeg', quality: 0.96 },  // crisp but far smaller than lossless PNG
     html2canvas: {
-      scale: 3.5,                            // high-resolution capture (was 2)
+      scale: scale,
       useCORS: true,
       letterRendering: true,
       logging: false,
-      dpi: 300
+      backgroundColor: '#ffffff',
+      scrollX: 0, scrollY: 0,                 // anchor the capture (the off-screen holder
+      windowWidth: W                          // otherwise mis-captures → blank)
     },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait', compress: false },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait', compress: true },
     pagebreak: { mode: ['css', 'legacy'] }
-  }).from(holder.firstElementChild || holder).save().then(function(){
+  }).from(src).save().then(function(){
     document.body.removeChild(holder);
-    toast('✅ تم تنزيل ملف PDF بجودة عالية');
+    toast('✅ تم تنزيل ملف PDF');
   }).catch(function(e){
-    document.body.removeChild(holder);
+    try { document.body.removeChild(holder); } catch(_){}
+    if (window.reportIssue) reportIssue('pdfDownload', e);
     console.error(e); toast('تعذّر إنشاء PDF — جرّب مرة أخرى');
   });
 }
@@ -4630,6 +4655,7 @@ function dbLoad(){
 }
 
 function dlDbTemplate(){
+  if(typeof XLSX==='undefined'){ toast('تعذّر تحميل مكتبة Excel'); return; }
   var wb = XLSX.utils.book_new();
   var headers = ['م','اسم الطالب','نوع الدراسة','رقم المجموعة','اسم المستشفى','المنطقة','حالة الحضور','الدرجة النهائية','البريد الإلكتروني','التاريخ'];
   var rows = [
