@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>تقييم الممارسة اليومية في المستشفى</title>
-<!-- Phase E+ : Cairo (Arabic display/body) + JetBrains Mono (numeric data), borrowed from the design study -->
+<title>Eva — تقييم الممارسة اليومية</title>
+<!-- Velorah design system fonts: Cairo (Arabic) + Instrument Serif (cinematic display) + Inter (Latin UI) + JetBrains Mono (numeric data) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
 <!-- ════════════════════════════════════════════════════════════════════
      PHASE B: ERROR MONITORING (Sentry) — privacy-strict, DSN-gated.
@@ -623,6 +623,116 @@ window.addEventListener('load', function() {
 .swh-skip:hover{text-decoration:underline}
 @media (prefers-reduced-motion: reduce){.swh-overlay.swh-show{animation:none}.swh-card{transition:opacity .2s;filter:none!important}}
 </style>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     VELORAH SKIN — visual overlay applied on top of the existing app.
+     Pure CSS + the cinematic login markup below. No app logic touched:
+     every id/class the JS relies on is preserved.
+     ════════════════════════════════════════════════════════════════════ -->
+<style id="velorah-skin">
+:root{
+  /* align tokens to the Velorah design system */
+  --bg:#f4f7f6;
+  --surface-2:#f4f8f7;
+  --teal-300:#0f8a78;--teal-500:#1fa792;--teal-600:#0f6e62;--teal-700:#0c5b52;
+  --indigo-300:#5457e6;--green-400:#15a35a;--rose-500:#e11d48;--amber-400:#bf841d;
+  --navy-900:#001c2a;--navy-800:#002a3d;--navy-700:#003047;
+  --font-display:"Instrument Serif","Cairo",Georgia,serif;
+  --font-body:"Inter","Cairo",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,monospace;
+  --r-md:14px;--r-lg:22px;--r-pill:999px;
+  --e-out:cubic-bezier(.22,1,.36,1);
+  --ring:0 0 0 3px rgba(31,167,146,.40);
+}
+
+/* ── Cinematic entrance utilities (used by the login hero) ── */
+@keyframes vlr-fade-rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.animate-fade-rise{animation:vlr-fade-rise .8s var(--e-out) both}
+.animate-fade-rise-delay{animation:vlr-fade-rise .8s var(--e-out) .2s both}
+.animate-fade-rise-delay-2{animation:vlr-fade-rise .8s var(--e-out) .4s both}
+@media (prefers-reduced-motion: reduce){
+  .animate-fade-rise,.animate-fade-rise-delay,.animate-fade-rise-delay-2{animation:none}
+}
+
+/* ════════ LOGIN — cinematic dark entry over a looping video field ════════ */
+.login-screen{
+  position:fixed;inset:0;z-index:200;overflow:hidden;padding:0;direction:rtl;
+  background:var(--navy-900);
+}
+.login-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.login-overlay{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(1100px 760px at 78% 0%,rgba(31,167,146,.20),transparent 60%),
+    linear-gradient(160deg,rgba(0,28,42,.82),rgba(0,42,61,.70) 55%,rgba(10,61,86,.80))}
+.login-topbar{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;align-items:center;
+  justify-content:space-between;gap:12px;padding:22px 34px;max-width:1280px;margin:0 auto}
+.login-wordmark{font-family:var(--font-display);font-size:46px;line-height:1;color:#fff;letter-spacing:-.02em}
+.login-affil{font-family:"Cairo",sans-serif;font-size:13px;color:rgba(255,255,255,.72)}
+.login-stage{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:0 24px;gap:40px}
+.login-hero{font-family:var(--font-display);font-weight:400;font-size:clamp(40px,8vw,92px);
+  line-height:.95;letter-spacing:-.025em;color:#fff;max-width:1000px;margin:0}
+.login-hero em{font-style:normal;color:rgba(255,255,255,.55)}
+
+/* the existing card becomes a transparent holder; its buttons become Velorah pills */
+.login-screen .login-card{background:none;backdrop-filter:none;-webkit-backdrop-filter:none;
+  border:none;box-shadow:none;border-radius:0;padding:0;max-width:760px;text-align:center}
+.login-screen .login-card .logo,.login-screen .login-card h2{display:none}
+.login-screen #onlineSection,.login-screen #offlineSection{display:none}
+.login-screen #checkingSection{color:rgba(255,255,255,.85)!important}
+.login-screen #onlineSection p,.login-screen #offlineSection p{color:rgba(255,255,255,.82)!important}
+.login-screen .offline-sep{color:rgba(255,255,255,.6)!important}
+.login-screen .offline-sep div{background:rgba(255,255,255,.22)!important}
+/* JS drives section visibility via inline display (none / block) — respected automatically */
+
+/* Velorah pill buttons on the dark field */
+.login-screen .google-btn{display:inline-flex;width:auto;min-width:240px;margin:7px auto;
+  justify-content:center;gap:10px;padding:16px 34px;border-radius:var(--r-pill);
+  font-family:var(--font-body);font-size:16px;font-weight:600;border:none;
+  transition:transform .18s var(--e-out),box-shadow .25s,filter .2s}
+/* primary = white pill (Google) */
+.login-screen #onlineSection .google-btn:first-of-type{
+  background:#fff!important;color:#001c2a!important;border:none!important;
+  box-shadow:0 8px 24px -10px rgba(0,0,0,.5)}
+/* secondary = glass pill (offline) */
+.login-screen #onlineSection .google-btn:last-of-type,
+.login-screen #offlineSection .google-btn{
+  background:rgba(255,255,255,.06)!important;color:#fff!important;
+  border:1px solid rgba(255,255,255,.18)!important;backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);font-size:16px!important}
+.login-screen .google-btn:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 12px 30px -10px rgba(0,0,0,.55)}
+.login-screen #offlineSection > div:first-child{
+  background:rgba(240,181,74,.14)!important;border:1px solid rgba(240,181,74,.45)!important;
+  color:#ffe2a8!important;border-radius:12px}
+.login-screen #offlineSection > div:last-child{color:rgba(255,255,255,.7)!important}
+.login-screen #offlineSection a{color:var(--teal-300)!important}
+.login-err{color:#ff8a9c!important}
+@media(max-width:640px){
+  .login-topbar{padding:16px 18px}.login-wordmark{font-size:34px}
+  .login-stage{gap:28px;padding:0 16px}
+}
+
+/* ════════ HEADER — Eva wordmark lockup ════════ */
+.hdr-top h1.brand{display:flex;align-items:center;gap:11px;font-weight:400}
+.brand-mark{font-family:var(--font-display);font-size:26px;line-height:1;color:var(--text);letter-spacing:-.02em}
+.brand-sub{font-family:"Cairo",sans-serif;font-size:11.5px;font-weight:600;color:var(--muted)}
+.brand-logo{width:34px;height:34px;border-radius:9px;object-fit:cover;
+  background:linear-gradient(135deg,var(--pl),var(--indigo));display:inline-flex;
+  align-items:center;justify-content:center;font-size:18px}
+
+/* ════════ SIDEBAR — Velorah teal glass cushion on active tab ════════ */
+.tab-btn{border-radius:12px}
+.tab-btn.active{background:rgba(31,167,146,.16);color:var(--teal-600);
+  box-shadow:inset 0 0 0 1px rgba(31,167,146,.30)}
+.sidenav{box-shadow:var(--sh-2),inset 0 1px 0 rgba(255,255,255,.7)}
+
+/* ════════ STAT STRIP — Velorah glass summary bar ════════ */
+.stats-bar{background:var(--surface);border:1px solid var(--border);
+  box-shadow:var(--sh-2),inset 0 1px 0 rgba(255,255,255,.7)}
+.sc .num{font-size:28px}
+
+/* ════════ HEADER glass refinement ════════ */
+.hdr{box-shadow:var(--sh-2),inset 0 -1px 0 var(--line-soft)}
+</style>
 </head>
 <body>
 
@@ -634,7 +744,23 @@ window.addEventListener('load', function() {
 
 <!-- LOGIN — UNIFIED: auto-detects connectivity, both options always available -->
 <div class="login-screen" id="loginScreen" style="display:none">
-  <div class="login-card">
+  <!-- cinematic looping video field -->
+  <video class="login-video" autoplay loop muted playsinline poster="">
+    <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260314_131748_f2ca2a28-fed7-44c8-b9a9-bd9acdd5ec31.mp4" type="video/mp4">
+  </video>
+  <div class="login-overlay"></div>
+
+  <!-- top bar: Eva wordmark + faculty affiliation -->
+  <div class="login-topbar">
+    <span class="login-wordmark">Eva</span>
+    <span class="login-affil">كلية التمريض · جامعة بغداد</span>
+  </div>
+
+  <!-- centred hero + login actions -->
+  <div class="login-stage">
+    <h1 class="login-hero animate-fade-rise" dir="ltr">There is nothing worse than <em>incompetent teacher</em></h1>
+
+  <div class="login-card animate-fade-rise-delay-2">
     <div class="logo">🏥</div>
     <h2>تقييم الممارسة اليومية</h2>
 
@@ -676,6 +802,7 @@ window.addEventListener('load', function() {
       </div>
     </div>
   </div>
+  </div><!-- /login-stage -->
 </div>
 
 <!-- APP -->
@@ -687,7 +814,7 @@ window.addEventListener('load', function() {
   </div>
   <div class="hdr" id="hdrEl">
     <div class="hdr-top">
-      <h1>📋 تقييم الممارسة اليومية في المستشفى</h1>
+      <h1 class="brand"><span class="brand-logo">🏥</span><span class="brand-mark">Eva</span><span class="brand-sub">تقييم الممارسة اليومية</span></h1>
       <div class="hdr-meta">
         <div>
           <div class="clock" id="clock">--:--:--</div>
