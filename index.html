@@ -711,27 +711,112 @@ window.addEventListener('load', function() {
   .login-stage{gap:28px;padding:0 16px}
 }
 
-/* ════════ HEADER — Eva wordmark lockup ════════ */
+/* ════════════════════════════════════════════════════════════════════
+   APP INTERIOR — full Velorah design applied across every screen.
+   Frosted glass surfaces, luminous hairline edges, teal accents.
+   ════════════════════════════════════════════════════════════════════ */
+:root{--edge-top:inset 0 1px 0 rgba(255,255,255,.7)}
+body{font-family:var(--font-body)}            /* Inter for Latin, Cairo for Arabic glyphs */
+[dir=rtl] body,body{font-family:"Cairo","Inter",Tahoma,sans-serif}
+.app-body{background:
+  radial-gradient(900px 520px at 88% -8%,rgba(31,167,146,.10),transparent 60%),
+  radial-gradient(760px 600px at -6% 108%,rgba(84,87,230,.07),transparent 55%)}
+
+/* ════════ HEADER — Eva wordmark lockup + glass bar ════════ */
+.hdr{background:rgba(255,255,255,.72);backdrop-filter:blur(16px) saturate(150%);
+  -webkit-backdrop-filter:blur(16px) saturate(150%);
+  box-shadow:var(--sh-2),inset 0 -1px 0 var(--line-soft);border-bottom:1px solid var(--border)}
+.hdr-top{max-width:1280px;margin:0 auto;width:100%}
 .hdr-top h1.brand{display:flex;align-items:center;gap:11px;font-weight:400}
+.brand-text{display:flex;flex-direction:column;gap:1px}
 .brand-mark{font-family:var(--font-display);font-size:26px;line-height:1;color:var(--text);letter-spacing:-.02em}
-.brand-sub{font-family:"Cairo",sans-serif;font-size:11.5px;font-weight:600;color:var(--muted)}
+.brand-sub{font-family:"Cairo",sans-serif;font-size:11px;font-weight:600;color:var(--muted)}
 .brand-logo{width:34px;height:34px;border-radius:9px;object-fit:cover;
   background:linear-gradient(135deg,var(--pl),var(--indigo));display:inline-flex;
-  align-items:center;justify-content:center;font-size:18px}
+  align-items:center;justify-content:center;font-size:18px;box-shadow:var(--sh-1)}
+.hdr-clock{text-align:center}
+.clock{font-family:var(--font-mono)}
+.hdr-icon-btn{width:38px;height:38px;border-radius:50%;border:1px solid var(--border);
+  background:var(--surface-2);color:var(--ink-2);font-size:16px;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;transition:all .18s var(--e-out)}
+.hdr-icon-btn:hover{background:#fff;box-shadow:var(--sh-1);transform:translateY(-1px)}
+.user-info{box-shadow:var(--sh-1)}
+.user-avatar{background:linear-gradient(135deg,var(--pl),var(--indigo))}
+/* sub-bar */
+.hdr-bar{max-width:1280px;margin:0 auto;width:100%;background:transparent;
+  border-top:1px solid var(--line-soft);gap:12px}
+.hdr-fields{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.hinput{background:var(--surface-2);border-radius:10px;font-size:12.5px;width:150px}
+.hl{font-size:11px;color:var(--text-faint,var(--muted));font-weight:700}
+.grp-switch{background:rgba(31,167,146,.06);border-color:var(--border)}
+.sync-bar{margin-inline-start:auto;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:999px;padding:5px 13px;border-top:none;min-height:0;font-size:11.5px}
+.sync-dot{box-shadow:0 0 8px var(--success)}
+/* offline banner — softened, on-brand amber */
+.offline-banner{background:linear-gradient(135deg,#c4861b,#b45309);font-family:"Cairo",sans-serif;
+  font-size:12.5px;padding:7px 18px;box-shadow:var(--sh-1)}
 
-/* ════════ SIDEBAR — Velorah teal glass cushion on active tab ════════ */
-.tab-btn{border-radius:12px}
-.tab-btn.active{background:rgba(31,167,146,.16);color:var(--teal-600);
+/* ════════ SIDEBAR — Velorah grouped glass nav ════════ */
+.sidenav{flex:0 0 232px;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:10px;box-shadow:var(--sh-2),var(--edge-top);top:96px}
+.nav-group-label{font-size:10px;font-weight:800;color:var(--text-faint,#94a7a1);
+  letter-spacing:0;padding:6px 10px 4px}
+.tab-btn{border-radius:12px;font-family:"Cairo",sans-serif}
+.tab-btn.active{background:rgba(31,167,146,.16);color:var(--teal-600);font-weight:700;
   box-shadow:inset 0 0 0 1px rgba(31,167,146,.30)}
-.sidenav{box-shadow:var(--sh-2),inset 0 1px 0 rgba(255,255,255,.7)}
+.tab-btn:not(.active):hover{background:rgba(255,255,255,.7);transform:translateX(-3px)}
 
-/* ════════ STAT STRIP — Velorah glass summary bar ════════ */
-.stats-bar{background:var(--surface);border:1px solid var(--border);
-  box-shadow:var(--sh-2),inset 0 1px 0 rgba(255,255,255,.7)}
-.sc .num{font-size:28px}
+/* ════════ CARD / PANEL GLASS — the Velorah signature surface ════════ */
+.stats-bar,.slist,.lhdr,.plist,.plhdr,.add-area,.esec,.pst,.eitem,.swh-card,
+.modal,.toolbar-panel{box-shadow:var(--sh-2),var(--edge-top)}
+.stats-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--r)}
+.sc{padding:18px 14px}
+.sc .num{font-size:28px;font-family:var(--font-mono)}
+.sc + .sc::before{background:var(--border)}
 
-/* ════════ HEADER glass refinement ════════ */
-.hdr{box-shadow:var(--sh-2),inset 0 -1px 0 var(--line-soft)}
+/* ════════ BUTTONS — cohesive Velorah action set ════════ */
+.btn{border-radius:var(--r-sm);font-family:"Cairo",sans-serif;letter-spacing:-.005em;
+  transition:transform .18s var(--e-out),filter .2s,box-shadow .25s,background .2s}
+.btn:hover{transform:translateY(-1px)}
+.bp,.bt{background:linear-gradient(135deg,var(--pl),var(--primary));color:#fff;box-shadow:var(--sh-1),var(--edge-top)}
+.bpu{background:linear-gradient(135deg,var(--indigo),var(--indigo-d));color:#fff;box-shadow:var(--sh-1),var(--edge-top)}
+.bo{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--border)}
+.bo:hover{background:#fff;box-shadow:var(--sh-1)}
+.bred{background:var(--danger);color:#fff;box-shadow:var(--sh-1)}
+.bw{background:var(--warn);color:#fff;box-shadow:var(--sh-1)}
+
+/* ════════ INPUTS / SEARCH ════════ */
+.sbox,.add-area input{background:var(--surface-2);border-radius:11px}
+.sbox:focus,.hinput:focus,.add-area input:focus{box-shadow:var(--ring);border-color:var(--teal-500)}
+
+/* ════════ STUDENT LIST ════════ */
+.slist{border-radius:0 0 var(--r) var(--r)}
+.lhdr{border-radius:var(--r) var(--r) 0 0;font-family:"Cairo",sans-serif}
+.srow:hover{background:rgba(31,167,146,.05)}
+.sname{font-family:"Cairo",sans-serif}
+.sbadge span{font-family:var(--font-mono)}
+.snum{font-family:var(--font-mono)}
+
+/* ════════ MODALS — glass sheet, teal gradient header ════════ */
+.overlay{background:rgba(0,12,20,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.modal{border-radius:var(--r-lg);box-shadow:var(--sh-3)}
+.mhdr{background:linear-gradient(135deg,var(--teal-600),var(--primary-d));border-radius:var(--r-lg) var(--r-lg) 0 0}
+.mhdr h2{font-family:"Cairo",sans-serif;font-weight:800;font-size:16px}
+.esec{background:var(--surface-2);border-radius:var(--r-md)}
+.estit{color:var(--teal-300,var(--primary))}
+.tbar{background:linear-gradient(135deg,var(--teal-600),var(--primary-d));border-radius:var(--r-md)}
+.tbar .tv{font-family:var(--font-mono)}
+.eval{font-family:var(--font-mono);color:var(--primary)}
+.mftr{border-radius:0 0 var(--r-lg) var(--r-lg)}
+
+/* ════════ PAPER / OTHER TABS — consistent glass cards ════════ */
+.phdr h2{font-family:"Cairo",sans-serif;color:var(--text)}
+.pst{border-radius:10px}
+.plist{border-radius:0 0 var(--r) var(--r)}
+.plhdr{border-radius:var(--r) var(--r) 0 0}
+
+/* ════════ HEADINGS ════════ */
+.content-area h2,.content-area h3{font-family:"Cairo",sans-serif}
 </style>
 </head>
 <body>
@@ -814,15 +899,13 @@ window.addEventListener('load', function() {
   </div>
   <div class="hdr" id="hdrEl">
     <div class="hdr-top">
-      <h1 class="brand"><span class="brand-logo">🏥</span><span class="brand-mark">Eva</span><span class="brand-sub">تقييم الممارسة اليومية</span></h1>
+      <h1 class="brand"><span class="brand-logo">🏥</span><span class="brand-text"><span class="brand-mark">Eva</span><span class="brand-sub">تقييم الممارسة اليومية</span></span></h1>
       <div class="hdr-meta">
-        <div>
+        <div class="hdr-clock">
           <div class="clock" id="clock">--:--:--</div>
           <div class="datedisp" id="datedisp">--</div>
         </div>
-        <button class="btn bo" onclick="swhOpen()" style="color:#fff;border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.1)">🗂️ الأقسام</button>
-        <button class="btn bo" onclick="showTab('hist');setTimeout(openCal,100)" style="color:#fff;border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.1)">📅 سجل الأيام</button>
-        <button class="btn bo" onclick="startTour()" style="color:#fff;border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.1)">❓ جولة إرشادية</button>
+        <button class="hdr-icon-btn" onclick="startTour()" title="جولة إرشادية" aria-label="جولة إرشادية">❓</button>
         <div class="user-info" onclick="handleUserClick()">
           <img class="user-avatar" id="userAvatar" src="" alt="">
           <span class="user-name" id="userName"></span>
@@ -830,21 +913,22 @@ window.addEventListener('load', function() {
         </div>
       </div>
     </div>
-    <div class="sync-bar">
-      <div class="sync-dot" id="syncDot"></div>
-      <span id="syncMsg">متصل — البيانات محفوظة على السحابة</span>
-    </div>
     <div class="hdr-bar">
       <div class="grp-switch">
         <button class="grp-btn active-morning" id="grpBtnMorning" onclick="switchGroup('morning')">🌅 صباحي</button>
         <button class="grp-btn" id="grpBtnEvening" onclick="switchGroup('evening')">🌙 مسائي</button>
       </div>
-      <label class="hl">اسم المستشفى:</label>
-      <input class="hinput" id="hName" placeholder="أدخل اسم المستشفى..." onchange="saveSettings()">
-      <label class="hl">رقم:</label>
-      <input class="hinput" id="hNo" placeholder="رقم..." style="width:80px" onchange="saveSettings()">
-      <label class="hl">المشرف:</label>
-      <input class="hinput" id="supName" placeholder="اسم المشرف..." onchange="saveSettings()">
+      <div class="hdr-fields">
+        <label class="hl">المستشفى</label>
+        <input class="hinput" id="hName" placeholder="اسم المستشفى..." onchange="saveSettings()">
+        <input class="hinput" id="hNo" placeholder="رقم" style="width:64px" onchange="saveSettings()">
+        <label class="hl">المشرف</label>
+        <input class="hinput" id="supName" placeholder="اسم المشرف..." onchange="saveSettings()">
+      </div>
+      <div class="sync-bar" id="syncBar">
+        <div class="sync-dot" id="syncDot"></div>
+        <span id="syncMsg">متصل — البيانات محفوظة على السحابة</span>
+      </div>
     </div>
   </div>
 
@@ -7717,11 +7801,9 @@ document.addEventListener('DOMContentLoaded', function(){
   window.swhOpen=open; window.swhClose=close;
   window.swhEnter=function(k){ for(var n=0;n<TABS.length;n++){ if(TABS[n].k===k){ enter(n); return; } } };
 
-  // Auto-open once, the first time the app UI becomes visible
-  // (covers normal login, offline mode, and optimistic session restore).
-  var appBody=document.getElementById('appBody');
-  function maybeAuto(){ if(window.__swhAuto||!appBody) return; if(getComputedStyle(appBody).display==='none') return; window.__swhAuto=true; open(); }
-  if(appBody){ try{ new MutationObserver(maybeAuto).observe(appBody,{attributes:true,attributeFilter:['style']}); }catch(_){} maybeAuto(); }
+  // Auto-open disabled (Velorah redesign): the section carousel no longer pops
+  // up on entry. It remains available manually via window.swhOpen() if needed.
+  window.__swhAuto = true;
 })();
 </script>
 </body>
