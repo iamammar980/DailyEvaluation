@@ -1133,6 +1133,7 @@ body{font-family:var(--font-body)}            /* Inter for Latin, Cairo for Arab
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <button class="btn" style="background:#fff;color:#117a65;font-weight:700" onclick="backupDownload()">💾 تنزيل نسخة احتياطية</button>
+                <button class="btn" style="background:#fff;color:#117a65;font-weight:700" onclick="exportFullBackup()">🛡️ نسخة احتياطية كاملة</button>
                 <button class="btn" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4)" onclick="document.getElementById('backupFileInput').click()">📂 استعادة من ملف</button>
                 <button class="btn" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4)" onclick="runIntegrityCheck()">🔎 فحص سلامة البيانات</button>
                 <input type="file" id="backupFileInput" accept=".json" style="display:none" onchange="backupRestore(event)">
@@ -2232,6 +2233,8 @@ function enterOfflineModeWithUid(uid) {
   renderList();
   document.getElementById('clrRBtn').style.display = (roster && roster.length > 0) ? '' : 'none';
   dbLoad(); // Load student database from localStorage
+  // PHASE 1 safety net: auto full backup also fires in offline mode
+  if (typeof maybeAutoFullBackup==='function') maybeAutoFullBackup();
 }
 
 // ── RECONNECT (offline → back to login) ───────────────────────────────
@@ -2266,6 +2269,9 @@ function startListeners() {
       takeSnapshot();
       flushQueue(); // re-send anything that failed before the reload
       flushAudit(); // ★ re-send any offline audit entries
+      // PHASE 1 safety net: one-time automatic full backup on first load
+      // of the v2 refactor (before any migration can touch the data).
+      if (typeof maybeAutoFullBackup==='function') maybeAutoFullBackup();
       // PHASE C: remind about backups once data is safely loaded (delayed so it
       // doesn't compete with first render)
       setTimeout(function(){ if(typeof checkBackupReminder==='function') checkBackupReminder(); }, 4000);
@@ -4492,8 +4498,8 @@ function exportFullPDF(){
 // ═══════════════════════════════════════════
 // ★ BACKUP MANAGER — manual + automatic safety copies
 // ═══════════════════════════════════════════
-function backupDownload(){
-  var data = {
+function buildBackupData(){
+  return {
     app: 'hospital-daily-evaluation', version: 3, exportedAt: new Date().toISOString(),
     account: currentUser ? (currentUser.email || currentUser.uid) : 'offline',
     history: history, roster: roster, studentDb: studentDb,
@@ -4511,14 +4517,72 @@ function backupDownload(){
       supervisorName: document.getElementById('supName').value
     }
   };
+}
+
+function downloadJson(data, filename){
   var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'نسخة_احتياطية_'+today()+'.json';
+  a.download = filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+}
+
+function backupDownload(){
+  downloadJson(buildBackupData(), 'نسخة_احتياطية_'+today()+'.json');
   try{ localStorage.setItem('hsp_last_backup', String(Date.now())); }catch(e){}
   toast('✅ تم تنزيل النسخة الاحتياطية الكاملة');
+}
+
+// ── PHASE 1 SAFETY NET: full raw backup ─────────────────────────────────
+// Serializes the normal app-state backup (restorable via the existing
+// applyBackup path) PLUS every raw hsp_* localStorage key PLUS a Firebase
+// snapshot when online — one file that can reconstruct everything, taken
+// before any destructive migration. Also mirrored to /backups/{uid}/{ts}
+// on Firebase when online (best-effort; failure never blocks the download).
+function exportFullBackup(auto){
+  try{
+    var data = buildBackupData();
+    data.kind = 'full-backup';
+    data.hspRaw = {};
+    for (var i = 0; i < localStorage.length; i++){
+      var k = localStorage.key(i);
+      if (k && k.indexOf('hsp_') === 0){
+        try{ data.hspRaw[k] = localStorage.getItem(k); }catch(e){}
+      }
+    }
+    var finish = function(){
+      var stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+      downloadJson(data, 'نسخة_كاملة_'+stamp+'.json');
+      try{ localStorage.setItem('hsp_last_backup', String(Date.now())); }catch(e){}
+      try{ localStorage.setItem('hsp_full_backup_v2', String(Date.now())); }catch(e){}
+      if (!isOfflineMode && currentUser && typeof db !== 'undefined' && db){
+        try{
+          db.ref('backups/'+currentUser.uid+'/'+Date.now()).set({
+            exportedAt: data.exportedAt, kind: 'full-backup', hspRaw: data.hspRaw
+          }).catch(function(e){ if(window.reportIssue) reportIssue('fullBackupCloud', e); });
+        }catch(e){ if(window.reportIssue) reportIssue('fullBackupCloud', e); }
+      }
+      toast(auto ? '🛡️ نُزِّلت نسخة احتياطية كاملة تلقائياً (قبل التحديث)' : '✅ تم تنزيل النسخة الكاملة (بيانات + إعدادات + سحابة)');
+    };
+    if (!isOfflineMode && currentUser && typeof db !== 'undefined' && db){
+      db.ref('users/'+currentUser.uid).once('value').then(function(snap){
+        data.firebase = snap.val() || null; finish();
+      }).catch(function(){ data.firebase = null; finish(); });
+    } else { finish(); }
+  }catch(e){
+    if(window.reportIssue) reportIssue('exportFullBackup', e);
+    toast('تعذر إنشاء النسخة الكاملة');
+  }
+}
+
+// One-time automatic full backup on first load of this version (v2 refactor
+// ships destructive migrations — never lose user data, ground rule #1).
+function maybeAutoFullBackup(){
+  try{
+    if (localStorage.getItem('hsp_full_backup_v2')) return;
+    setTimeout(function(){ exportFullBackup(true); }, 2500);
+  }catch(e){}
 }
 
 // PHASE C: gentle reminder if no manual backup taken in over 7 days.
