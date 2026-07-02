@@ -2183,15 +2183,31 @@ function exitToLogin() {
 // ── OFFLINE ENTRY ─────────────────────────────────────────────────────
 function enterOfflineMode() {
   isOfflineMode = true;
-  var found = false;
+  // Deterministic workspace pick (never guess from arbitrary hsp_* keys —
+  // 'hsp_q_anon' or a flag key is NOT a workspace):
+  //  1) the remembered signed-in session's uid,
+  //  2) the freshest valid cache blob (v===2),
+  //  3) the fixed local workspace 'offline_user'.
+  var sess = getRememberedSession();
+  if (sess && sess.uid && loadFromCache(sess.uid)) return;
+  // rank candidate blobs by data richness first (a stray empty workspace
+  // must never shadow the real one), recency as tiebreak
+  var best = null, bestScore = -1, bestTs = -1;
   for (var i = 0; i < localStorage.length; i++) {
     var k = localStorage.key(i);
-    if (k && k.startsWith('hsp_')) {
-      var uid = k.replace('hsp_', '');
-      if (loadFromCache(uid)) { found = true; break; }
-    }
+    if (!k || k.indexOf('hsp_') !== 0) continue;
+    try {
+      var c = JSON.parse(localStorage.getItem(k));
+      if (c && c.v === 2 && typeof c.ts === 'number') {
+        var score = Object.keys(c.h||{}).length + (c.r||[]).length + (c.sdb||[]).length;
+        if (score > bestScore || (score === bestScore && c.ts > bestTs)) {
+          bestScore = score; bestTs = c.ts; best = k.slice(4);
+        }
+      }
+    } catch(e) {}
   }
-  if (!found) { enterOfflineModeWithUid('offline_user'); }
+  if (best && loadFromCache(best)) return;
+  enterOfflineModeWithUid('offline_user');
 }
 
 function loadFromCache(uid) {
@@ -2199,6 +2215,7 @@ function loadFromCache(uid) {
     var raw = localStorage.getItem('hsp_' + uid);
     if (!raw) return false;
     var c = JSON.parse(raw);
+    if (!c || c.v !== 2) return false; // only real cache blobs qualify
     // Same-day students are restored; a new day starts fresh as designed
     var sameDay = (c.sd === today());
     studentsMorning = sameDay ? (c.sm || []) : [];
@@ -3306,12 +3323,10 @@ function isAtRisk(p){ return !!(p && p.risk && p.risk.length); }
 
 var _profCache=null, _profSig=null;
 function _profilesSig(){
-  // cheap invalidation: changes whenever any session is (re)saved or the
-  // cycle roster changes. daily/cycle saves both stamp __savedAt__ in history.
+  // cheap invalidation: changes whenever any session is (re)saved.
+  // daily/cycle saves and migrations all stamp __savedAt__ in history.
   var keys=Object.keys(history||{}), s=keys.length+'|';
   for(var i=0;i<keys.length;i++){ var d=history[keys[i]]; if(d&&d.__savedAt__) s+=d.__savedAt__+','; }
-  s+='|'+((cycleStore&&cycleStore.length)||0);
-  if(cycleStore&&cycleStore.length){ for(var j=0;j<cycleStore.length;j++){ var st=cycleStore[j]; if(st&&st.days) s+=st.days.join(''); } }
   return s;
 }
 // Cached accessor — prefer this everywhere over calling buildStudentProfiles directly.
@@ -6317,35 +6332,80 @@ function paExportCycle(){
 var __statCharts = [];
 function statDestroyCharts(){ __statCharts.forEach(function(c){ try{c.destroy();}catch(e){} }); __statCharts = []; }
 
+// parse 'cyc_<group>_<type>_dN[_h_<hosp>]_morning' → {group, type, day, hospital}
+// (self-contained: statistics reads the canonical history store directly,
+//  with no dependency on the removed cycle-tab roster)
+function statCycKeyParse(k){
+  k = String(k||'');
+  if (k.indexOf('cyc_') !== 0) return null;
+  var s = k.replace(/_morning$/, '').slice(4);
+  var hosp = '';
+  var hIdx = s.indexOf('_h_');
+  if (hIdx >= 0){ hosp = s.slice(hIdx + 3); s = s.slice(0, hIdx); }
+  var dm = s.match(/_d(\d+)$/); if (!dm) return null;
+  var day = parseInt(dm[1], 10);
+  s = s.slice(0, s.length - dm[0].length);
+  var us = s.indexOf('_');
+  return { group: (us >= 0 ? s.slice(0, us) : s), type: (us >= 0 ? s.slice(us + 1) : ''),
+           day: day, hospital: hosp };
+}
+
+// one shared day-total rule: manual override, else saved total, else score sum
+function statCycDayTotal(rec){
+  if (!rec) return null;
+  if (typeof rec.manualTotal === 'number') return Math.min(15, rec.manualTotal);
+  if (typeof rec.total === 'number') return Math.min(15, rec.total);
+  return migrScoresTotal(rec.scores);
+}
+
 // gather a flat list of graded "/15" data points from BOTH sources
 function statGather(){
-  // ── PHASE 6: integrated multi-level statistics, sourced from the
-  // authoritative by-name eval history (NOT the dead s.days field).
-  // A "cycle" = one group (group||type). Each student carries:
-  //   days[4]  → kept for the existing day-progression charts. With multi-
-  //              hospital data, day d = the AVERAGE of that day across hospitals.
-  //   hospitals[] → {hospital, dayTotals[4], roundTotal} for within-hospital and
-  //                 between-hospital views.
+  // Integrated multi-level statistics sourced DIRECTLY from history's cyc_*
+  // sessions (records matched by their stamped rec.name). A "cycle" = one
+  // group (group||type). Each student carries:
+  //   days[4]  → per-day AVERAGE across hospitals (4-day progression charts)
+  //   hospitals[] → {hospital, dayTotals[4], roundTotal}
   //   grand    → total across all hospitals.
   var cycles = [];
   var byG = {};
-  (cycleStore||[]).forEach(function(s){
-    var gk = cycStudentGKey(s); if(gk==='||') return;
-    if(!byG[gk]){ var gp=cycGParse(gk); byG[gk] = { gkey:gk, group:gp.group, type:gp.type, students:[] }; cycles.push(byG[gk]); }
-    var idxFallback = cycleStore.indexOf(s);
-    var agg = cycAggregateStudent(s, gk, idxFallback);
-    // per-day average across hospitals (keeps the 4-day charts meaningful)
-    var dayAvg4=[null,null,null,null];
-    for(var d=0; d<4; d++){
-      var vals=[]; agg.hospitals.forEach(function(h){ if(h.dayTotals[d]!=null) vals.push(h.dayTotals[d]); });
-      if(vals.length) dayAvg4[d]=+(vals.reduce(function(a,b){return a+b;},0)/vals.length).toFixed(2);
-    }
-    byG[gk].students.push({
-      name: s.name,
-      days: dayAvg4,                 // legacy-compatible 4-slot array (now per-day avg across hospitals)
-      hospitals: agg.hospitals,      // NEW: per-hospital detail
-      grand: agg.grand               // NEW: total across hospitals
+  Object.keys(history||{}).forEach(function(k){
+    var meta = statCycKeyParse(k);
+    if(!meta || !meta.day || meta.day < 1 || meta.day > 4) return;
+    var gk = meta.group + '||' + meta.type;
+    if(!byG[gk]){ byG[gk] = { gkey:gk, group:meta.group, type:meta.type, students:[], _byName:{} }; cycles.push(byG[gk]); }
+    var sess = history[k] || {};
+    Object.keys(sess).forEach(function(i){
+      if(!/^\d+$/.test(i)) return;
+      var rec = sess[i]; if(!rec) return;
+      var nm = String(rec.name||'').trim(); if(!nm) return;
+      var t = statCycDayTotal(rec); if(t == null) return;
+      var stu = byG[gk]._byName[nm];
+      if(!stu){ stu = byG[gk]._byName[nm] = { name:nm, _hosp:{} }; }
+      var hosp = meta.hospital || CYC_HOSP_PLACEHOLDER;
+      if(!stu._hosp[hosp]) stu._hosp[hosp] = { hospital:hosp, dayTotals:[null,null,null,null], roundTotal:null };
+      var cur = stu._hosp[hosp].dayTotals[meta.day-1];
+      stu._hosp[hosp].dayTotals[meta.day-1] = (cur == null) ? t : Math.max(cur, t);
     });
+  });
+  cycles.forEach(function(c){
+    Object.keys(c._byName).forEach(function(nm){
+      var stu = c._byName[nm];
+      var hospitals = Object.keys(stu._hosp).map(function(hn){
+        var h = stu._hosp[hn], sum = 0, has = false;
+        h.dayTotals.forEach(function(v){ if(v != null){ sum += v; has = true; } });
+        h.roundTotal = has ? +sum.toFixed(2) : null;
+        return h;
+      });
+      var grand = 0, gHas = false;
+      hospitals.forEach(function(h){ if(h.roundTotal != null){ grand += h.roundTotal; gHas = true; } });
+      var dayAvg4 = [null,null,null,null];
+      for(var d = 0; d < 4; d++){
+        var vals = []; hospitals.forEach(function(h){ if(h.dayTotals[d] != null) vals.push(h.dayTotals[d]); });
+        if(vals.length) dayAvg4[d] = +(vals.reduce(function(a,b){ return a+b; }, 0) / vals.length).toFixed(2);
+      }
+      c.students.push({ name:nm, days:dayAvg4, hospitals:hospitals, grand: gHas ? +grand.toFixed(2) : null });
+    });
+    delete c._byName;
   });
   cycles.sort(function(a,b){ return (parseInt(a.group)||999)-(parseInt(b.group)||999) || (a.type||'').localeCompare(b.type||'','ar'); });
   // compute per-day averages and overall average for each cycle (unchanged logic)
