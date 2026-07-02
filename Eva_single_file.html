@@ -1153,10 +1153,13 @@
         if (cb) cb(_role);
       }
       if (ov) { done(ov); return; }
-      // try the server-side role node when online
+      // Read the role from the TOP-LEVEL roles/{uid} node — NOT users/{uid}/role.
+      // A user has write access to their own users/{uid} subtree, so a role
+      // stored there could be self-promoted; the separate roles/{uid} node is
+      // admin-write-only per database.rules.json, closing that hole.
       try {
-        if (!window.isOfflineMode && window.currentUser && window.db && typeof dbRef === 'function') {
-          dbRef('role').once('value').then(function (snap) {
+        if (!window.isOfflineMode && window.currentUser && window.db) {
+          window.db.ref('roles/' + currentUser.uid).once('value').then(function (snap) {
             done(snap.val() || 'evaluator');
           }).catch(function () { done('evaluator'); });
           return;
