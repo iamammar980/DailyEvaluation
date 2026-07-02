@@ -49,12 +49,25 @@
 
     resolve: function (cb) {
       var ov = localOverride();
-      function done(r) {
-        _role = r || 'evaluator';
-        _studentId = (_role === 'student') ? resolveStudentId() : null;
+      function emit() {
         _resolved = true;
         if (window.bus) bus.emit('role:resolved', { role: _role, studentId: _studentId });
         if (cb) cb(_role);
+      }
+      function done(r) {
+        _role = r || 'evaluator';
+        if (_role !== 'student') { _studentId = null; emit(); return; }
+        // student: local email match first (evaluator previewing as a student),
+        // else the admin-written studentUids/{uid} binding — how a real student
+        // session (no roster access) finds its own id, matched on uid so no
+        // fragile email-key transform is needed.
+        _studentId = resolveStudentId();
+        if (_studentId) { emit(); return; }
+        if (!window.isOfflineMode && window.currentUser && window.db) {
+          window.db.ref('studentUids/' + currentUser.uid).once('value').then(function (s) {
+            _studentId = s.val() || null; emit();
+          }).catch(function () { emit(); });
+        } else { emit(); }
       }
       if (ov) { done(ov); return; }
       // Read the role from the TOP-LEVEL roles/{uid} node — NOT users/{uid}/role.

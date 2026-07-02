@@ -7,15 +7,35 @@
       }
     },
     "roles": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'",
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).val() === 'admin')",
         ".write": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'"
       }
     },
-    "studentLinks": {
-      "$emailKey": {
-        ".read": "auth != null",
+    "directory": {
+      ".read": "auth != null && (root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'evaluator')",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "studentUids": {
+      ".read": "auth != null && (root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'evaluator')",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'evaluator')",
         ".write": "auth != null && (root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'evaluator')"
+      }
+    },
+    "studentData": {
+      "$sid": {
+        ".read": "auth != null && (root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'evaluator' || root.child('studentUids').child(auth.uid).val() === $sid)",
+        ".write": "auth != null && (root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'evaluator')"
+      }
+    },
+    "studentAcks": {
+      "$sid": {
+        ".read": "auth != null && (root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'evaluator' || root.child('studentUids').child(auth.uid).val() === $sid)",
+        ".write": "auth != null && root.child('studentUids').child(auth.uid).val() === $sid"
       }
     },
     "backups": {

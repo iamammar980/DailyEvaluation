@@ -493,11 +493,20 @@ body{font-family:var(--font-body)}            /* Inter for Latin, Cairo for Arab
           <button class="tab-btn" id="tbdb" onclick="showTab('db')">🗄️ قاعدة البيانات</button>
           <button class="tab-btn" id="tbal" onclick="showTab('audit')">📋 سجل التغييرات</button>
         </div>
+        <!-- admin-only group (hidden unless role = admin) -->
+        <div class="nav-group" id="adminNavGroup" style="display:none">
+          <div class="nav-group-label">الإدارة</div>
+          <button class="tab-btn" id="tbadmin" onclick="showTab('admin')">🛡️ لوحة المدير</button>
+        </div>
       </aside>
       <div class="content-area">
       <!-- STUDENT PORTAL (phase-5, 6.3) — read-only; shown only for student role -->
       <div class="tab-panel" id="pstudent" style="display:none">
         <div id="studentPortal"></div>
+      </div>
+      <!-- ADMIN PANEL — role management + student portal onboarding (admin only) -->
+      <div class="tab-panel" id="padmin">
+        <div id="adminContent"></div>
       </div>
       <!-- TAB: HOME DASHBOARD (phase-4) — pending, flags, quick actions -->
       <div class="tab-panel active" id="phome">
@@ -1815,6 +1824,8 @@ function startListeners() {
       setTimeout(function(){ if(typeof autoLockPass==='function') autoLockPass(); }, 12000);
       // PHASE 5 (6.5a): schedule-driven preselect — land on today's group
       setTimeout(function(){ if(window.Store && typeof schedulePreselect==='function') Store.ready(schedulePreselect); }, 2500);
+      // ADMIN: self-register in the directory so admins can assign your role
+      setTimeout(function(){ if(typeof registerInDirectory==='function') registerInDirectory(); }, 3000);
       // PHASE C: remind about backups once data is safely loaded (delayed so it
       // doesn't compete with first render)
       setTimeout(function(){ if(typeof checkBackupReminder==='function') checkBackupReminder(); }, 9000);
@@ -2054,14 +2065,15 @@ var FIELDS=[
 function showTab(n){
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-  var panels={home:'phome',att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',audit:'pal',prog:'ppg',rot:'prot',stat:'pstat',course:'pcourse'};
-  var btns={home:'tbhome',att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',audit:'tbal',prog:'tbpg',rot:'tbrot',stat:'tbstat',course:'tbcourse'};
+  var panels={home:'phome',att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',audit:'pal',prog:'ppg',rot:'prot',stat:'pstat',course:'pcourse',admin:'padmin'};
+  var btns={home:'tbhome',att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',audit:'tbal',prog:'tbpg',rot:'tbrot',stat:'tbstat',course:'tbcourse',admin:'tbadmin'};
   var panel=document.getElementById(panels[n]);
   panel.classList.add('active');
   // restart the entrance animation so every switch feels alive
   panel.style.animation='none'; void panel.offsetWidth; panel.style.animation='';
   document.getElementById(btns[n]).classList.add('active');
   if(n==='home')   renderHome();
+  if(n==='admin')  renderAdminPanel();
   // PHASE 6: warm-load SheetJS when entering a tab with import/export, so the
   // spreadsheet library is ready by the time the user clicks (no click delay).
   if((n==='db'||n==='stat'||n==='hist'||n==='roster'||n==='course') && window.ensureLib && typeof XLSX==='undefined'){ ensureLib('xlsx').catch(function(){}); }
@@ -2276,7 +2288,136 @@ function applyRoleView(){
     var sp=document.getElementById('pstudent');
     if(sp){ sp.style.display = isStudent ? '' : 'none'; if(isStudent) sp.classList.add('active'); }
     if(isStudent) renderStudentPortal();
+    // reveal the admin nav group only for admins
+    var ag=document.getElementById('adminNavGroup');
+    if(ag) ag.style.display = (window.Roles && Roles.isAdmin() && !isStudent) ? '' : 'none';
   }catch(e){ if(window.reportIssue) reportIssue('applyRoleView', e); }
+}
+
+// ═══════════════════════════════════════════
+// ADMIN PANEL — role management + student-portal onboarding (admin only).
+// People appear here after they log in once (each session self-registers a
+// directory entry: uid + email + name, readable only by admins per rules).
+// ═══════════════════════════════════════════
+function adminGuard(){
+  if(!(window.Roles && Roles.isAdmin())){
+    var c=document.getElementById('adminContent');
+    if(c) c.innerHTML='<div style="border:2px dashed var(--danger);border-radius:12px;padding:30px;text-align:center;color:var(--danger);margin-top:20px">🛡️ هذه اللوحة للمدير فقط.</div>';
+    return false;
+  }
+  return true;
+}
+var __adminDir = {}, __adminRoles = {};
+function renderAdminPanel(){
+  var host=document.getElementById('adminContent'); if(!host) return;
+  if(!adminGuard()) return;
+  // pull the directory + roles once (online), then render
+  if(!isOfflineMode && currentUser && db){
+    Promise.all([
+      db.ref('directory').once('value').then(function(s){return s.val()||{};}).catch(function(){return {};}),
+      db.ref('roles').once('value').then(function(s){return s.val()||{};}).catch(function(){return {};})
+    ]).then(function(r){ __adminDir=r[0]; __adminRoles=r[1]; adminPaint(); });
+  } else { adminPaint(); }
+}
+function adminPaint(){
+  var host=document.getElementById('adminContent'); if(!host) return;
+  var studentsWithEmail = Object.keys((window.eva&&eva.students)||{}).map(function(id){return eva.students[id];})
+    .filter(function(s){ return s && s.email && String(s.email).trim(); });
+  var h='';
+  h+='<div style="background:linear-gradient(135deg,#5b21b6,#7c3aed);color:#fff;border-radius:16px;padding:18px 22px;margin-bottom:16px">';
+  h+='<div style="font-size:20px;font-weight:800">🛡️ لوحة المدير</div>';
+  h+='<div style="font-size:13px;opacity:.9;margin-top:4px">إدارة الصلاحيات وتفعيل بوابة الطلاب</div></div>';
+
+  // ── People & roles ──
+  h+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px">';
+  h+='<div style="font-size:15px;font-weight:800;color:var(--primary);margin-bottom:4px">👥 المستخدمون والصلاحيات</div>';
+  h+='<div style="font-size:12px;color:var(--muted);margin-bottom:12px">يظهر الشخص هنا بعد تسجيل دخوله مرة واحدة. اختر صلاحية كل شخص.</div>';
+  var dirKeys=Object.keys(__adminDir);
+  if(isOfflineMode){ h+='<div style="font-size:13px;color:#b9770e">⚠️ إدارة الصلاحيات تتطلب اتصالاً بالإنترنت.</div>'; }
+  else if(!dirKeys.length){ h+='<div style="font-size:13px;color:var(--muted)">لا يوجد مستخدمون مسجّلون بعد. اطلب منهم تسجيل الدخول مرة، ثم حدّث هذه الصفحة.</div>'; }
+  else{
+    dirKeys.sort(function(a,b){ return (__adminDir[b].ts||0)-(__adminDir[a].ts||0); });
+    dirKeys.forEach(function(uid){
+      var d=__adminDir[uid]||{}, role=__adminRoles[uid]||'evaluator';
+      var isMe=(currentUser&&currentUser.uid===uid);
+      h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 0;border-bottom:1px dashed var(--border)">';
+      h+='<div style="flex:1;min-width:150px"><div style="font-weight:700">'+esc(d.name||'—')+(isMe?' <span style="font-size:10px;color:var(--primary)">(أنت)</span>':'')+'</div><div style="font-size:11px;color:var(--muted);direction:ltr;text-align:right">'+esc(d.email||uid)+'</div></div>';
+      h+='<select onchange="adminSetRole(\''+uid+'\',this.value)" style="border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;font-family:inherit;background:var(--bg)">';
+      ['admin','evaluator','student'].forEach(function(r){
+        var lbl=r==='admin'?'مدير':r==='evaluator'?'مشرف':'طالب';
+        h+='<option value="'+r+'"'+(role===r?' selected':'')+'>'+lbl+'</option>';
+      });
+      h+='</select></div>';
+    });
+  }
+  h+='<div style="margin-top:10px"><button class="btn bo" style="font-size:12px" onclick="renderAdminPanel()">🔄 تحديث القائمة</button></div>';
+  h+='</div>';
+
+  // ── Student portal onboarding ──
+  h+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px">';
+  h+='<div style="font-size:15px;font-weight:800;color:var(--primary);margin-bottom:4px">🎓 تفعيل بوابة الطلاب</div>';
+  h+='<div style="font-size:12px;color:var(--muted);margin-bottom:12px">يربط بريد كل طالب بسجله وينشر بياناته ليطّلع عليها الطالب بتسجيل دخوله بنفس البريد (عرض فقط).</div>';
+  h+='<div style="font-size:13px;margin-bottom:10px">طلاب لديهم بريد في قاعدة البيانات: <b>'+studentsWithEmail.length+'</b> من '+Object.keys((window.eva&&eva.students)||{}).length+'</div>';
+  if(isOfflineMode){ h+='<div style="font-size:13px;color:#b9770e">⚠️ يتطلب اتصالاً بالإنترنت للنشر.</div>'; }
+  else{
+    h+='<button class="btn bp" onclick="adminPublishPortals()"'+(studentsWithEmail.length?'':' disabled style="opacity:.5"')+'>📤 ربط ونشر بوابات الطلاب ('+studentsWithEmail.length+')</button>';
+    h+='<div id="adminPublishResult" style="font-size:12px;margin-top:8px"></div>';
+  }
+  if(studentsWithEmail.length<Object.keys((window.eva&&eva.students)||{}).length){
+    h+='<div style="font-size:11px;color:var(--muted);margin-top:8px">💡 الطلاب بلا بريد لن تُفعَّل بواباتهم. أضف بريدهم في تبويب «قاعدة البيانات».</div>';
+  }
+  h+='</div>';
+  host.innerHTML=h;
+}
+function adminSetRole(uid, role){
+  if(!(window.Roles && Roles.isAdmin())) return;
+  if(!db){ toast('يتطلب اتصالاً'); return; }
+  db.ref('roles/'+uid).set(role).then(function(){
+    __adminRoles[uid]=role;
+    toast('✅ تم تعيين الصلاحية: '+(role==='admin'?'مدير':role==='evaluator'?'مشرف':'طالب'));
+  }).catch(function(){ toast('تعذّر حفظ الصلاحية — تحقق من قواعد الأمان'); });
+}
+// Publish each student's timeline to studentData/{sid}, and bind the uid of
+// any student who has logged in (appears in the directory with a matching
+// email) via studentUids/{uid}=sid — the trusted, admin-written link that
+// lets that student's session read only their own record.
+function adminPublishPortals(){
+  if(!(window.Roles && Roles.isAdmin()) || !db){ toast('يتطلب صلاحية مدير واتصالاً'); return; }
+  var out=document.getElementById('adminPublishResult'); if(out){ out.style.color='var(--muted)'; out.textContent='⏳ جارٍ النشر…'; }
+  // email → sid map from the roster
+  var emailToSid={};
+  Object.keys((window.eva&&eva.students)||{}).forEach(function(id){
+    var s=eva.students[id]; if(s&&s.email&&String(s.email).trim()) emailToSid[String(s.email).trim().toLowerCase()]=id;
+  });
+  var updates={}, published=0, bound=0;
+  Object.keys(emailToSid).forEach(function(email){
+    var sid=emailToSid[email], s=eva.students[sid];
+    var tl=window.Selectors?Selectors.getStudentTimeline(sid):[];
+    updates['studentData/'+sid]={ name:s.name, email:s.email, updatedAt:Date.now(),
+      timeline: tl.map(function(t){ return { dateISO:t.dateISO, total:t.total, attendance:t.attendance,
+        entrustment:t.entrustment, feedback:t.feedback, legacyCycleDay:t.legacyCycleDay, id:t.id }; }) };
+    published++;
+  });
+  // bind logged-in students (directory) whose email matches a roster email
+  Object.keys(__adminDir||{}).forEach(function(uid){
+    var em=String((__adminDir[uid]||{}).email||'').trim().toLowerCase();
+    if(em && emailToSid[em]){ updates['studentUids/'+uid]=emailToSid[em]; bound++; }
+  });
+  db.ref().update(updates).then(function(){
+    if(out){ out.style.color='var(--success)'; out.innerHTML='✅ نُشرت بيانات <b>'+published+'</b> طالب • رُبِط <b>'+bound+'</b> ممن سجّلوا الدخول.'
+      +(bound<published?'<br><span style="color:var(--muted)">الطلاب غير المرتبطين لم يسجّلوا الدخول بعد — كرّر النشر بعد دخولهم.</span>':''); }
+    toast('🎓 نُشرت بوابات الطلاب');
+  }).catch(function(e){ if(out){ out.style.color='#c0504a'; out.textContent='❌ تعذّر النشر — تحقق من قواعد الأمان.'; } });
+}
+
+// every session self-registers in the admin directory (own uid only)
+function registerInDirectory(){
+  try{
+    if(isOfflineMode || !currentUser || !db) return;
+    db.ref('directory/'+currentUser.uid).set({
+      email: currentUser.email||'', name: currentUser.displayName||currentUser.email||'', ts: Date.now()
+    }).catch(function(){});
+  }catch(e){}
 }
 
 function renderStudentPortal(){
@@ -2286,16 +2427,33 @@ function renderStudentPortal(){
     host.innerHTML='<div style="border:2px dashed var(--primary);border-radius:12px;padding:30px;text-align:center;background:#eef7f6;margin-top:20px">'
       +'<div style="font-size:40px;margin-bottom:10px">🎓</div>'
       +'<div style="font-size:16px;font-weight:700;color:var(--primary);margin-bottom:8px">لا يوجد سجل مرتبط بحسابك</div>'
-      +'<div style="font-size:13px;color:var(--muted);line-height:1.9">تأكد أن بريدك الإلكتروني مسجَّل في قاعدة بيانات الطلاب لدى المشرف.</div></div>';
+      +'<div style="font-size:13px;color:var(--muted);line-height:1.9">تأكد أن بريدك الإلكتروني مسجَّل في قاعدة بيانات الطلاب لدى المشرف، وأنه فُعِّلت بوابتك.</div></div>';
     return;
   }
-  var s = window.Selectors ? Selectors.student(sid) : null;
-  var tl = window.Selectors ? Selectors.getStudentTimeline(sid) : [];
+  // Data source: local store if we have it (evaluator previewing), else the
+  // published studentData/{sid} (a real student session has no roster access).
+  var localTl = window.Selectors ? Selectors.getStudentTimeline(sid) : [];
+  if(localTl.length || isOfflineMode || !db){
+    var localName = (window.Selectors && Selectors.student(sid)) ? Selectors.student(sid).name : '';
+    paintStudentPortal(localName, localTl, null); return;
+  }
+  host.innerHTML='<div style="padding:30px;text-align:center;color:var(--muted)">⏳ جارٍ تحميل ملفك…</div>';
+  Promise.all([
+    db.ref('studentData/'+sid).once('value').then(function(s){return s.val();}).catch(function(){return null;}),
+    db.ref('studentAcks/'+sid).once('value').then(function(s){return s.val()||{};}).catch(function(){return {};})
+  ]).then(function(r){
+    var d=r[0]||{};
+    paintStudentPortal(d.name||'', (d.timeline||[]), r[1]);
+  });
+}
+function paintStudentPortal(name, tl, ackMap){
+  var host=document.getElementById('studentPortal'); if(!host) return;
+  var entNames={1:'مراقبة',2:'إشراف مباشر',3:'إشراف غير مباشر',4:'مستقل',5:'يُشرف على غيره'};
+  var s = name ? {name:name} : null;
   var graded = tl.filter(function(t){ return t.total!=null; });
   var avg = graded.length ? (graded.reduce(function(a,t){return a+t.total;},0)/graded.length) : null;
   var present = tl.filter(function(t){return t.attendance==='present';}).length;
   var absent = tl.filter(function(t){return t.attendance==='absent';}).length;
-  var entNames={1:'مراقبة',2:'إشراف مباشر',3:'إشراف غير مباشر',4:'مستقل',5:'يُشرف على غيره'};
 
   var h='';
   h+='<div style="background:linear-gradient(135deg,var(--primary),#0c5b52);color:#fff;border-radius:16px;padding:20px 22px;margin-bottom:16px">';
@@ -2323,7 +2481,7 @@ function renderStudentPortal(){
   if(!fbs.length){ h+='<div style="font-size:13px;color:var(--muted)">لا توجد ملاحظات بعد.</div>'; }
   else{
     fbs.slice().reverse().forEach(function(t){
-      var acked = t.id && studentAckState(t.id);
+      var acked = t.id && (studentAckState(t.id) || (ackMap && ackMap[String(t.id).replace(/[.#$\[\]\/]/g,'_')]));
       h+='<div style="border-bottom:1px dashed var(--border);padding:9px 0">';
       h+='<div style="font-size:11px;color:var(--muted);margin-bottom:3px">'+esc(t.dateISO||('دورة يوم '+t.legacyCycleDay))+'</div>';
       if((t.feedback.well||'').trim()) h+='<div style="font-size:13px">✅ '+esc(t.feedback.well)+'</div>';
@@ -2344,12 +2502,17 @@ function studentAckState(evalId){
   return !!(r && r.ack && r.ack.seen);
 }
 function studentAck(evalId){
-  if(!window.Store || !eva.evaluations[evalId]) return;
   var sid = window.Roles ? Roles.studentId() : null;
-  Store.update('evaluations.'+evalId, function(rec){
-    rec.ack = { seen:true, ts:Date.now(), by: sid };
-    return rec;
-  }, { action:'student:ack:'+evalId });
+  // evaluator previewing their own store: mark on the record (audited).
+  if(window.Store && window.eva && eva.evaluations[evalId]){
+    Store.update('evaluations.'+evalId, function(rec){ rec.ack={seen:true,ts:Date.now(),by:sid}; return rec; },
+      { action:'student:ack:'+evalId });
+  }
+  // real student session (no store access): write to their own studentAcks node.
+  else if(sid && !isOfflineMode && db){
+    var key=String(evalId).replace(/[.#$\[\]\/]/g,'_');
+    db.ref('studentAcks/'+sid+'/'+key).set(Date.now()).catch(function(){});
+  }
   renderStudentPortal();
   toast('شكراً — تم تسجيل اطّلاعك على الملاحظات ✓');
 }
@@ -2710,6 +2873,16 @@ function lockEval(idx){
 
 function unlockEval(idx){
   var day=getSession(); if(!day[idx]) return;
+  // ★ 6.8: only an admin may reopen a signed/locked evaluation. Supervisors
+  // can sign and lock, but not amend a locked grade — that's grade protection.
+  if(window.Roles && Roles.resolved() && !Roles.isAdmin()){
+    if(typeof Swal!=='undefined'){
+      Swal.fire({icon:'info',title:'صلاحية المدير مطلوبة',
+        html:'هذا التقييم معتمد ومقفل. فتحه للتعديل يتطلب صلاحية <b>مدير</b>.<br><span style="font-size:12px;color:#666">راجع مدير النظام لإعادة فتحه.</span>',
+        confirmButtonText:'حسناً', confirmButtonColor:'#14746b'});
+    } else { toast('🔒 فتح التقييم المعتمد يتطلب صلاحية مدير'); }
+    return;
+  }
   if(!confirm('فتح هذا التقييم المعتمد للتعديل؟ سيُوسم التقييم بأنه «معدَّل» ويُسجَّل ذلك في سجل التغييرات.')) return;
   day[idx].locked = false;
   day[idx].amended = true;   // permanent: PDF exports print a «معدَّل» watermark
