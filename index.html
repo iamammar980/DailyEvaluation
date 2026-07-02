@@ -1135,6 +1135,7 @@ body{font-family:var(--font-body)}            /* Inter for Latin, Cairo for Arab
                 <button class="btn" style="background:#fff;color:#117a65;font-weight:700" onclick="exportFullBackup()">🛡️ نسخة احتياطية كاملة</button>
                 <button class="btn" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4)" onclick="document.getElementById('backupFileInput').click()">📂 استعادة من ملف</button>
                 <button class="btn" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4)" onclick="runIntegrityCheck()">🔎 فحص سلامة البيانات</button>
+                <button class="btn" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4)" onclick="migrShowReview()">📋 سجل الترحيل</button>
                 <input type="file" id="backupFileInput" accept=".json" style="display:none" onchange="backupRestore(event)">
               </div>
             </div>
@@ -2234,6 +2235,8 @@ function enterOfflineModeWithUid(uid) {
   dbLoad(); // Load student database from localStorage
   // PHASE 1 safety net: auto full backup also fires in offline mode
   if (typeof maybeAutoFullBackup==='function') maybeAutoFullBackup();
+  // PHASE 2: legacy-store migration (offline path — local data only)
+  setTimeout(function(){ if(typeof runPhase2Migrations==='function') runPhase2Migrations(); }, 5000);
 }
 
 // ── RECONNECT (offline → back to login) ───────────────────────────────
@@ -2271,9 +2274,12 @@ function startListeners() {
       // PHASE 1 safety net: one-time automatic full backup on first load
       // of the v2 refactor (before any migration can touch the data).
       if (typeof maybeAutoFullBackup==='function') maybeAutoFullBackup();
+      // PHASE 2: fold legacy course/cycle evaluation stores into history
+      // (runs after the safety backup has fired; additive + idempotent).
+      setTimeout(function(){ if(typeof runPhase2Migrations==='function') runPhase2Migrations(); }, 5000);
       // PHASE C: remind about backups once data is safely loaded (delayed so it
       // doesn't compete with first render)
-      setTimeout(function(){ if(typeof checkBackupReminder==='function') checkBackupReminder(); }, 4000);
+      setTimeout(function(){ if(typeof checkBackupReminder==='function') checkBackupReminder(); }, 9000);
     }
   }
 
@@ -4673,6 +4679,266 @@ function restoreSnapshot(key){
     applyBackup(d);
     toast('✅ تمت استعادة النسخة التلقائية');
   }catch(e){ toast('خطأ في الاستعادة'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PHASE 2 MIGRATIONS — fold the two parallel evaluation stores into the
+// canonical `history` store, as cyc_* sessions:
+//   • courseEval[groupId][hospitalId][dayIndex][studentName]  (course tab)
+//   • cycleStore legacy day-grades + unread `rounds` layer     (cycle tab)
+// Non-destructive: only ADDS/merges records into history; never overwrites
+// an existing value. Names are resolved against studentDb (exact first,
+// then Fuse.js fuzzy ≤ 0.2); anything unresolved is kept under its original
+// name and logged to an on-screen review list — never guessed.
+// ═══════════════════════════════════════════════════════════════════════
+
+// Firebase path segments must not contain . # $ [ ] /
+function migrSanitizeSeg(s){ return String(s||'').replace(/[.#$\[\]\/]/g, '-').trim(); }
+
+// total from a scores{} object using the canonical FIELDS definition
+function migrScoresTotal(scores){
+  if (!scores) return null;
+  var t = 0, any = false;
+  FIELDS.forEach(function(sec){ sec.items.forEach(function(it){
+    var v = parseFloat(scores[it.k]);
+    if (!isNaN(v)){ t += Math.max(0, Math.min(v, it.m)); any = true; }
+  }); });
+  return any ? Math.min(t, 15) : null;
+}
+
+// name resolver factory: exact match on studentDb, else Fuse ≤ 0.2
+function migrMakeResolver(report){
+  var exact = {};
+  (studentDb||[]).forEach(function(r){ if(r && r.name) exact[String(r.name).trim()] = String(r.name).trim(); });
+  var fuse = null;
+  try{
+    if (typeof Fuse !== 'undefined' && (studentDb||[]).length){
+      fuse = new Fuse(studentDb, { keys:['name'], threshold:0.2, includeScore:true });
+    }
+  }catch(e){}
+  return function(raw, where){
+    var nm = String(raw||'').trim();
+    if (!nm) return '';
+    if (exact[nm]) return exact[nm];
+    if (fuse){
+      var hits = fuse.search(nm);
+      if (hits && hits.length && hits[0].item && hits[0].item.name){
+        var to = String(hits[0].item.name).trim();
+        if (to !== nm) report.fuzzy.push({ from:nm, to:to, where:where });
+        return to;
+      }
+    }
+    if (!report._seenUnres[nm]){ report._seenUnres[nm]=1; report.unresolved.push({ name:nm, where:where }); }
+    return nm; // keep original — data is preserved, flagged for review
+  };
+}
+
+// merge a migrated record into a session: append if the student has no
+// record there; otherwise fill only MISSING fields (never overwrite).
+function migrWriteRec(sessKey, name, rec, report, touched){
+  if (!history[sessKey]) history[sessKey] = {};
+  var sess = history[sessKey];
+  var existing = null, maxIdx = -1;
+  Object.keys(sess).forEach(function(k){
+    if (!/^\d+$/.test(k)) return;
+    var n = parseInt(k,10); if (n > maxIdx) maxIdx = n;
+    var r = sess[k];
+    if (r && String(r.name||'').trim() === name) existing = r;
+  });
+  if (existing){
+    var mergedAny = false;
+    ['attendance','attendanceTime','scores','total','evaluated','notes','paperDelivered','paperGrade','manualTotal'].forEach(function(f){
+      var has = existing[f] !== undefined && existing[f] !== null && existing[f] !== '' &&
+                !(f==='scores' && existing.scores && Object.keys(existing.scores).length===0);
+      if (!has && rec[f] !== undefined && rec[f] !== null && rec[f] !== ''){ existing[f] = rec[f]; mergedAny = true; }
+    });
+    if (mergedAny){ report.merged++; touched[sessKey] = 1; } else report.skipped++;
+  } else {
+    rec.name = name;
+    sess[String(maxIdx+1)] = rec;
+    report.written++; touched[sessKey] = 1;
+  }
+}
+
+// courseEval[gid][hid][day][name] → history['cyc_<grp>_<type>_d<day>_h_<hosp>_morning']
+function migrateCourseEvalData(evalObj, cfg, report, touched, resolve){
+  if (!evalObj || typeof evalObj !== 'object') return;
+  var groups = {}, hosps = {};
+  ((cfg&&cfg.groups)||[]).forEach(function(g){ groups[g.id] = g; });
+  ((cfg&&cfg.hospitals)||[]).forEach(function(h){ hosps[h.id] = h; });
+  Object.keys(evalObj).forEach(function(gid){
+    var g = groups[gid];
+    Object.keys(evalObj[gid]||{}).forEach(function(hid){
+      var h = hosps[hid];
+      Object.keys(evalObj[gid][hid]||{}).forEach(function(day){
+        var cell = evalObj[gid][hid][day]||{};
+        Object.keys(cell).forEach(function(rawName){
+          var leaf = cell[rawName]; if (!leaf || typeof leaf !== 'object') return;
+          var hasContent = (leaf.scores && Object.keys(leaf.scores).length) || leaf.total != null ||
+                           leaf.evaluated || leaf.attendance || leaf.paperDelivered !== undefined ||
+                           (leaf.notes && String(leaf.notes).trim());
+          if (!hasContent) return;
+          if (!g || !h){ // config lost — never guess the mapping
+            if (!report._seenUnres['@'+rawName]){ report._seenUnres['@'+rawName]=1;
+              report.unresolved.push({ name:String(rawName), where:'كورس: مجموعة '+gid+' / مستشفى '+hid+' / يوم '+day+' — الإعدادات مفقودة' }); }
+            return;
+          }
+          var typeAr = (g.shift === 'evening') ? 'مسائي' : 'صباحي';
+          var key = 'cyc_' + g.number + '_' + typeAr + '_d' + parseInt(day,10) +
+                    '_h_' + migrSanitizeSeg(h.name) + '_morning';
+          var nm = resolve(rawName, 'كورس: '+ (g.label||gid) +' / '+ (h.name||hid) +' / يوم '+day);
+          var rec = {
+            scores: (leaf.scores && Object.keys(leaf.scores).length) ? leaf.scores : undefined,
+            total: (leaf.total != null) ? Math.min(parseFloat(leaf.total)||0, 15)
+                   : migrScoresTotal(leaf.scores),
+            evaluated: !!leaf.evaluated || !!(leaf.scores && Object.keys(leaf.scores).length),
+            attendance: leaf.attendance || undefined,
+            paperDelivered: (leaf.paperDelivered === true || leaf.paperDelivered === false) ? leaf.paperDelivered : undefined,
+            notes: (leaf.notes && String(leaf.notes).trim()) ? leaf.notes : undefined
+          };
+          if (rec.total == null) delete rec.total;
+          migrWriteRec(key, nm, rec, report, touched);
+        });
+      });
+    });
+  });
+}
+
+// cycleStore student: legacy days['12','13.5',..] + rounds{hosp:{days:[rec×4]}}
+// → history['cyc_<grp>_<type>_dN[_h_<hosp>]_morning']
+function migrateCycleData(storeArr, fallbackHosp, report, touched, resolve){
+  if (!Array.isArray(storeArr)) return;
+  storeArr.forEach(function(s){
+    if (!s || !String(s.name||'').trim()) return;
+    var grp = String(s.group||'').trim(), typ = String(s.type||'').trim();
+    if (!grp && !typ) return;
+    var nm = resolve(s.name, 'دورة: مجموعة '+grp+(typ?(' '+typ):''));
+    var base = 'cyc_' + grp + '_' + typ + '_d';
+    var wrote = {};
+    var rounds = (s.rounds && typeof s.rounds === 'object') ? s.rounds : {};
+    Object.keys(rounds).forEach(function(hosp){
+      var days = (rounds[hosp] && Array.isArray(rounds[hosp].days)) ? rounds[hosp].days : [];
+      days.forEach(function(r, i){
+        if (!r || typeof r !== 'object') return;
+        var hasContent = (typeof r.manualTotal === 'number') || (r.scores && Object.keys(r.scores).length) ||
+                         (r.notes && String(r.notes).trim()) || r.attendance ||
+                         r.paperDelivered === true || r.paperDelivered === false ||
+                         (r.paperGrade && String(r.paperGrade).trim());
+        if (!hasContent) return;
+        var noHosp = (!hosp || hosp === '__غير_محدد__');
+        var key = base + (i+1) + (noHosp ? '' : ('_h_' + migrSanitizeSeg(hosp))) + '_morning';
+        var total = (typeof r.manualTotal === 'number') ? Math.min(r.manualTotal, 15) : migrScoresTotal(r.scores);
+        var rec = {
+          scores: (r.scores && Object.keys(r.scores).length) ? r.scores : undefined,
+          manualTotal: (typeof r.manualTotal === 'number') ? r.manualTotal : undefined,
+          total: (total != null) ? total : undefined,
+          evaluated: !!((r.scores && Object.keys(r.scores).length) || typeof r.manualTotal === 'number'),
+          attendance: r.attendance || undefined,
+          paperDelivered: (r.paperDelivered === true || r.paperDelivered === false) ? r.paperDelivered : undefined,
+          paperGrade: (r.paperGrade && String(r.paperGrade).trim()) ? r.paperGrade : undefined,
+          notes: (r.notes && String(r.notes).trim()) ? r.notes : undefined
+        };
+        migrWriteRec(key, nm, rec, report, touched);
+        wrote[i+1] = 1;
+      });
+    });
+    // legacy manual day strings — only when no rounds data covered them
+    (Array.isArray(s.days) ? s.days : []).forEach(function(dstr, i){
+      var v = parseFloat(dstr);
+      if (isNaN(v) || wrote[i+1]) return;
+      var noHosp = !String(fallbackHosp||'').trim();
+      var key = base + (i+1) + (noHosp ? '' : ('_h_' + migrSanitizeSeg(fallbackHosp))) + '_morning';
+      migrWriteRec(key, nm, { manualTotal: v, total: Math.min(v,15), evaluated: true }, report, touched);
+    });
+  });
+}
+
+function migrShowSummary(report, isReview){
+  var total = report.written + report.merged;
+  var html = '<div style="text-align:right;font-size:14px;line-height:2">';
+  html += '<div>✅ سجلات مُرحَّلة: <b>' + report.written + '</b></div>';
+  html += '<div>🔀 سجلات مدموجة (استكمال حقول ناقصة): <b>' + report.merged + '</b></div>';
+  html += '<div>⏭️ سجلات موجودة مسبقاً (تُركت كما هي): <b>' + report.skipped + '</b></div>';
+  if (report.fuzzy && report.fuzzy.length){
+    html += '<div style="margin-top:8px;font-weight:700">🔎 أسماء صُحِّحت تلقائياً (مطابقة تقريبية):</div>';
+    report.fuzzy.slice(0,15).forEach(function(f){ html += '<div style="font-size:12px;color:#555">«' + esc(f.from) + '» ← «' + esc(f.to) + '»</div>'; });
+  }
+  if (report.unresolved && report.unresolved.length){
+    html += '<div style="margin-top:8px;font-weight:700;color:#c0504a">⚠️ أسماء غير موجودة في قاعدة البيانات (رُحِّلت بأسمائها الأصلية — راجعها):</div>';
+    report.unresolved.slice(0,20).forEach(function(u){ html += '<div style="font-size:12px;color:#555">' + esc(u.name) + ' <span style="color:#999">(' + esc(u.where||'') + ')</span></div>'; });
+    if (report.unresolved.length > 20) html += '<div style="font-size:12px;color:#999">و' + (report.unresolved.length-20) + ' أخرى…</div>';
+  }
+  html += '</div>';
+  var title = isReview ? 'سجل ترحيل البيانات' : (total ? 'تم ترحيل بيانات التقييم القديمة' : 'فحص الترحيل');
+  if (typeof Swal !== 'undefined'){
+    Swal.fire({ icon: (report.unresolved && report.unresolved.length) ? 'warning' : 'success',
+                title: title, html: html, confirmButtonText: 'حسناً', confirmButtonColor: '#14746b', width: 620 });
+  } else {
+    toast(title + ' — ' + total + ' سجل');
+  }
+}
+
+function migrShowReview(){
+  try{
+    var r = JSON.parse(localStorage.getItem('hsp_migr_review') || 'null');
+    if (!r){ toast('لا يوجد سجل ترحيل محفوظ'); return; }
+    migrShowSummary(r, true);
+  }catch(e){ toast('تعذر قراءة سجل الترحيل'); }
+}
+
+// Orchestrator: runs once per browser (idempotent anyway — reruns merge/skip).
+// Online it also pulls the cloud copies of the legacy stores so a device that
+// never opened the old tabs still migrates everything.
+function runPhase2Migrations(){
+  try{ if (localStorage.getItem('hsp_migr_v2_done')) return; }catch(e){}
+  var report = { written:0, merged:0, skipped:0, fuzzy:[], unresolved:[], _seenUnres:{} };
+  var touched = {};
+  var resolve = migrMakeResolver(report);
+  function fold(extraCourseEval, extraCourseCfg, extraCycStore, extraCycHosp){
+    try{
+      var cfg = courseConfig || extraCourseCfg || null;
+      migrateCourseEvalData((typeof courseEval!=='undefined' ? courseEval : null), cfg, report, touched, resolve);
+      if (extraCourseEval) migrateCourseEvalData(extraCourseEval, cfg, report, touched, resolve);
+      var localCyc = (typeof cycleStore!=='undefined' && Array.isArray(cycleStore)) ? cycleStore : [];
+      var localHosp = (typeof cycHospital!=='undefined') ? cycHospital : '';
+      migrateCycleData(localCyc, localHosp, report, touched, resolve);
+      if (extraCycStore) migrateCycleData(extraCycStore, extraCycHosp || localHosp, report, touched, resolve);
+      // persist every touched session through the queue-protected path
+      Object.keys(touched).forEach(function(k){
+        history[k].__savedAt__ = Date.now();
+        var dbKey = k.replace(/^(\d{4})-(\d{2})-(\d{2})_/, '$1_$2_$3_');
+        queueWrite('history/' + dbKey, history[k]);
+      });
+      if (Object.keys(touched).length){
+        if (!isOfflineMode && currentUser && db) flushQueue();
+        cacheLocally();
+        if (typeof invalidateProfiles === 'function') invalidateProfiles();
+      }
+      try{
+        localStorage.setItem('hsp_migr_v2_done', String(Date.now()));
+        if (report.unresolved.length || report.fuzzy.length){
+          var save = { written:report.written, merged:report.merged, skipped:report.skipped,
+                       fuzzy:report.fuzzy, unresolved:report.unresolved, ts:Date.now() };
+          localStorage.setItem('hsp_migr_review', JSON.stringify(save));
+        }
+      }catch(e){}
+      if (report.written || report.merged || report.unresolved.length) migrShowSummary(report);
+    }catch(e){ if (window.reportIssue) reportIssue('runPhase2Migrations', e); }
+  }
+  if (!isOfflineMode && currentUser && db){
+    Promise.all([
+      dbRef('courseEval').once('value').then(function(s){return s.val();}).catch(function(){return null;}),
+      dbRef('courseConfig').once('value').then(function(s){return s.val();}).catch(function(){return null;}),
+      dbRef('cycleStore').once('value').then(function(s){return s.val();}).catch(function(){return null;}),
+      dbRef('cycleHospital').once('value').then(function(s){return s.val();}).catch(function(){return null;})
+    ]).then(function(res){
+      var cs = res[2];
+      if (cs && !Array.isArray(cs)) cs = Object.values(cs);
+      fold(res[0], res[1] ? (typeof courseNormalize==='function' ? courseNormalize(res[1]) : res[1]) : null, cs, res[3] || '');
+    }).catch(function(){ fold(null, null, null, ''); });
+  } else {
+    fold(null, null, null, '');
+  }
 }
 
 // ── PHASE C part 2: data integrity check (READ-ONLY, never auto-fixes) ──
