@@ -69,16 +69,1672 @@
 })();
 </script>
 <!-- Data core (phase-3): event bus + canonical store. Classic scripts, no build step. -->
-<script src="/src/bus.js"></script>
-<script src="/src/store.js"></script>
-<script src="/src/selectors.js"></script>
-<script src="/src/migrate.js"></script>
-<script src="/src/bridge.js"></script>
-<script src="/src/flags.js"></script>
-<script src="/src/roles.js"></script>
-<script src="/src/sync.js"></script>
+<script>
+/* ── Event bus — the only way features talk to each other ────────────────
+   Events in use:
+     evaluation:saved   { evalId }        attendance:changed { evalId }
+     students:changed   {}                config:changed     {}
+     flags:changed      {}                sync:state         { state }
+   Tabs render from current state on entry AND subscribe for live updates;
+   no tab may call into another tab's code. */
+(function () {
+  'use strict';
+  var handlers = {};
+  window.bus = {
+    on: function (ev, fn) { (handlers[ev] = handlers[ev] || []).push(fn); return fn; },
+    off: function (ev, fn) {
+      var h = handlers[ev]; if (!h) return;
+      var i = h.indexOf(fn); if (i >= 0) h.splice(i, 1);
+    },
+    emit: function (ev, data) {
+      (handlers[ev] || []).slice().forEach(function (fn) {
+        try { fn(data); } catch (e) { if (window.reportIssue) reportIssue('bus:' + ev, e); }
+      });
+    }
+  };
+})();
+
+</script>
+<script>
+/* ── Data core: the ONE canonical store (schema v2) ──────────────────────
+   eva = {
+     meta:        { schemaVersion, deviceId, lastMigration },
+     students:    { [studentId]: {id, name, nameAr, email, group, area, active} },
+     config:      { groups, hospitals, schedule, cycleLengthDays, settings },
+     evaluations: { [evalId]: { dateISO, groupId, hospitalId, studentId,
+                                attendance, scores, feedback, cases, entrustment,
+                                evaluatorUid, evaluatorName, signature, locked,
+                                notes, total, paperDelivered,
+                                createdAt, updatedAt, rev } },
+     flags:       { [studentId]: [ {ruleId, severity, msg, dateISO, seen} ] },
+   }
+   evalId = dateISO + '_' + groupId + '_' + hospitalId + '_' + studentId
+
+   RULES (enforced by convention + the phase-3 grep guard):
+   • No code outside src/store.js and src/sync.js may touch localStorage,
+     indexedDB or firebase.database() directly.
+   • Every mutation goes through Store.update() — which persists, appends
+     the audit entry, enqueues sync, and emits the bus event in one place.
+   Durable layer: IndexedDB ('eva-db'); the in-memory `eva` object is the
+   synchronous working copy. */
+(function () {
+  'use strict';
+
+  window.eva = {
+    meta: { schemaVersion: 2, deviceId: null, lastMigration: null },
+    students: {},
+    config: { groups: [], hospitals: [], schedule: [], cycleLengthDays: 4, settings: {} },
+    evaluations: {},
+    flags: {}
+  };
+
+  /* ── tiny promise wrapper over IndexedDB ── */
+  var DB_NAME = 'eva-db', DB_VER = 1, _db = null, idbOk = true;
+  function idbOpen() {
+    return new Promise(function (res, rej) {
+      if (!window.indexedDB) { idbOk = false; return res(null); }
+      var rq = indexedDB.open(DB_NAME, DB_VER);
+      rq.onupgradeneeded = function (e) {
+        var d = e.target.result;
+        if (!d.objectStoreNames.contains('kv')) d.createObjectStore('kv');
+        if (!d.objectStoreNames.contains('evaluations')) d.createObjectStore('evaluations');
+        if (!d.objectStoreNames.contains('audit')) d.createObjectStore('audit', { autoIncrement: true });
+        if (!d.objectStoreNames.contains('outbox')) d.createObjectStore('outbox', { autoIncrement: true });
+      };
+      rq.onsuccess = function () { _db = rq.result; res(_db); };
+      rq.onerror = function () { idbOk = false; res(null); };
+    });
+  }
+  function tx(store, mode) { return _db.transaction(store, mode).objectStore(store); }
+  function idbPut(store, key, val) {
+    return new Promise(function (res) {
+      if (!_db) return res(false);
+      try {
+        var rq = (key === undefined) ? tx(store, 'readwrite').add(val) : tx(store, 'readwrite').put(val, key);
+        rq.onsuccess = function () { res(true); };
+        rq.onerror = function () { res(false); };
+      } catch (e) { res(false); }
+    });
+  }
+  function idbDel(store, key) {
+    return new Promise(function (res) {
+      if (!_db) return res(false);
+      try { var rq = tx(store, 'readwrite').delete(key); rq.onsuccess = function(){res(true);}; rq.onerror = function(){res(false);}; }
+      catch (e) { res(false); }
+    });
+  }
+  function idbGet(store, key) {
+    return new Promise(function (res) {
+      if (!_db) return res(undefined);
+      try { var rq = tx(store, 'readonly').get(key); rq.onsuccess = function(){res(rq.result);}; rq.onerror = function(){res(undefined);}; }
+      catch (e) { res(undefined); }
+    });
+  }
+  function idbAll(store) {
+    return new Promise(function (res) {
+      if (!_db) return res({ keys: [], values: [] });
+      try {
+        var os = tx(store, 'readonly'), keys = [], values = [];
+        var rq = os.openCursor();
+        rq.onsuccess = function (e) {
+          var c = e.target.result;
+          if (c) { keys.push(c.key); values.push(c.value); c.continue(); }
+          else res({ keys: keys, values: values });
+        };
+        rq.onerror = function () { res({ keys: keys, values: values }); };
+      } catch (e) { res({ keys: [], values: [] }); }
+    });
+  }
+
+  /* ── path helpers ── */
+  function getPath(obj, path) {
+    if (!path) return obj;
+    var parts = String(path).split('.');
+    var cur = obj;
+    for (var i = 0; i < parts.length; i++) { if (cur == null) return undefined; cur = cur[parts[i]]; }
+    return cur;
+  }
+
+  function nowIso() { return new Date().toISOString(); }
+  function clone(v) { try { return JSON.parse(JSON.stringify(v)); } catch (e) { return v; } }
+
+  var _ready = false, _readyCbs = [];
+
+  window.Store = {
+    /* read from the in-memory state */
+    get: function (path) { return getPath(window.eva, path); },
+
+    ready: function (cb) { if (_ready) cb(); else _readyCbs.push(cb); },
+    isReady: function () { return _ready; },
+
+    /* THE one mutation door.
+       path:    'evaluations.<evalId>' | 'students' | 'students.<id>' |
+                'config' | 'config.settings' | 'flags' | 'flags.<id>' | 'meta'
+       patchFn: function(draft){ ...mutate or return replacement... }
+       meta:    { action, uid, name, event, silent } */
+    update: function (path, patchFn, meta) {
+      meta = meta || {};
+      var parts = String(path).split('.');
+      var slice = parts[0];
+      var before = clone(getPath(window.eva, path));
+
+      /* apply */
+      var draft = getPath(window.eva, path);
+      var result;
+      if (typeof patchFn === 'function') {
+        if (draft === undefined || draft === null || typeof draft !== 'object') {
+          result = patchFn(draft);
+        } else {
+          result = patchFn(draft);
+          if (result === undefined) result = draft; // in-place mutation style
+        }
+      } else {
+        result = patchFn; // direct value
+      }
+      /* write back into eva */
+      if (parts.length === 1) {
+        window.eva[slice] = result;
+      } else {
+        var parent = getPath(window.eva, parts.slice(0, -1).join('.'));
+        if (parent == null) { // build intermediate objects
+          parent = window.eva;
+          for (var i = 0; i < parts.length - 1; i++) {
+            if (parent[parts[i]] == null) parent[parts[i]] = {};
+            parent = parent[parts[i]];
+          }
+        }
+        if (result === undefined) { delete parent[parts[parts.length - 1]]; }
+        else parent[parts[parts.length - 1]] = result;
+      }
+
+      /* evaluation bookkeeping: rev/updatedAt stamps */
+      var evalId = null;
+      if (slice === 'evaluations' && parts.length >= 2) {
+        evalId = parts[1];
+        var rec = window.eva.evaluations[evalId];
+        if (rec) {
+          rec.updatedAt = Date.now();
+          rec.rev = (rec.rev || 0) + 1;
+          if (!rec.createdAt) rec.createdAt = rec.updatedAt;
+        }
+      }
+
+      /* persist (async, never blocks the UI) */
+      if (slice === 'evaluations') {
+        if (evalId) {
+          var v = window.eva.evaluations[evalId];
+          if (v === undefined) idbDel('evaluations', evalId); else idbPut('evaluations', evalId, clone(v));
+        } else {
+          // whole-slice replace (migration) — persist each record
+          Object.keys(window.eva.evaluations).forEach(function (id) {
+            idbPut('evaluations', id, clone(window.eva.evaluations[id]));
+          });
+        }
+      } else {
+        idbPut('kv', slice, clone(window.eva[slice]));
+      }
+
+      /* audit — every mutation, automatically (no manual calls anywhere) */
+      if (!meta.noAudit) {
+        var entry = {
+          ts: Date.now(),
+          uid: meta.uid || (window.currentUser ? currentUser.uid : 'local'),
+          name: meta.name || (window.currentUser ? (currentUser.displayName || currentUser.email || '') : ''),
+          action: meta.action || ('update:' + path),
+          evalId: evalId,
+          before: before,
+          after: clone(getPath(window.eva, path))
+        };
+        idbPut('audit', undefined, entry);
+        window.bus.emit('audit:appended', entry);
+      }
+
+      /* sync outbox — replayed by src/sync.js when online */
+      if (!meta.noSync) {
+        var item = { path: path, value: clone(getPath(window.eva, path)), ts: Date.now(),
+                     rev: evalId && window.eva.evaluations[evalId] ? window.eva.evaluations[evalId].rev : null,
+                     deviceId: window.eva.meta.deviceId };
+        idbPut('outbox', undefined, item);
+        window.bus.emit('outbox:queued', item);
+      }
+
+      /* notify */
+      if (!meta.silent) {
+        var ev = meta.event ||
+          (slice === 'evaluations' ? 'evaluation:saved' :
+           slice === 'students' ? 'students:changed' :
+           slice === 'config' ? 'config:changed' :
+           slice === 'flags' ? 'flags:changed' : 'state:changed');
+        window.bus.emit(ev, { path: path, evalId: evalId });
+      }
+      return getPath(window.eva, path);
+    },
+
+    subscribe: function (ev, fn) { return window.bus.on(ev, fn); },
+
+    /* explicit deletion (update()'s patchFn cannot express it: a mutating
+       patch returns undefined and means "keep the draft") */
+    remove: function (path, meta) {
+      meta = meta || {};
+      var parts = String(path).split('.');
+      if (parts.length < 2) return false; // whole slices are never removed
+      var before = clone(getPath(window.eva, path));
+      if (before === undefined) return false;
+      var parent = getPath(window.eva, parts.slice(0, -1).join('.'));
+      if (parent == null) return false;
+      delete parent[parts[parts.length - 1]];
+
+      var slice = parts[0];
+      var evalId = (slice === 'evaluations') ? parts[1] : null;
+      if (slice === 'evaluations' && parts.length === 2) idbDel('evaluations', evalId);
+      else idbPut('kv', slice, clone(window.eva[slice]));
+
+      if (!meta.noAudit) {
+        var entry = {
+          ts: Date.now(),
+          uid: meta.uid || (window.currentUser ? currentUser.uid : 'local'),
+          name: meta.name || (window.currentUser ? (currentUser.displayName || currentUser.email || '') : ''),
+          action: meta.action || ('remove:' + path),
+          evalId: evalId, before: before, after: null
+        };
+        idbPut('audit', undefined, entry);
+        window.bus.emit('audit:appended', entry);
+      }
+      if (!meta.noSync) {
+        var item = { path: path, value: null, removed: true, ts: Date.now(),
+                     rev: null, deviceId: window.eva.meta.deviceId };
+        idbPut('outbox', undefined, item);
+        window.bus.emit('outbox:queued', item);
+      }
+      if (!meta.silent) {
+        var ev = meta.event ||
+          (slice === 'evaluations' ? 'evaluation:saved' :
+           slice === 'students' ? 'students:changed' :
+           slice === 'config' ? 'config:changed' :
+           slice === 'flags' ? 'flags:changed' : 'state:changed');
+        window.bus.emit(ev, { path: path, evalId: evalId, removed: true });
+      }
+      return true;
+    },
+
+    /* audit + outbox accessors (store-internal persistence, read-only API) */
+    auditRecent: function (limit) {
+      return idbAll('audit').then(function (r) {
+        var v = r.values || [];
+        return v.slice(Math.max(0, v.length - (limit || 200)));
+      });
+    },
+    outboxDrain: function (handler) {
+      /* handler(item) → Promise(success). Items removed only on success. */
+      return idbAll('outbox').then(function (r) {
+        var chain = Promise.resolve(true);
+        r.keys.forEach(function (k, i) {
+          chain = chain.then(function () {
+            return handler(r.values[i]).then(function (ok) {
+              if (ok) return idbDel('outbox', k);
+              return false;
+            });
+          });
+        });
+        return chain;
+      });
+    },
+    outboxCount: function () { return idbAll('outbox').then(function (r) { return r.keys.length; }); },
+
+    /* boot: open IDB, hydrate memory */
+    init: function () {
+      return idbOpen().then(function () {
+        return Promise.all([
+          idbGet('kv', 'meta'), idbGet('kv', 'students'), idbGet('kv', 'config'),
+          idbGet('kv', 'flags'), idbAll('evaluations')
+        ]);
+      }).then(function (r) {
+        if (r[0]) window.eva.meta = r[0];
+        if (r[1]) window.eva.students = r[1];
+        if (r[2]) window.eva.config = r[2];
+        if (r[3]) window.eva.flags = r[3];
+        var ev = r[4];
+        ev.keys.forEach(function (k, i) { window.eva.evaluations[k] = ev.values[i]; });
+        if (!window.eva.meta.deviceId) {
+          window.eva.meta.deviceId = 'dev_' + Math.random().toString(36).slice(2, 10);
+          idbPut('kv', 'meta', clone(window.eva.meta));
+        }
+        _ready = true;
+        _readyCbs.splice(0).forEach(function (cb) { try { cb(); } catch (e) {} });
+        window.bus.emit('store:ready', {});
+      });
+    }
+  };
+
+  /* self-boot: consumers gate on Store.ready(cb) */
+  window.Store.init();
+})();
+
+</script>
+<script>
+/* ── Selectors: the ONLY read path for views, exports and email ──────────
+   Every derived read goes through here so the daily grid, statistics,
+   progress, rotation, exports and any future student portal agree by
+   construction. Pure functions over window.eva — no DOM, no side effects.
+   Scoring is centralized: computeTotal() is the single 15-point rule.     */
+(function () {
+  'use strict';
+
+  // FIELDS is defined in the main script; mirror the axis maxima defensively
+  function fieldDefs() {
+    if (window.FIELDS && Array.isArray(window.FIELDS)) return window.FIELDS;
+    return [];
+  }
+
+  /* THE one scoring rule (max 15), used everywhere. */
+  function computeTotal(scores) {
+    if (!scores) return null;
+    var defs = fieldDefs(), t = 0, any = false;
+    if (defs.length) {
+      defs.forEach(function (sec) {
+        sec.items.forEach(function (it) {
+          var v = parseFloat(scores[it.k]);
+          if (!isNaN(v)) { t += Math.max(0, Math.min(v, it.m)); any = true; }
+        });
+      });
+    } else {
+      Object.keys(scores).forEach(function (k) {
+        var v = parseFloat(scores[k]); if (!isNaN(v)) { t += v; any = true; }
+      });
+    }
+    return any ? Math.round(Math.min(t, 15) * 100) / 100 : null;
+  }
+
+  /* effective day total for a record: multi-rater average when two or more
+     evaluators graded it (6.4), else manual override, saved total, or sum */
+  function recordTotal(r) {
+    if (!r) return null;
+    if (r.byEvaluator) {
+      var ks = Object.keys(r.byEvaluator);
+      if (ks.length >= 2) {
+        var s = 0, n = 0;
+        ks.forEach(function (k) { var t = r.byEvaluator[k] && r.byEvaluator[k].total;
+          if (typeof t === 'number') { s += t; n++; } });
+        if (n >= 2) return Math.round((s / n) * 100) / 100;
+      }
+    }
+    if (typeof r.manualTotal === 'number') return Math.min(15, r.manualTotal);
+    if (typeof r.total === 'number') return Math.min(15, r.total);
+    return computeTotal(r.scores);
+  }
+
+  function evalsArray() {
+    var e = window.eva.evaluations, out = [];
+    Object.keys(e).forEach(function (id) { var r = e[id]; r._id = id; out.push(r); });
+    return out;
+  }
+
+  var Selectors = {
+    computeTotal: computeTotal,
+    recordTotal: recordTotal,
+
+    /* one student's full record (display) */
+    student: function (id) { return window.eva.students[id] || null; },
+    studentName: function (id) { var s = window.eva.students[id]; return s ? s.name : id; },
+    allStudents: function () {
+      return Object.keys(window.eva.students).map(function (id) { return window.eva.students[id]; });
+    },
+
+    /* a group's students, from config (id-based) */
+    groupStudents: function (groupId) {
+      var g = (window.eva.config.groups || []).filter(function (x) { return x.id === groupId; })[0];
+      if (!g) return [];
+      // config groups may store studentIds (new) or names (migrated) — normalize
+      return (g.studentIds || g.students || []).map(function (ref) {
+        return window.eva.students[ref] || Selectors.byName(ref);
+      }).filter(Boolean);
+    },
+    byName: function (name) {
+      var nm = String(name || '').trim();
+      var ids = Object.keys(window.eva.students);
+      for (var i = 0; i < ids.length; i++) if (window.eva.students[ids[i]].name === nm) return window.eva.students[ids[i]];
+      return null;
+    },
+
+    /* all evaluations for one calendar day + shift(group) */
+    getDay: function (dateISO, groupId) {
+      return evalsArray().filter(function (r) {
+        return r.dateISO === dateISO && (!groupId || r.groupId === groupId);
+      });
+    },
+
+    /* one student's timeline (progress detail, portal) — chronological */
+    getStudentTimeline: function (studentId) {
+      var rows = evalsArray().filter(function (r) { return r.studentId === studentId; });
+      rows.sort(function (a, b) {
+        var ad = a.dateISO || ('~cyc' + (a.legacyCycleDay || 0));
+        var bd = b.dateISO || ('~cyc' + (b.legacyCycleDay || 0));
+        return ad < bd ? -1 : ad > bd ? 1 : 0;
+      });
+      return rows.map(function (r) {
+        return { id: r._id, dateISO: r.dateISO, groupId: r.groupId, hospitalId: r.hospitalId,
+                 total: recordTotal(r), attendance: r.attendance, paperDelivered: r.paperDelivered,
+                 entrustment: r.entrustment, feedback: r.feedback, cases: r.cases || [],
+                 legacyCycleDay: r.legacyCycleDay || null, scores: r.scores };
+      });
+    },
+
+    /* rotation-day cards for one hospital block (rotation tab) */
+    getCycle: function (hospitalId, groupId) {
+      return evalsArray().filter(function (r) {
+        return (!hospitalId || r.hospitalId === hospitalId) && (!groupId || r.groupId === groupId);
+      });
+    },
+
+    /* group averages over a date range (statistics) */
+    getGroupAverages: function (groupId, fromISO, toISO) {
+      var rows = evalsArray().filter(function (r) {
+        if (groupId && r.groupId !== groupId) return false;
+        if (fromISO && r.dateISO && r.dateISO < fromISO) return false;
+        if (toISO && r.dateISO && r.dateISO > toISO) return false;
+        return true;
+      });
+      var byStudent = {};
+      rows.forEach(function (r) {
+        var t = recordTotal(r); if (t == null) return;
+        (byStudent[r.studentId] = byStudent[r.studentId] || []).push(t);
+      });
+      var out = { students: {}, mean: null, count: 0 };
+      var all = [];
+      Object.keys(byStudent).forEach(function (sid) {
+        var vals = byStudent[sid];
+        var m = vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
+        out.students[sid] = { name: Selectors.studentName(sid), mean: +m.toFixed(2), days: vals.length, sum: +vals.reduce(function(a,b){return a+b;},0).toFixed(2) };
+        vals.forEach(function (v) { all.push(v); });
+      });
+      out.count = all.length;
+      out.mean = all.length ? +(all.reduce(function (a, b) { return a + b; }, 0) / all.length).toFixed(2) : null;
+      return out;
+    },
+
+    /* per-evaluator leniency (statistics 6.7) */
+    getEvaluatorStats: function () {
+      var byEv = {}, cohort = [];
+      evalsArray().forEach(function (r) {
+        var t = recordTotal(r); if (t == null) return;
+        cohort.push(t);
+        var k = r.evaluatorUid || r.evaluatorName || 'legacy';
+        (byEv[k] = byEv[k] || { key: k, name: r.evaluatorName || 'قديم', totals: [] }).totals.push(t);
+      });
+      var cMean = cohort.length ? cohort.reduce(function (a, b) { return a + b; }, 0) / cohort.length : 0;
+      return Object.keys(byEv).map(function (k) {
+        var e = byEv[k], m = e.totals.reduce(function (a, b) { return a + b; }, 0) / e.totals.length;
+        return { key: k, name: e.name, mean: +m.toFixed(2), count: e.totals.length, delta: +(m - cMean).toFixed(2) };
+      });
+    },
+
+    /* pending evaluations today for one evaluator (dashboard 6.5) */
+    getPending: function (dateISO, evaluatorUid) {
+      // pending = a scheduled group's student with no evaluated record today
+      var done = {};
+      Selectors.getDay(dateISO).forEach(function (r) {
+        if (r.evaluated) done[r.studentId] = true;
+      });
+      var pending = [];
+      (window.eva.config.groups || []).forEach(function (g) {
+        Selectors.groupStudents(g.id).forEach(function (s) {
+          if (s && !done[s.id]) pending.push({ studentId: s.id, name: s.name, groupId: g.id });
+        });
+      });
+      return pending;
+    }
+  };
+
+  window.Selectors = Selectors;
+})();
+
+</script>
+<script>
+/* ── v1 → v2 migration: lift the legacy name-keyed stores into `eva` ─────
+   Sources (READ-ONLY — old keys are kept for 30 days, then cleaned):
+     • studentDb global (hsp_sdb)          → eva.students  (stable ids)
+     • courseConfig global (hsp_course)    → eva.config    (groups/hospitals/schedule)
+     • header settings + roster            → eva.config.settings / eva.config.roster
+     • history global (daily + cyc_* keys) → eva.evaluations
+   Id rules:
+     studentId  'st<num>' from the university number column when unique,
+                else a deterministic slug of the name. Names found in
+                history but not in the registry are auto-created with
+                needsReview:true — never guessed, never dropped.
+     evalId     daily:  <dateISO>_<shift>_<hospitalId>_<studentId>
+                legacy cycle (no real date): cycd<N>_<groupId>_<hospitalId>_<studentId>
+                (kept unique per rotation day; carries legacyCycleDay:N)
+   The migration is idempotent: existing eva.evaluations records are never
+   overwritten (skip), so re-runs and multi-device runs converge.        */
+(function () {
+  'use strict';
+
+  function slug(name) {
+    // deterministic, collision-resistant enough for a class roster
+    var s = String(name || '').trim();
+    var h = 5381;
+    for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+    return 'stn' + h.toString(36);
+  }
+  function sanitizeId(s) { return String(s || '').replace(/[.#$\[\]\/\s]+/g, '-').replace(/^-+|-+$/g, ''); }
+
+  function buildStudents(report) {
+    var byName = {}, usedIds = {};
+    var rows = (window.studentDb && Array.isArray(studentDb)) ? studentDb : [];
+    rows.forEach(function (r) {
+      var nm = String((r && r.name) || '').trim(); if (!nm) return;
+      var id = null;
+      var num = String((r && r.num) || '').trim();
+      if (num && !usedIds['st' + num]) id = 'st' + sanitizeId(num);
+      if (!id || usedIds[id]) id = slug(nm);
+      if (usedIds[id]) return; // exact duplicate row
+      usedIds[id] = 1;
+      byName[nm] = id;
+      window.eva.students[id] = {
+        id: id, name: nm, nameAr: nm,
+        email: String(r.email || ''), group: String(r.group || ''),
+        area: String(r.area || ''), type: String(r.type || ''),
+        active: true, needsReview: false
+      };
+      report.students++;
+    });
+    return {
+      resolve: function (nm) {
+        nm = String(nm || '').trim(); if (!nm) return null;
+        if (byName[nm]) return byName[nm];
+        var id = slug(nm);
+        if (!window.eva.students[id]) {
+          window.eva.students[id] = { id: id, name: nm, nameAr: nm, email: '', group: '',
+                                      area: '', type: '', active: true, needsReview: true };
+          report.autoCreated++;
+        }
+        byName[nm] = id;
+        return id;
+      }
+    };
+  }
+
+  function buildConfig() {
+    var cfg = window.eva.config;
+    var cc = (typeof courseConfig !== 'undefined' && courseConfig) ? courseConfig : null;
+    if (cc) {
+      cfg.groups = JSON.parse(JSON.stringify(cc.groups || []));
+      cfg.hospitals = JSON.parse(JSON.stringify(cc.hospitals || []));
+      cfg.schedule = JSON.parse(JSON.stringify(cc.schedule || []));
+      cfg.courseName = cc.name || '';
+      cfg.startDate = cc.startDate || '';
+      cfg.daysPerWeek = cc.daysPerWeek || 2;
+      cfg.weeksPerStation = cc.weeksPerStation || 2;
+    }
+    cfg.cycleLengthDays = 4;
+    try {
+      cfg.settings = {
+        hospitalName: document.getElementById('hName') ? document.getElementById('hName').value : '',
+        hospitalNo: document.getElementById('hNo') ? document.getElementById('hNo').value : '',
+        supervisorName: document.getElementById('supName') ? document.getElementById('supName').value : ''
+      };
+    } catch (e) { cfg.settings = {}; }
+    if (window.roster && Array.isArray(roster) && roster.length) {
+      cfg.roster = JSON.parse(JSON.stringify(roster));
+    }
+  }
+
+  function hospitalId(name) {
+    var nm = String(name || '').trim();
+    if (!nm) return 'h_unknown';
+    var hs = window.eva.config.hospitals || [];
+    for (var i = 0; i < hs.length; i++) if (hs[i].name === nm) return hs[i].id;
+    return 'h_' + sanitizeId(nm);
+  }
+  function groupIdFor(groupNum, typeAr) {
+    var shift = (typeAr && typeAr.indexOf('مسائ') >= 0) ? 'evening' : 'morning';
+    var gs = window.eva.config.groups || [];
+    for (var i = 0; i < gs.length; i++) {
+      if (String(gs[i].number) === String(groupNum) && gs[i].shift === shift) return gs[i].id;
+    }
+    return 'legacy_g' + sanitizeId(groupNum) + '_' + (shift === 'evening' ? 'e' : 'm');
+  }
+
+  function recBase(old, sess) {
+    return {
+      attendance: old.attendance || null,
+      attendanceTime: old.attendanceTime || null,
+      scores: old.scores || {},
+      total: (typeof old.total === 'number') ? old.total :
+             (typeof old.manualTotal === 'number' ? Math.min(15, old.manualTotal) : null),
+      manualTotal: (typeof old.manualTotal === 'number') ? old.manualTotal : undefined,
+      evaluated: !!old.evaluated,
+      notes: old.notes || '',
+      paperDelivered: (old.paperDelivered === true || old.paperDelivered === false) ? old.paperDelivered : null,
+      entrustment: null,
+      feedback: { well: '', improve: '' },
+      cases: [],
+      evaluatorUid: null, evaluatorName: null,
+      signature: null,
+      locked: !!old.locked,
+      legacy: true,
+      createdAt: (sess && sess.__savedAt__) || Date.now(),
+      updatedAt: (sess && sess.__savedAt__) || Date.now(),
+      rev: 1
+    };
+  }
+
+  function hasContent(r) {
+    return !!(r && (r.attendance || r.evaluated || (typeof r.total === 'number') ||
+             (typeof r.manualTotal === 'number') ||
+             (r.scores && Object.keys(r.scores).length) ||
+             (r.notes && String(r.notes).trim()) ||
+             r.paperDelivered === true || r.paperDelivered === false));
+  }
+
+  window.migrateV1toV2 = function () {
+    if (window.eva.meta.v1Migrated) return null;
+    var report = { students: 0, autoCreated: 0, evals: 0, skipped: 0, nameless: 0 };
+    try {
+      var resolver = buildStudents(report);
+      buildConfig();
+
+      // The app's `history` global lives in the main inline script; read it
+      // through the explicit accessor it exposes. If the accessor is not
+      // wired, BAIL WITHOUT setting the migrated flag (nothing was lifted).
+      if (typeof window.__getAppHistory !== 'function') return report;
+      var H = window.__getAppHistory() || {};
+
+      Object.keys(H).forEach(function (key) {
+        var sess = H[key]; if (!sess || typeof sess !== 'object') return;
+        var daily = key.match(/^(\d{4}-\d{2}-\d{2})_(morning|evening)$/);
+        var cyc = (key.indexOf('cyc_') === 0) ? (function () {
+          var s = key.replace(/_morning$/, '').slice(4);
+          var hosp = ''; var hIdx = s.indexOf('_h_');
+          if (hIdx >= 0) { hosp = s.slice(hIdx + 3); s = s.slice(0, hIdx); }
+          var dm = s.match(/_d(\d+)$/); if (!dm) return null;
+          var day = parseInt(dm[1], 10);
+          s = s.slice(0, s.length - dm[0].length);
+          var us = s.indexOf('_');
+          return { group: us >= 0 ? s.slice(0, us) : s, type: us >= 0 ? s.slice(us + 1) : '', day: day, hospital: hosp };
+        })() : null;
+        if (!daily && !cyc) return;
+
+        var names = Array.isArray(sess.__names__) ? sess.__names__ : [];
+        Object.keys(sess).forEach(function (idx) {
+          if (!/^\d+$/.test(idx)) return;
+          var old = sess[idx];
+          if (!hasContent(old)) return;
+          var nm = String((old && old.name) || names[parseInt(idx, 10)] || '').trim();
+          if (!nm) { report.nameless++; return; } // unattributable — stays in legacy history
+          var sid = resolver.resolve(nm);
+          var evalId, rec = recBase(old, sess);
+          if (daily) {
+            var hosp = sess.__hospital__ || (window.eva.config.settings && window.eva.config.settings.hospitalName) || '';
+            evalId = daily[1] + '_' + daily[2] + '_' + hospitalId(hosp) + '_' + sid;
+            rec.dateISO = daily[1];
+            rec.groupId = daily[2]; // shift-as-group until course groups take over
+            rec.hospitalId = hospitalId(hosp);
+            if (sess.__block__) rec.block = sess.__block__;
+            if (sess.__dayNo__) rec.legacyCycleDay = parseInt(sess.__dayNo__, 10) || null;
+            if (sess.__unit__) rec.unit = sess.__unit__;
+          } else {
+            var gid = groupIdFor(cyc.group, cyc.type);
+            var hid = cyc.hospital ? hospitalId(cyc.hospital) : 'h_unknown';
+            evalId = 'cycd' + cyc.day + '_' + gid + '_' + hid + '_' + sid;
+            rec.dateISO = null; // legacy rotation day — no calendar date recorded
+            rec.groupId = gid;
+            rec.hospitalId = hid;
+            rec.legacyCycleDay = cyc.day;
+          }
+          rec.studentId = sid;
+          if (window.eva.evaluations[evalId]) { report.skipped++; return; } // idempotent
+          window.eva.evaluations[evalId] = rec;
+          report.evals++;
+        });
+      });
+
+      // persist everything in one pass (audit: a single summary entry)
+      window.Store.update('students', function () { return window.eva.students; },
+        { action: 'migrate:v1:students', noSync: true, silent: true, noAudit: true });
+      window.Store.update('config', function () { return window.eva.config; },
+        { action: 'migrate:v1:config', noSync: true, silent: true, noAudit: true });
+      window.Store.update('evaluations', function () { return window.eva.evaluations; },
+        { action: 'migrate:v1:evaluations', noSync: true, silent: true, noAudit: true });
+      window.eva.meta.v1Migrated = Date.now();
+      window.eva.meta.lastMigration = 'v1->v2';
+      window.eva.meta.v1KeepUntil = Date.now() + 30 * 86400000; // old keys read-only for 30 days
+      window.Store.update('meta', function () { return window.eva.meta; },
+        { action: 'migrate:v1:done (' + report.evals + ' eval, ' + report.students + ' students, ' +
+                  report.autoCreated + ' auto-created, ' + report.skipped + ' skipped)',
+          noSync: true });
+      window.bus.emit('students:changed', {});
+      window.bus.emit('config:changed', {});
+      window.bus.emit('evaluation:saved', { migrated: true });
+      return report;
+    } catch (e) {
+      if (window.reportIssue) reportIssue('migrateV1toV2', e);
+      return report;
+    }
+  };
+})();
+
+</script>
+<script>
+/* ── Strangler bridge: classic history writes → canonical v2 Store ───────
+   The classic UI still drives the screens (tested, working). Every classic
+   save also flows here into eva.evaluations via Store.update, so the v2
+   store stays live, the audit log + sync outbox fill on every mutation, and
+   the bus fires — letting new/subscribed surfaces update with no cross-tab
+   coupling. This is the read-side unification path for later phases: once a
+   tab reads from Selectors, its classic writes are already mirrored here.
+
+   Exposed: window.bridgeSession(sessionKey, sessionObj) — call after a
+   classic saveDay writes history[sessionKey]. Idempotent per (evalId,rev):
+   it re-derives the record and updates only when content changed.          */
+(function () {
+  'use strict';
+
+  function slug(name) {
+    var s = String(name || '').trim(), h = 5381;
+    for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+    return 'stn' + h.toString(36);
+  }
+  function sanitize(s) { return String(s || '').replace(/[.#$\[\]\/\s]+/g, '-').replace(/^-+|-+$/g, ''); }
+
+  function resolveStudentId(name) {
+    var nm = String(name || '').trim(); if (!nm) return null;
+    // exact match in the registry
+    var ids = Object.keys(window.eva.students);
+    for (var i = 0; i < ids.length; i++) if (window.eva.students[ids[i]].name === nm) return ids[i];
+    // auto-create (flagged for review) — never drop a graded student
+    var id = slug(nm);
+    if (!window.eva.students[id]) {
+      window.Store.update('students.' + id, function () {
+        return { id: id, name: nm, nameAr: nm, email: '', group: '', area: '', type: '',
+                 active: true, needsReview: true };
+      }, { action: 'bridge:autoStudent', event: 'students:changed', noSync: false });
+    }
+    return id;
+  }
+
+  function hospitalId(name) {
+    var nm = String(name || '').trim(); if (!nm) return 'h_unknown';
+    var hs = window.eva.config.hospitals || [];
+    for (var i = 0; i < hs.length; i++) if (hs[i].name === nm) return hs[i].id;
+    return 'h_' + sanitize(nm);
+  }
+  function groupIdFor(groupNum, typeAr) {
+    var shift = (typeAr && String(typeAr).indexOf('مسائ') >= 0) ? 'evening' : 'morning';
+    var gs = window.eva.config.groups || [];
+    for (var i = 0; i < gs.length; i++) if (String(gs[i].number) === String(groupNum) && gs[i].shift === shift) return gs[i].id;
+    return 'legacy_g' + sanitize(groupNum) + '_' + (shift === 'evening' ? 'e' : 'm');
+  }
+
+  function parseKey(key) {
+    var daily = key.match(/^(\d{4}-\d{2}-\d{2})_(morning|evening)$/);
+    if (daily) return { kind: 'daily', dateISO: daily[1], shift: daily[2] };
+    if (key.indexOf('cyc_') === 0) {
+      var s = key.replace(/_morning$/, '').slice(4);
+      var hosp = ''; var hIdx = s.indexOf('_h_');
+      if (hIdx >= 0) { hosp = s.slice(hIdx + 3); s = s.slice(0, hIdx); }
+      var dm = s.match(/_d(\d+)$/); if (!dm) return null;
+      var day = parseInt(dm[1], 10);
+      s = s.slice(0, s.length - dm[0].length);
+      var us = s.indexOf('_');
+      return { kind: 'cyc', group: us >= 0 ? s.slice(0, us) : s, type: us >= 0 ? s.slice(us + 1) : '',
+               day: day, hospital: hosp };
+    }
+    return null;
+  }
+
+  function hasContent(r) {
+    return !!(r && (r.attendance || r.evaluated || (typeof r.total === 'number') ||
+             (typeof r.manualTotal === 'number') || (r.scores && Object.keys(r.scores).length) ||
+             (r.notes && String(r.notes).trim()) || r.paperDelivered === true || r.paperDelivered === false));
+  }
+
+  window.bridgeSession = function (key, sess) {
+    if (!window.Store || !window.Store.isReady() || !sess || typeof sess !== 'object') return;
+    var meta = parseKey(key); if (!meta) return;
+    var names = Array.isArray(sess.__names__) ? sess.__names__ : [];
+    Object.keys(sess).forEach(function (idx) {
+      if (!/^\d+$/.test(idx)) return;
+      var old = sess[idx]; if (!hasContent(old)) return;
+      var nm = String((old && old.name) || names[parseInt(idx, 10)] || '').trim();
+      if (!nm) return;
+      var sid = resolveStudentId(nm);
+      var evalId, patch = {
+        studentId: sid,
+        attendance: old.attendance || null,
+        attendanceTime: old.attendanceTime || null,
+        scores: old.scores || {},
+        total: (typeof old.total === 'number') ? old.total :
+               (typeof old.manualTotal === 'number' ? Math.min(15, old.manualTotal) : null),
+        evaluated: !!old.evaluated,
+        notes: old.notes || '',
+        paperDelivered: (old.paperDelivered === true || old.paperDelivered === false) ? old.paperDelivered : null,
+        locked: !!old.locked,
+        entrustment: old.entrustment || null,
+        feedback: old.feedback || { well: '', improve: '' },
+        cases: Array.isArray(old.cases) ? old.cases : [],
+        evaluatorUid: (window.currentUser ? currentUser.uid : null),
+        evaluatorName: (window.currentUser ? (currentUser.displayName || currentUser.email || '') : ''),
+        source: 'bridge'
+      };
+      if (typeof old.manualTotal === 'number') patch.manualTotal = old.manualTotal;
+      if (old.signature) patch.signature = old.signature;
+      if (old.amended) patch.amended = true;
+      if (meta.kind === 'daily') {
+        var hosp = sess.__hospital__ || (window.eva.config.settings && window.eva.config.settings.hospitalName) || '';
+        patch.dateISO = meta.dateISO; patch.groupId = meta.shift; patch.hospitalId = hospitalId(hosp);
+        if (sess.__dayNo__) patch.legacyCycleDay = parseInt(sess.__dayNo__, 10) || null;
+        evalId = meta.dateISO + '_' + meta.shift + '_' + patch.hospitalId + '_' + sid;
+      } else {
+        var gid = groupIdFor(meta.group, meta.type);
+        var hid = meta.hospital ? hospitalId(meta.hospital) : 'h_unknown';
+        patch.dateISO = null; patch.groupId = gid; patch.hospitalId = hid; patch.legacyCycleDay = meta.day;
+        evalId = 'cycd' + meta.day + '_' + gid + '_' + hid + '_' + sid;
+      }
+      // multi-evaluator (6.4): keep a per-rater sub-record. Two evaluators on
+      // the same student/day land on the SAME evalId; each rater's numbers
+      // live under byEvaluator[uid] and the displayed total is their average.
+      var existing = window.eva.evaluations[evalId];
+      if (patch.evaluated && patch.total != null && patch.evaluatorUid) {
+        var byEv = (existing && existing.byEvaluator) ? JSON.parse(JSON.stringify(existing.byEvaluator)) : {};
+        byEv[patch.evaluatorUid] = { total: patch.total, scores: patch.scores, ts: Date.now(),
+                                     name: patch.evaluatorName || patch.evaluatorUid,
+                                     entrustment: patch.entrustment || null };
+        patch.byEvaluator = byEv;
+      } else if (existing && existing.byEvaluator) {
+        patch.byEvaluator = existing.byEvaluator;
+      }
+      // skip if unchanged (cheap content signature) to avoid audit/outbox churn
+      var sig = JSON.stringify([patch.attendance, patch.total, patch.scores, patch.notes, patch.paperDelivered,
+                                patch.locked, patch.entrustment, patch.feedback, patch.cases, patch.signature || null,
+                                patch.byEvaluator || null]);
+      if (existing && existing._sig === sig) return;
+      patch._sig = sig;
+      window.Store.update('evaluations.' + evalId, function (draft) {
+        if (draft) { Object.keys(patch).forEach(function (k) { draft[k] = patch[k]; }); return draft; }
+        return patch;
+      }, { action: 'bridge:' + (meta.kind === 'daily' ? 'daily' : 'cycle') + ':' + evalId });
+    });
+  };
+})();
+
+</script>
+<script>
+/* ── Flag engine: derived "needs follow-up" signals ─────────────────────
+   Runs a rule pass on every evaluation:saved / attendance:changed, over the
+   canonical Store, and writes eva.flags[studentId] = [ {ruleId, severity,
+   msg, dateISO, seen} ]. Views render these (badge in Attendance, banner in
+   Progress, line on the Daily Paper). Thresholds live in config.settings.  */
+(function () {
+  'use strict';
+
+  function cfg() {
+    var s = (window.eva && window.eva.config && window.eva.config.settings) || {};
+    return {
+      lowScore: (typeof s.flagLowScore === 'number') ? s.flagLowScore : 9,      // /15
+      lowCount: (typeof s.flagLowCount === 'number') ? s.flagLowCount : 2,      // occurrences
+      absences: (typeof s.flagAbsences === 'number') ? s.flagAbsences : 2,      // per window
+      trendMin: (typeof s.flagTrendPts === 'number') ? s.flagTrendPts : 3       // points for slope
+    };
+  }
+
+  function total(r) {
+    return window.Selectors ? Selectors.recordTotal(r) : (typeof r.total === 'number' ? r.total : null);
+  }
+
+  // simple least-squares slope over the last N graded totals
+  function slope(vals) {
+    var n = vals.length; if (n < 2) return 0;
+    var sx = 0, sy = 0, sxy = 0, sxx = 0;
+    for (var i = 0; i < n; i++) { sx += i; sy += vals[i]; sxy += i * vals[i]; sxx += i * i; }
+    var d = (n * sxx - sx * sx); if (!d) return 0;
+    return (n * sxy - sx * sy) / d;
+  }
+
+  function evalRules(studentId) {
+    var c = cfg();
+    var tl = window.Selectors ? Selectors.getStudentTimeline(studentId) : [];
+    var flags = [];
+    var graded = tl.filter(function (t) { return t.total != null; });
+    var lastDate = graded.length ? (graded[graded.length - 1].dateISO || '') : '';
+
+    // 1) low score, ≥ lowCount times
+    var lows = graded.filter(function (t) { return t.total < c.lowScore; });
+    if (lows.length >= c.lowCount) {
+      flags.push({ ruleId: 'lowScore', severity: 'warn',
+        msg: '⚠️ متابعة أكاديمية — ' + lows.length + ' تقييم دون ' + c.lowScore + '/15', dateISO: lastDate, seen: false });
+    }
+    // 2) absences
+    var abs = tl.filter(function (t) { return t.attendance === 'absent'; });
+    if (abs.length >= c.absences) {
+      flags.push({ ruleId: 'attendance', severity: 'danger',
+        msg: '🚩 حضور — ' + abs.length + ' غياب', dateISO: lastDate, seen: false });
+    }
+    // 3) declining trend over the last trendMin+ graded totals
+    if (graded.length >= c.trendMin) {
+      var recent = graded.slice(-Math.max(c.trendMin, 4)).map(function (t) { return t.total; });
+      if (slope(recent) <= -0.75) {
+        flags.push({ ruleId: 'trend', severity: 'warn',
+          msg: '📉 تراجع — الدرجات في انخفاض', dateISO: lastDate, seen: false });
+      }
+    }
+    return flags;
+  }
+
+  var _running = false;
+  function runPass(scopeStudentId) {
+    if (_running || !window.Store || !window.Store.isReady()) return;
+    _running = true;
+    try {
+      var ids = scopeStudentId ? [scopeStudentId] : Object.keys(window.eva.students);
+      var next = JSON.parse(JSON.stringify(window.eva.flags || {}));
+      var changed = false;
+      ids.forEach(function (sid) {
+        var fresh = evalRules(sid);
+        // preserve `seen` acknowledgements across recomputes (by ruleId)
+        var prev = (window.eva.flags && window.eva.flags[sid]) || [];
+        fresh.forEach(function (f) {
+          var was = prev.filter(function (p) { return p.ruleId === f.ruleId; })[0];
+          if (was && was.seen) f.seen = true;
+        });
+        var before = JSON.stringify((next[sid] || []).map(function (f) { return f.ruleId + f.msg; }));
+        var after = JSON.stringify(fresh.map(function (f) { return f.ruleId + f.msg; }));
+        if (before !== after) changed = true;
+        if (fresh.length) next[sid] = fresh; else delete next[sid];
+      });
+      if (changed) {
+        window.Store.update('flags', function () { return next; },
+          { action: 'flags:recompute', noSync: true, noAudit: true, event: 'flags:changed' });
+      }
+    } catch (e) { if (window.reportIssue) reportIssue('flags:runPass', e); }
+    _running = false;
+  }
+
+  window.Flags = {
+    run: runPass,
+    forStudent: function (id) { return (window.eva.flags && window.eva.flags[id]) || []; },
+    markSeen: function (id) {
+      var f = window.eva.flags && window.eva.flags[id]; if (!f) return;
+      f.forEach(function (x) { x.seen = true; });
+      window.Store.update('flags.' + id, function () { return f; },
+        { action: 'flags:seen', noSync: true, noAudit: true, event: 'flags:changed' });
+    },
+    // convenience for the daily grid: a compact badge string or ''
+    badge: function (id) {
+      var f = (window.eva.flags && window.eva.flags[id]) || [];
+      if (!f.length) return '';
+      var sev = f.some(function (x) { return x.severity === 'danger'; }) ? 'danger' : 'warn';
+      return sev === 'danger' ? '🚩' : '⚠️';
+    },
+    // classic UI works by name — resolve then badge / list
+    _idByName: function (name) {
+      var nm = String(name || '').trim(); if (!nm) return null;
+      var ids = Object.keys(window.eva.students || {});
+      for (var i = 0; i < ids.length; i++) if (window.eva.students[ids[i]].name === nm) return ids[i];
+      return null;
+    },
+    badgeByName: function (name) { var id = this._idByName(name); return id ? this.badge(id) : ''; },
+    forName: function (name) { var id = this._idByName(name); return id ? this.forStudent(id) : []; }
+  };
+
+  function wire() {
+    if (!window.bus) return;
+    var t = null;
+    function debounced(d) {
+      clearTimeout(t);
+      t = setTimeout(function () { runPass(d && d.evalId ? null : null); }, 150);
+    }
+    bus.on('evaluation:saved', debounced);
+    bus.on('attendance:changed', debounced);
+    bus.on('store:ready', function () { runPass(); });
+    if (window.Store && Store.isReady()) runPass();
+  }
+  if (window.bus) wire(); else document.addEventListener('DOMContentLoaded', wire);
+})();
+
+</script>
+<script>
+/* ── Roles + student self-identification (6.3) ──────────────────────────
+   Three roles: admin, evaluator (default), student.
+   Source of truth is a server-side node `users/{uid}/eva/role` (or a
+   /roles/{uid} node); mirrored locally. Offline/unknown → evaluator, EXCEPT
+   when a local demo override is set (hsp_role_override) for testing without
+   the backend. A student's uid maps to their studentId by matching their
+   sign-in email against the registry (eva.students[].email).
+
+   Authorization note: this is a CLIENT-SIDE convenience layer. Real
+   enforcement (a student cannot read other students' data) must live in the
+   Firebase security rules — see database.rules.json. The portal below only
+   RENDERS the student's own records; it never fetches the full store from a
+   student session in production (rules block it).                          */
+(function () {
+  'use strict';
+
+  var _role = null, _studentId = null, _resolved = false;
+
+  function localOverride() {
+    try { return localStorage.getItem('hsp_role_override') || ''; } catch (e) { return ''; }
+  }
+
+  function resolveStudentId() {
+    var email = (window.currentUser && currentUser.email) ? String(currentUser.email).trim().toLowerCase() : '';
+    if (!email || !window.eva) return null;
+    var ids = Object.keys(window.eva.students || {});
+    for (var i = 0; i < ids.length; i++) {
+      var s = window.eva.students[ids[i]];
+      if (s && s.email && String(s.email).trim().toLowerCase() === email) return ids[i];
+    }
+    return null;
+  }
+
+  var Roles = {
+    current: function () { return _role || 'evaluator'; },
+    isAdmin: function () { return this.current() === 'admin'; },
+    isStudent: function () { return this.current() === 'student'; },
+    isEvaluator: function () { return this.current() === 'evaluator' || this.current() === 'admin'; },
+    studentId: function () { return _studentId; },
+    resolved: function () { return _resolved; },
+
+    // set/read the role. In production an admin sets this per uid; here we
+    // also honor a local override so the portal can be demoed offline.
+    setLocalRole: function (role) {
+      try { if (role) localStorage.setItem('hsp_role_override', role); else localStorage.removeItem('hsp_role_override'); } catch (e) {}
+      _role = role || null; _resolved = false;
+      this.resolve();
+    },
+
+    resolve: function (cb) {
+      var ov = localOverride();
+      function done(r) {
+        _role = r || 'evaluator';
+        _studentId = (_role === 'student') ? resolveStudentId() : null;
+        _resolved = true;
+        if (window.bus) bus.emit('role:resolved', { role: _role, studentId: _studentId });
+        if (cb) cb(_role);
+      }
+      if (ov) { done(ov); return; }
+      // try the server-side role node when online
+      try {
+        if (!window.isOfflineMode && window.currentUser && window.db && typeof dbRef === 'function') {
+          dbRef('role').once('value').then(function (snap) {
+            done(snap.val() || 'evaluator');
+          }).catch(function () { done('evaluator'); });
+          return;
+        }
+      } catch (e) {}
+      done('evaluator');
+    }
+  };
+
+  window.Roles = Roles;
+  if (window.bus) {
+    bus.on('store:ready', function () { Roles.resolve(); });
+    bus.on('students:changed', function () { if (_role === 'student' && !_studentId) { _studentId = resolveStudentId(); if (_studentId && window.bus) bus.emit('role:resolved', { role: _role, studentId: _studentId }); } });
+  }
+})();
+
+</script>
+<script>
+/* ── Sync: the ONLY Firebase writer for the v2 store ─────────────────────
+   Every Store.update()/remove() enqueues an outbox item. This worker
+   flushes them when online. The v2 canonical store syncs under a SEPARATE
+   Firebase path (users/{uid}/eva/*) so it never collides with the legacy
+   users/{uid}/{history,roster,...} nodes the classic code still writes.
+
+   Conflict rule: per-record last-write-wins by updatedAt. If both sides
+   changed an evaluation's scores within 10 minutes, keep BOTH under the
+   record's conflicts[] and surface a review — a grade is never silently
+   dropped. Deletions replay as tombstones.                                */
+(function () {
+  'use strict';
+
+  var CONFLICT_WINDOW = 10 * 60 * 1000;
+  var flushing = false, timer = null;
+
+  function online() {
+    return !window.isOfflineMode && window.currentUser && window.db;
+  }
+  function evaRef(sub) {
+    // reuse the app's per-uid ref helper if present; else build it
+    if (typeof window.dbRef === 'function') return dbRef('eva/' + sub);
+    return db.ref('users/' + currentUser.uid + '/eva/' + sub);
+  }
+
+  // path 'evaluations.<id>' → firebase 'evaluations/<id>' (ids are already
+  // sanitized of . # $ [ ] / at creation, but re-guard defensively)
+  function fbPath(storePath) {
+    return String(storePath).split('.').map(function (seg) {
+      return seg.replace(/[.#$\[\]]/g, '-');
+    }).join('/');
+  }
+
+  function setSync(state) {
+    if (typeof window.setSyncStatus === 'function') { try { setSyncStatus(state); } catch (e) {} }
+    window.bus.emit('sync:state', { state: state });
+  }
+
+  function writeItem(item) {
+    return new Promise(function (res) {
+      try {
+        var ref = evaRef(fbPath(item.path));
+        if (item.removed) {
+          ref.remove().then(function () { res(true); }).catch(function () { res(false); });
+          return;
+        }
+        // evaluation conflict check: compare remote updatedAt
+        var isEval = item.path.indexOf('evaluations.') === 0;
+        if (isEval) {
+          ref.once('value').then(function (snap) {
+            var remote = snap.val();
+            var localRec = item.value;
+            if (remote && remote.updatedAt && localRec && localRec.updatedAt &&
+                remote.rev !== localRec.rev &&
+                Math.abs(remote.updatedAt - localRec.updatedAt) < CONFLICT_WINDOW &&
+                JSON.stringify(remote.scores || {}) !== JSON.stringify(localRec.scores || {})) {
+              // genuine concurrent divergence — keep both, never drop
+              var merged = (remote.updatedAt >= localRec.updatedAt) ? remote : localRec;
+              merged = JSON.parse(JSON.stringify(merged));
+              merged.conflicts = (merged.conflicts || []).concat([{
+                at: Date.now(), rev: (remote.updatedAt >= localRec.updatedAt ? localRec.rev : remote.rev),
+                scores: (remote.updatedAt >= localRec.updatedAt ? localRec.scores : remote.scores),
+                total: (remote.updatedAt >= localRec.updatedAt ? localRec.total : remote.total),
+                by: (remote.updatedAt >= localRec.updatedAt ? localRec.evaluatorName : remote.evaluatorName)
+              }]);
+              ref.set(merged).then(function () {
+                window.bus.emit('sync:conflict', { path: item.path });
+                if (typeof window.toast === 'function') toast('⚠️ تعارض في تقييم — حُفِظت النسختان للمراجعة');
+                res(true);
+              }).catch(function () { res(false); });
+            } else if (!remote || !remote.updatedAt || (localRec.updatedAt || 0) >= (remote.updatedAt || 0)) {
+              ref.set(localRec).then(function () { res(true); }).catch(function () { res(false); });
+            } else {
+              // remote is newer and non-conflicting — adopt it locally, drop our stale write
+              window.eva.evaluations[item.path.split('.')[1]] = remote;
+              res(true);
+            }
+          }).catch(function () { res(false); });
+        } else {
+          ref.set(item.value).then(function () { res(true); }).catch(function () { res(false); });
+        }
+      } catch (e) { res(false); }
+    });
+  }
+
+  var Sync = {
+    flush: function () {
+      if (flushing || !online() || !window.Store) return Promise.resolve();
+      flushing = true;
+      setSync('saving');
+      return Store.outboxDrain(writeItem).then(function () {
+        flushing = false;
+        return Store.outboxCount();
+      }).then(function (n) {
+        setSync(n > 0 ? 'pending' : 'saved');
+      }).catch(function () { flushing = false; setSync('offline'); });
+    },
+
+    /* pull remote eva/* into local on (re)connect, then flush local queue */
+    verify: function () {
+      if (!online()) return Promise.resolve();
+      return evaRef('evaluations').once('value').then(function (snap) {
+        var remote = snap.val() || {};
+        var changed = false;
+        Object.keys(remote).forEach(function (id) {
+          var r = remote[id], l = window.eva.evaluations[id];
+          if (!l || (r.updatedAt || 0) > (l.updatedAt || 0)) { window.eva.evaluations[id] = r; changed = true; }
+        });
+        if (changed) window.bus.emit('evaluation:saved', { synced: true });
+        return Sync.flush();
+      }).catch(function () {});
+    },
+
+    start: function () {
+      // flush on reconnect + a slow heartbeat; the outbox persists across reloads
+      window.addEventListener('online', function () { Sync.verify(); });
+      if (timer) clearInterval(timer);
+      timer = setInterval(function () { if (online()) Sync.flush(); }, 30000);
+      // flush whenever anything is queued
+      window.bus.on('outbox:queued', function () { if (online()) Sync.flush(); });
+      window.bus.on('store:ready', function () { if (online()) Sync.verify(); });
+      if (online()) Sync.verify();
+    }
+  };
+
+  window.Sync = Sync;
+  // begin once the store is ready
+  if (window.Store && Store.isReady && Store.isReady()) Sync.start();
+  else if (window.bus) window.bus.on('store:ready', function () { Sync.start(); });
+})();
+
+</script>
 <!-- Firebase loads dynamically in JS only when online mode is chosen -->
-<link rel="stylesheet" href="/styles.css">
+<style>
+
+:root{
+  /* ── v2 design system: identity-preserving teal, light + purposeful glass + accents ── */
+  --bg:#eef3f2;--surface:#fff;--surface-2:#f6faf9;
+  --border:#dce6e3;--line-soft:#e8efed;
+  --primary:#0f6e62;--primary-d:#0c5b52;--pl:#1fa792;--accent:#16a085;
+  --indigo:#5457e6;--indigo-d:#4346c9;
+  --danger:#be123c;--warn:#b45309;--success:#15803d;
+  --text:#10312c;--ink-2:#33514c;--muted:#5a716c;
+  --r:14px;--r-sm:10px;--r-lg:22px;
+  --glass:rgba(255,255,255,.78);--glass-brd:rgba(255,255,255,.9);
+  --sh-1:0 1px 2px rgba(16,49,44,.06),0 1px 1px rgba(16,49,44,.04);
+  --sh-2:0 6px 16px -8px rgba(16,49,44,.22),0 2px 6px -4px rgba(16,49,44,.14);
+  --sh-3:0 22px 48px -22px rgba(12,91,82,.40);
+  --e-out:cubic-bezier(.22,1,.36,1);--e-expo:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Cairo",Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;direction:rtl;position:relative}
+/* calm brand glow behind the app (one soft accent, not a busy mesh) */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(900px 520px at 88% -8%,rgba(31,167,146,.14),transparent 60%),
+  radial-gradient(760px 600px at -6% 108%,rgba(84,87,230,.08),transparent 55%)}
+h1,h2,h3{text-wrap:balance;letter-spacing:-.01em}
+::placeholder{color:#566c67}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(15,110,98,.24);border-radius:5px}
+::-webkit-scrollbar-thumb:hover{background:rgba(15,110,98,.44)}
+
+/* LOGIN SCREEN — glass card floating over the brand field (glass earned here) */
+.login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:22px;
+  background:radial-gradient(1000px 700px at 80% 0%,rgba(31,167,146,.22),transparent 60%),linear-gradient(160deg,#0c5b52,#0f6e62 55%,#103f57)}
+.login-card{background:var(--glass);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);
+  border:1px solid var(--glass-brd);border-radius:var(--r-lg);padding:40px 34px 30px;width:100%;max-width:430px;text-align:center;box-shadow:var(--sh-3)}
+.login-card .logo{font-size:46px;margin-bottom:10px;line-height:1}
+.login-card h2{font-size:24px;font-weight:800;color:var(--primary);margin-bottom:8px}
+.login-card p{font-size:14px;color:var(--ink-2);margin-bottom:26px;line-height:1.7;max-width:34ch;margin-left:auto;margin-right:auto}
+.google-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:13px 20px;background:#fff;border:1px solid var(--border);border-radius:13px;font-size:15px;font-weight:700;color:#33514c;cursor:pointer;transition:transform .18s var(--e-out),box-shadow .25s,border-color .2s}
+.google-btn:hover{border-color:var(--pl);box-shadow:var(--sh-2);transform:translateY(-2px)}
+.google-btn:active{transform:translateY(0)}
+.google-btn img{width:22px;height:22px}
+.login-err{margin-top:14px;font-size:13px;color:var(--danger);display:none}
+
+/* SYNC INDICATOR — light pill */
+.sync-bar{background:var(--surface-2);padding:5px 20px;font-size:11.5px;color:var(--ink-2);font-weight:600;display:flex;align-items:center;gap:7px;min-height:24px;border-top:1px solid var(--line-soft)}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--success);flex-shrink:0}
+.sync-dot.saving{background:var(--warn);animation:pulse .8s infinite}
+.sync-dot.offline{background:var(--danger)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* HEADER — light glass, the floating layer (glass earned) */
+.hdr{background:var(--glass);backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);color:var(--text);display:none;border-bottom:1px solid var(--glass-brd);box-shadow:var(--sh-1);position:sticky;top:0;z-index:45}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;padding:11px 20px;flex-wrap:wrap;gap:10px}
+.hdr-top h1{font-size:17px;font-weight:800;color:var(--text)}
+.hdr-meta{display:flex;align-items:center;gap:12px}
+.clock{font-size:19px;font-weight:700;letter-spacing:.5px;font-family:"JetBrains Mono",monospace;color:var(--text)}
+.datedisp{font-size:11px;color:var(--muted);margin-top:1px;text-align:center}
+.user-info{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:4px 12px 4px 4px;cursor:pointer}
+.user-avatar{width:30px;height:30px;border-radius:50%;object-fit:cover;border:2px solid var(--glass-brd)}
+.user-name{font-size:12px;font-weight:600;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.hdr-bar{background:var(--surface-2);padding:8px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line-soft)}
+.hinput{background:#fff;border:1px solid var(--border);color:var(--text);border-radius:10px;padding:7px 11px;font-size:13px;width:185px;transition:box-shadow .2s,border-color .2s}
+.hinput::placeholder{color:#566c67}
+.hinput:focus{outline:none;border-color:var(--pl);box-shadow:0 0 0 3px rgba(31,167,146,.18)}
+.hl{font-size:12px;color:var(--muted);font-weight:700}
+.grp-switch{display:flex;align-items:center;gap:3px;background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:4px;margin-right:6px}
+.grp-btn{border:none;padding:6px 15px;font-size:13px;font-weight:700;cursor:pointer;transition:all .25s var(--e-out);background:transparent;color:var(--ink-2);border-radius:999px}
+.grp-btn.active-morning{background:linear-gradient(135deg,var(--pl),var(--primary));color:#fff;box-shadow:var(--sh-1)}
+.grp-btn.active-evening{background:linear-gradient(135deg,var(--indigo),var(--indigo-d));color:#fff;box-shadow:var(--sh-1)}
+.grp-badge{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:3px 11px;margin-right:6px}
+.grp-badge.morning{background:#d7ede8;color:var(--primary)}
+.grp-badge.evening{background:#e6e7fb;color:var(--indigo)}
+
+/* MAIN */
+.app-body{display:none}
+.main{max-width:1280px;margin:0 auto;padding:16px 14px;display:flex;gap:16px;align-items:flex-start}
+.content-area{flex:1;min-width:0}
+
+/* SIDEBAR NAV (grouped) */
+.sidenav{flex:0 0 230px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:9px;position:sticky;top:84px;box-shadow:var(--sh-1)}
+.nav-group{margin-bottom:10px}
+.nav-group:last-child{margin-bottom:0}
+.nav-group-label{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.04em;padding:6px 10px 4px;text-transform:none}
+.nav-group + .nav-group{border-top:1px solid var(--line-soft);padding-top:6px}
+.tab-btn{display:flex;align-items:center;gap:9px;width:100%;text-align:right;padding:10px 12px;margin:1px 0;font-size:13.5px;font-weight:600;border:none;border-radius:11px;background:transparent;color:var(--ink-2);cursor:pointer;transition:background .2s,color .2s,transform .15s var(--e-out);font-family:inherit}
+.tab-btn.active{background:#d7ede8;color:var(--primary);font-weight:700}
+.tab-btn:not(.active):hover{background:var(--surface-2);color:var(--text);transform:translateX(-3px)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* responsive: sidebar becomes a horizontal scroll strip on narrow screens */
+@media(max-width:820px){
+  .main{flex-direction:column;gap:12px}
+  .sidenav{position:static;flex:none;width:100%;display:flex;gap:6px;overflow-x:auto;padding:8px}
+  .nav-group{display:flex;gap:6px;margin:0;align-items:center}
+  .nav-group + .nav-group{border-top:none;border-right:1px solid var(--border);padding-top:0;padding-right:6px}
+  .nav-group-label{display:none}
+  .tab-btn{width:auto;white-space:nowrap;flex:0 0 auto;margin:0}
+}
+
+/* BUTTONS */
+.btn{cursor:pointer;border:none;border-radius:var(--r-sm);padding:9px 14px;font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
+.btn:active{transform:scale(.97)}
+.bp{background:linear-gradient(135deg,var(--pl),var(--primary));color:#fff;box-shadow:var(--sh-1)}.bp:hover{filter:brightness(1.05)}
+.ba{background:var(--accent);color:#fff}.ba:hover{filter:brightness(1.05)}
+.bw{background:var(--warn);color:#fff}.bw:hover{filter:brightness(1.05)}
+.bo{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--border)}.bo:hover{background:#fff}
+.bpu{background:linear-gradient(135deg,var(--indigo),var(--indigo-d));color:#fff}.bpu:hover{filter:brightness(1.05)}
+.bt{background:linear-gradient(135deg,var(--pl),var(--primary));color:#fff}.bt:hover{filter:brightness(1.05)}
+.bred{background:var(--danger);color:#fff}.bred:hover{filter:brightness(1.05)}
+
+/* STATS — one cohesive summary strip (not a grid of identical cards) */
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-bottom:16px;background:linear-gradient(120deg,#d7ede8,var(--surface-2));border:1px solid var(--line-soft);border-radius:var(--r);overflow:hidden}
+.sc{background:transparent;border:none;border-radius:0;padding:16px 13px;text-align:center;box-shadow:none;position:relative}
+.sc + .sc::before{content:"";position:absolute;inset-inline-start:0;top:22%;bottom:22%;width:1px;background:var(--line-soft)}
+.stats-bar .sc:hover{transform:none;box-shadow:none}
+.sc .num{font-size:26px;font-weight:800;font-family:"JetBrains Mono",ui-monospace,monospace;color:var(--primary);line-height:1}
+.sc .lbl{font-size:11.5px;color:var(--muted);margin-top:4px;font-weight:600}
+.sc.present .num{color:var(--success)}.sc.absent .num{color:var(--danger)}.sc.eval .num{color:var(--indigo)}
+
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.sbox{flex:1;min-width:150px;border:1px solid var(--border);border-radius:11px;padding:9px 13px;font-size:14px;background:var(--surface-2);color:var(--text);transition:box-shadow .2s,border-color .2s}
+.sbox:focus{outline:none;border-color:var(--pl);box-shadow:0 0 0 3px rgba(31,167,146,.18)}
+
+/* STUDENT LIST */
+.lhdr{display:grid;grid-template-columns:28px 1fr 100px 75px 72px;gap:6px;align-items:center;padding:9px 14px;font-size:11.5px;color:var(--muted);font-weight:800;background:var(--surface);border:1px solid var(--border);border-bottom:none;border-radius:var(--r) var(--r) 0 0}
+.slist{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);overflow:hidden;box-shadow:var(--sh-1)}
+.srow{display:grid;grid-template-columns:28px 1fr 100px 75px 72px;gap:6px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line-soft);transition:background .18s}
+.srow:last-child{border-bottom:none}
+.srow:hover{background:var(--surface-2)}
+.srow.ar{background:#fff5f6}
+.snum{font-size:13px;color:var(--muted);font-weight:700;text-align:center}
+.sname{font-size:15px;font-weight:700;cursor:pointer}
+.atg{display:flex;gap:4px}
+.ab{cursor:pointer;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:700;border:1px solid;transition:all .15s}
+.abp{background:#dcfce7;color:var(--success);border-color:#bbf2cf}
+.aba{background:#ffe4e6;color:var(--danger);border-color:#fbccd2}
+.abap{background:var(--success);color:#fff;border-color:var(--success)}
+.abaa{background:var(--danger);color:#fff;border-color:var(--danger)}
+.sbadge{text-align:center}
+.sbadge span{background:#d7ede8;color:var(--primary);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700;font-family:"JetBrains Mono",monospace}
+.sbadge.empty span{background:var(--bg);color:var(--muted)}
+.ecell{text-align:center}
+.ei{width:34px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;font-weight:800;transition:transform .18s var(--e-out)}
+.ei.done{background:#dcfce7;color:var(--success)}.ei.pend{background:#e6e7fb;color:var(--indigo)}
+.add-area{background:var(--surface-2);border:1px dashed var(--border);border-radius:var(--r);padding:12px 14px;margin-top:13px;display:flex;gap:8px;align-items:center}
+.add-area input{flex:1;border:1px solid var(--border);border-radius:10px;padding:9px 13px;font-size:14px;color:var(--text);background:#fff}
+.add-area input:focus{outline:none;border-color:var(--pl);box-shadow:0 0 0 3px rgba(31,167,146,.16)}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center;padding:14px}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:14px;width:100%;max-width:700px;max-height:92vh;overflow-y:auto;direction:rtl}
+.mhdr{background:var(--primary);color:#fff;padding:13px 18px;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:2}
+.mhdr h2{font-size:15px;font-weight:600}
+.mcl{background:rgba(255,255,255,.2);border:none;color:#fff;width:27px;height:27px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
+.mcl:hover{background:rgba(255,255,255,.35)}
+.mbody{padding:16px}
+.esec{background:#f8fafc;border:1px solid var(--border);border-radius:var(--r);padding:11px;margin-bottom:11px}
+.estit{font-size:13px;font-weight:700;color:var(--primary);margin-bottom:9px;display:flex;align-items:center;justify-content:space-between}
+.mp{font-size:11px;color:var(--muted);background:var(--border);padding:2px 7px;border-radius:20px}
+.egrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:7px}
+.eitem{background:#fff;border:1px solid var(--border);border-radius:8px;padding:9px 10px}
+.eitem label{font-size:12px;color:var(--muted);display:block;margin-bottom:5px}
+.erow{display:flex;align-items:center;gap:5px}
+.erow input[type=range]{flex:1;accent-color:var(--primary)}
+.eval{font-size:14px;font-weight:700;color:var(--primary);min-width:32px;text-align:left}
+.eml{font-size:11px;color:var(--muted)}
+/* Checkbox items (0.25 scoring) */
+.eck-wrap{display:flex;align-items:center;gap:10px;padding:4px 0}
+.eck{appearance:none;-webkit-appearance:none;width:22px;height:22px;border:2px solid var(--border);border-radius:5px;cursor:pointer;flex-shrink:0;transition:all .15s;position:relative;background:#fff}
+.eck:checked{background:var(--success);border-color:var(--success)}
+.eck:checked::after{content:'✓';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:14px;font-weight:700}
+.eck:hover{border-color:var(--accent)}
+.eck-val{font-size:13px;font-weight:600;color:var(--success);min-width:36px}
+.eck-max{font-size:11px;color:var(--muted)}
+.tbar{background:var(--primary);color:#fff;border-radius:var(--r);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;margin-top:13px}
+.tbar .tl{font-size:13px;opacity:.85}
+.tbar .tv{font-size:28px;font-weight:800}
+.tbar .tm{font-size:14px;opacity:.7}
+.narea{margin-top:11px}
+.narea label{font-size:13px;color:var(--muted);display:block;margin-bottom:5px}
+.narea textarea{width:100%;border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:14px;resize:vertical;min-height:62px;color:var(--text);font-family:inherit}
+.narea textarea:focus{outline:none;border-color:var(--pl)}
+.mftr{padding:11px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;background:#fafbfc;border-radius:0 0 14px 14px;position:sticky;bottom:0}
+
+/* PAPER TAB */
+.phdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;flex-wrap:wrap;gap:10px}
+.phdr h2{font-size:16px;font-weight:700;color:var(--primary)}
+.pstats{display:flex;gap:8px}
+.pst{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-size:13px;font-weight:600}
+.pst.del{color:var(--success);border-color:var(--success);background:#e8f8f0}
+.pst.nd{color:var(--danger);border-color:var(--danger);background:#fdf2f2}
+.plhdr{display:grid;grid-template-columns:28px 1fr 160px;gap:8px;align-items:center;padding:8px 14px;font-size:11px;color:var(--muted);font-weight:700;background:var(--surface);border:1px solid var(--border);border-bottom:none;border-radius:var(--r) var(--r) 0 0}
+.plist{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);overflow:hidden}
+.prow{display:grid;grid-template-columns:28px 1fr 160px;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);transition:background .1s}
+.prow:last-child{border-bottom:none}
+.prow.dr{background:#f0fbf5}.prow.nr{background:#fff8f8}
+.ptog{display:flex;gap:6px;justify-content:center}
+.pb{cursor:pointer;border-radius:20px;padding:5px 14px;font-size:13px;font-weight:700;border:1.5px solid;transition:all .15s}
+.pby{background:#e8f8f0;color:var(--success);border-color:var(--success)}
+.pbn{background:#fdf2f2;color:var(--danger);border-color:var(--danger)}
+.pbay{background:var(--success);color:#fff;border-color:var(--success)}
+.pban{background:var(--danger);color:#fff;border-color:var(--danger)}
+.pempty{padding:28px;text-align:center;color:var(--muted);font-size:14px}
+
+/* ROSTER TAB */
+.rtop{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:13px;flex-wrap:wrap;gap:12px}
+.rtop h2{font-size:16px;font-weight:700;color:var(--primary)}
+.rtop p{font-size:13px;color:var(--muted);margin-top:3px}
+.ract{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rfilt{display:flex;gap:8px;margin-bottom:13px;flex-wrap:wrap;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:9px 13px}
+.rsel{border:1px solid var(--border);border-radius:8px;padding:5px 9px;font-size:13px;background:var(--bg);color:var(--text);cursor:pointer}
+.rsel:focus{outline:none;border-color:var(--pl)}
+.rempty{text-align:center;padding:44px 20px;color:var(--muted)}
+.gcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:13px;overflow:hidden}
+.gcard.act{box-shadow:0 0 0 2px var(--primary)}
+.gchdr{padding:11px 15px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.gchdr.mo{background:#d4e6f1;border-bottom:2px solid #4fa89b}
+.gchdr.ev{background:#d5f5e3;border-bottom:2px solid #27ae60}
+.gtit{font-size:15px;font-weight:700}
+.gmeta{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.gbadge{font-size:11px;font-weight:700;border-radius:20px;padding:3px 9px}
+.bm{background:#4fa89b;color:#fff}.be{background:#27ae60;color:#fff}.bh{background:var(--primary);color:#fff}
+.dchips{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+.dchip{font-size:11px;background:#fff;border:1px solid var(--border);border-radius:6px;padding:3px 7px;color:var(--text)}
+.dchip.td{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:700}
+.grow{display:grid;grid-template-columns:24px 1fr 100px;gap:6px;align-items:center;padding:8px 15px;border-bottom:1px solid var(--border);font-size:14px}
+.grow:last-child{border-bottom:none}
+.grow:nth-child(even){background:#fafbfc}
+
+/* CALENDAR */
+.cal-modal{background:var(--surface);border-radius:14px;width:100%;max-width:375px}
+.calhdr{background:var(--primary);color:#fff;padding:11px 18px;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between}
+.calnav{display:flex;align-items:center;gap:10px}
+.cnb{background:rgba(255,255,255,.2);border:none;color:#fff;width:25px;height:25px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.cnb:hover{background:rgba(255,255,255,.35)}
+.calbody{padding:13px}
+.cwds{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:3px}
+.cwd{text-align:center;font-size:11px;color:var(--muted);font-weight:600;padding:3px 0}
+.cdays{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cday{text-align:center;padding:7px 3px;border-radius:6px;font-size:13px;cursor:pointer;transition:background .1s;position:relative}
+.cday:hover{background:#e8f0f8}
+.cday.ct{background:var(--primary);color:#fff;font-weight:700}
+.cday.cs{background:var(--accent);color:#fff}
+.cday.chd::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;background:var(--accent);border-radius:50%}
+.cday.ct.chd::after{background:#fff}
+.cday.cem{cursor:default}.cday.cem:hover{background:transparent}
+
+/* TOAST */
+.toast{position:fixed;bottom:22px;right:22px;background:#2c3e50;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+
+/* OFFLINE BANNER */
+.offline-banner{display:none;background:#e67e22;color:#fff;padding:8px 18px;font-size:13px;font-weight:600;text-align:center;align-items:center;justify-content:center;gap:8px;position:sticky;top:0;z-index:50}
+.offline-banner.show{display:flex}
+.offline-reconnect{background:rgba(255,255,255,.25);border:none;color:#fff;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:700}
+.offline-reconnect:hover{background:rgba(255,255,255,.4)}
+
+/* OFFLINE LOGIN OPTION */
+.offline-login-btn{display:none;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 20px;background:#e67e22;border:none;border-radius:10px;font-size:14px;font-weight:600;color:#fff;cursor:pointer;margin-top:10px;transition:all .2s}
+.offline-login-btn:hover{background:#d35400}
+.offline-login-btn.show{display:flex}
+.offline-sep{margin:12px 0;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.offline-sep::before,.offline-sep::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* LOADING */
+.loading-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);flex-direction:column;gap:14px}
+.spinner{width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* HISTORY TAB */
+.hist-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.hist-hdr h2{font-size:16px;font-weight:700;color:var(--primary)}
+.hday-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:12px;overflow:hidden;cursor:pointer;transition:box-shadow .15s}
+.hday-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1)}
+.hday-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#eaf2fb,#f5f6fa);border-bottom:1px solid var(--border)}
+.hday-date{font-size:16px;font-weight:700;color:var(--primary)}
+.hday-dow{font-size:12px;color:var(--muted);margin-top:2px}
+.hday-chips{display:flex;gap:8px;flex-wrap:wrap}
+.hchip{font-size:12px;font-weight:600;border-radius:20px;padding:3px 10px}
+.hchip.hp{background:#e8f8f0;color:var(--success)}
+.hchip.ha{background:#fdf2f2;color:var(--danger)}
+.hchip.he{background:#e8f0fb;color:var(--pl)}
+.hchip.hpap{background:#fef9e7;color:#b7950b}
+.hday-body{padding:0}
+.hst-row{display:grid;grid-template-columns:26px 1fr 70px 70px 80px;gap:6px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer;transition:background .1s}
+.hst-row:last-child{border-bottom:none}
+.hst-row:hover{background:#f0f7ff}
+.hst-name{font-weight:500}
+.hst-att{text-align:center;font-size:12px;font-weight:600}
+.hst-att.p{color:var(--success)}.hst-att.a{color:var(--danger)}.hst-att.u{color:var(--muted)}
+.hst-score{text-align:center}
+.hst-score span{background:var(--primary);color:#fff;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700}
+.hst-score.empty span{background:var(--border);color:var(--muted)}
+.hst-paper{text-align:center;font-size:12px;font-weight:600}
+.hst-paper.del{color:var(--success)}.hst-paper.ndel{color:var(--danger)}.hst-paper.u{color:var(--muted)}
+.hist-empty{text-align:center;padding:48px 20px;color:var(--muted)}
+
+/* DAY DETAIL MODAL */
+.dmodal{background:var(--surface);border-radius:14px;width:100%;max-width:760px;max-height:93vh;overflow-y:auto;direction:rtl}
+.dm-hdr{background:var(--primary);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:2}
+.dm-hdr h2{font-size:16px;font-weight:600}
+.dm-body{padding:18px}
+.dm-student-card{background:#f8fafc;border:1px solid var(--border);border-radius:var(--r);margin-bottom:12px;overflow:hidden}
+.dm-st-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#fff;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.dm-st-name{font-size:15px;font-weight:700;color:var(--text)}
+.dm-st-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dm-score-big{background:var(--primary);color:#fff;border-radius:20px;padding:4px 14px;font-size:14px;font-weight:700}
+.dm-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px;padding:12px 14px}
+.dm-field{background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+.dm-field .lbl{font-size:11px;color:var(--muted);margin-bottom:3px}
+.dm-field .val{font-size:14px;font-weight:700;color:var(--primary)}
+.dm-notes{padding:0 14px 12px;font-size:13px;color:var(--muted);font-style:italic}
+
+.db-tbl-wrap{overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r)}
+.db-tbl{width:100%;border-collapse:collapse;min-width:820px;font-size:13px}
+.db-tbl th{background:var(--primary);color:#fff;padding:9px 10px;font-size:11px;font-weight:700;text-align:right;white-space:nowrap;position:sticky;top:0}
+.db-tbl td{padding:8px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.db-tbl tr:hover td{background:#f0f7ff}
+.dbb{display:inline-block;font-size:11px;font-weight:700;border-radius:10px;padding:2px 8px}
+.dbb-mo{background:#d6eaf8;color:#14746b}
+.dbb-ev{background:#e8daef;color:#6c3483}
+.dbb-hp{background:#d5f5e3;color:#1e8449}
+.dbb-ar{background:#fef9e7;color:#7d6608}
+.dbb-pres{background:#d5f5e3;color:#1e8449}
+.dbb-abs{background:#fadbd8;color:#922b21}
+.grp-loader-modal{background:#fff;border-radius:14px;width:100%;max-width:520px;direction:rtl;overflow:hidden}
+.grp-loader-hdr{background:var(--primary);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
+.grp-loader-hdr h2{font-size:15px;font-weight:600}
+.grp-loader-body{padding:16px;max-height:60vh;overflow-y:auto}
+.grp-item{border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:all .15s}
+.grp-item:hover{border-color:var(--pl);background:#f0f7ff}
+.grp-item.selected{border-color:var(--pl);background:#e8f4ff}
+.grp-item-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.grp-item-meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+.grp-loader-ftr{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;background:#fafbfc}
+.num-input-wrap{display:flex;align-items:center;gap:8px;margin-top:6px}
+.num-input-wrap input[type=number]{width:80px;border:2px solid var(--border);border-radius:8px;padding:6px 10px;font-size:20px;font-weight:700;color:var(--primary);text-align:center;direction:ltr;-moz-appearance:textfield;transition:border-color .15s}
+.num-input-wrap input[type=number]::-webkit-inner-spin-button,
+.num-input-wrap input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.num-input-wrap input[type=number]:focus{outline:none;border-color:var(--pl)}
+.num-input-wrap input[type=number].num-error{border-color:var(--danger);background:#fff8f8}
+.num-input-wrap input[type=number].num-ok{border-color:var(--success);background:#f0fbf5}
+.num-max-label{font-size:13px;color:var(--muted)}
+.num-bar-wrap{margin-top:6px;height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden}
+.num-bar{height:100%;border-radius:3px;background:var(--pl);transition:width .2s}
+.eitem-num{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;grid-column:1/-1}
+.email-modal{background:#fff;border-radius:14px;width:100%;max-width:680px;max-height:93vh;overflow-y:auto;direction:rtl}
+.email-hdr{background:linear-gradient(135deg,#e11d48,#be123c);color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:2}
+.email-hdr h2{font-size:16px;font-weight:600}
+@media(max-width:600px){
+  .stats-bar{grid-template-columns:repeat(2,1fr)}
+  .lhdr,.srow{grid-template-columns:24px 1fr 88px 55px}
+  .ecell{display:none}
+  .hdr-top h1{font-size:13px}
+  .tab-btn{font-size:11px;padding:9px 3px}
+  .user-name{display:none}
+}
+
+/* ═══════════════════════════════════════════
+   MOTION SYSTEM — professional micro-interactions
+   ═══════════════════════════════════════════ */
+@keyframes panelIn{from{opacity:0;transform:translateY(16px) scale(.992)}to{opacity:1;transform:none}}
+.tab-panel.active{animation:panelIn .42s cubic-bezier(.22,1,.36,1)}
+@keyframes rowIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+.srow,.prow{animation:rowIn .32s cubic-bezier(.22,1,.36,1) both}
+.srow:nth-child(1),.prow:nth-child(1){animation-delay:.02s}
+.srow:nth-child(2),.prow:nth-child(2){animation-delay:.05s}
+.srow:nth-child(3),.prow:nth-child(3){animation-delay:.08s}
+.srow:nth-child(4),.prow:nth-child(4){animation-delay:.11s}
+.srow:nth-child(5),.prow:nth-child(5){animation-delay:.14s}
+.srow:nth-child(6),.prow:nth-child(6){animation-delay:.17s}
+.srow:nth-child(7),.prow:nth-child(7){animation-delay:.2s}
+.srow:nth-child(8),.prow:nth-child(8){animation-delay:.23s}
+.srow:nth-child(n+9),.prow:nth-child(n+9){animation-delay:.26s}
+@keyframes cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.hday-card,.gcard{animation:cardIn .4s cubic-bezier(.22,1,.36,1) both}
+.hday-card:nth-child(2),.gcard:nth-child(2){animation-delay:.07s}
+.hday-card:nth-child(3),.gcard:nth-child(3){animation-delay:.14s}
+.hday-card:nth-child(n+4),.gcard:nth-child(n+4){animation-delay:.2s}
+.hday-card{transition:transform .25s cubic-bezier(.22,1,.36,1),box-shadow .25s}
+.hday-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(26,82,118,.13)}
+.sc{transition:transform .25s cubic-bezier(.22,1,.36,1),box-shadow .25s}
+.sc:hover{transform:translateY(-3px);box-shadow:0 8px 22px rgba(26,82,118,.12)}
+@keyframes numPop{0%{transform:scale(1)}45%{transform:scale(1.28)}100%{transform:scale(1)}}
+.sc .num.bump{animation:numPop .45s cubic-bezier(.22,1,.36,1)}
+.btn{transition:transform .16s cubic-bezier(.22,1,.36,1),box-shadow .22s,background .2s,filter .2s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(0,0,0,.14);filter:brightness(1.04)}
+.btn:active{transform:scale(.96);box-shadow:none}
+.tab-btn{position:relative;transition:color .22s,background .25s,transform .15s var(--e-out)}
+.overlay{display:flex;opacity:0;pointer-events:none;visibility:hidden;transition:opacity .26s ease,visibility .26s}
+.overlay.open{opacity:1;pointer-events:auto;visibility:visible}
+.overlay>div{transform:translateY(22px) scale(.965);opacity:0;transition:transform .34s cubic-bezier(.22,1,.36,1),opacity .3s}
+.overlay.open>div{transform:none;opacity:1}
+.toast{transform:translateY(14px);transition:opacity .32s,transform .32s cubic-bezier(.22,1,.36,1)}
+.toast.show{transform:none}
+.ab,.pb{transition:transform .14s,background .18s,color .18s,box-shadow .2s}
+.ab:active,.pb:active{transform:scale(.9)}
+.user-info{transition:background .22s,transform .2s}
+.user-info:hover{background:rgba(255,255,255,.26);transform:translateY(-1px)}
+.login-screen{background:linear-gradient(-45deg,#0c5b52,#0f6e62,#103f57,#0c5b52);background-size:380% 380%;animation:gradFlow 16s ease infinite}
+@keyframes gradFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes loginCardIn{from{opacity:0;transform:translateY(26px) scale(.97)}to{opacity:1;transform:none}}
+.login-card{animation:loginCardIn .55s cubic-bezier(.22,1,.36,1)}
+.hinput,.sbox{transition:background .22s,border-color .22s,box-shadow .22s}
+.sbox:focus{box-shadow:0 0 0 3px rgba(41,128,185,.15)}
+.ei{transition:transform .18s}
+.ei:hover{transform:scale(1.18)}
+.dchip,.hchip,.grp-badge{transition:transform .18s}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skel{background:linear-gradient(90deg,var(--bg) 25%,#e8ecf1 50%,var(--bg) 75%);background-size:200% 100%;animation:shimmer 1.3s infinite;border-radius:8px}
+@keyframes spinPulse{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+
+/* PDF PRINT STYLES */
+@media print {
+  body * { visibility: hidden; }
+  #printArea, #printArea * { visibility: visible; }
+  #printArea { position: fixed; left: 0; top: 0; width: 100%; }
+}
+
+</style>
 <script>
 // ── SERVICE WORKER REGISTRATION (Option A) ──
 if ('serviceWorker' in navigator) {

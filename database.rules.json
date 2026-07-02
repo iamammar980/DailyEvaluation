@@ -1,0 +1,48 @@
+{
+  "rules": {
+    "// note": "Server-side authorization for the Realtime Database. This is the REAL security boundary — the client role layer is only convenience. Deploy with: firebase deploy --only database (or paste in the Firebase console → Realtime Database → Rules).",
+
+    "users": {
+      "$uid": {
+        "// owner-scoped": "Each user reads/writes only their own subtree. A student's own eva data lives here under their uid.",
+        ".read":  "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "roles": {
+      "// admin-managed": "Roles are readable by the owner and any admin; only an admin may write them. Set an admin bootstrap uid directly in the console the first time.",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).val() === 'admin')",
+        ".write": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'"
+      }
+    },
+
+    "studentLinks": {
+      "// email→studentId map, admin-managed": "Lets a student session resolve its own studentId and (with rules on the owning evaluator's tree) read only its own evaluations. Readable by the linked student and admins; writable by admins/evaluators.",
+      "$emailKey": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'evaluator')"
+      }
+    },
+
+    "backups": {
+      "$uid": {
+        ".read":  "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "materials": {
+      "// removed feature": "The Teaching Materials tab was removed (it wrote to this global path — the original cross-tenant tampering finding). Deny all access; delete the node once any residual data has been exported.",
+      ".read": false,
+      ".write": false
+    },
+
+    "$other": {
+      "// default-deny": "Anything not matched above is denied. Never leave the database world-readable.",
+      ".read": false,
+      ".write": false
+    }
+  }
+}
