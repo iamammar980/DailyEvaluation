@@ -42,6 +42,7 @@
 <!-- Data core (phase-3): event bus + canonical store. Classic scripts, no build step. -->
 <script src="/src/bus.js"></script>
 <script src="/src/store.js"></script>
+<script src="/src/migrate.js"></script>
 <!-- Firebase loads dynamically in JS only when online mode is chosen -->
 <style>
 :root{
@@ -2131,6 +2132,8 @@ function enterOfflineModeWithUid(uid) {
   if (typeof maybeAutoFullBackup==='function') maybeAutoFullBackup();
   // PHASE 2: legacy-store migration (offline path — local data only)
   setTimeout(function(){ if(typeof runPhase2Migrations==='function') runPhase2Migrations(); }, 5000);
+  // PHASE 3: lift history into the canonical id-keyed store
+  setTimeout(function(){ if(window.Store && typeof migrateV1toV2==='function') Store.ready(migrateV1toV2); }, 8000);
 }
 
 // ── RECONNECT (offline → back to login) ───────────────────────────────
@@ -2171,6 +2174,9 @@ function startListeners() {
       // PHASE 2: fold legacy course/cycle evaluation stores into history
       // (runs after the safety backup has fired; additive + idempotent).
       setTimeout(function(){ if(typeof runPhase2Migrations==='function') runPhase2Migrations(); }, 5000);
+      // PHASE 3: lift history into the canonical id-keyed store (after the
+      // phase-2 fold; idempotent, gated on eva.meta.v1Migrated)
+      setTimeout(function(){ if(window.Store && typeof migrateV1toV2==='function') Store.ready(migrateV1toV2); }, 8000);
       // PHASE C: remind about backups once data is safely loaded (delayed so it
       // doesn't compete with first render)
       setTimeout(function(){ if(typeof checkBackupReminder==='function') checkBackupReminder(); }, 9000);
@@ -6165,6 +6171,9 @@ curDate = today(); // Always start on today
 dbLoad();
 // startup load of the course setup (used to live inside the removed cycLocalLoad)
 try{ var __cc=localStorage.getItem('hsp_course'); if(__cc){ var __cd=JSON.parse(__cc); if(__cd&&typeof __cd==='object') courseConfig=courseNormalize(__cd); } }catch(e){}
+// PHASE 3: expose the app's history global to src/migrate.js (closure —
+// immune to window.history replaceability quirks)
+window.__getAppHistory = function(){ return history; };
 
 
 

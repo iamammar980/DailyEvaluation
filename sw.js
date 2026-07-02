@@ -17,6 +17,7 @@ const PRECACHE = [
   '/manifest.json',
   '/src/bus.js',
   '/src/store.js',
+  '/src/migrate.js',
   '/icon-192.png',
   '/icon-512.png',
   '/icon-maskable-512.png',
