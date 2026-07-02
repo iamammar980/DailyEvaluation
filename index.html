@@ -654,15 +654,15 @@ window.addEventListener('load', function() {
   .animate-fade-rise,.animate-fade-rise-delay,.animate-fade-rise-delay-2{animation:none}
 }
 
-/* ════════ LOGIN — cinematic dark entry over a looping video field ════════ */
+/* ════════ LOGIN — cinematic dark entry over a static gradient field ════════ */
 .login-screen{
   position:fixed;inset:0;z-index:200;overflow:hidden;padding:0;direction:rtl;
   background:var(--navy-900);
 }
-.login-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
 .login-overlay{position:absolute;inset:0;z-index:1;pointer-events:none;
-  background:radial-gradient(1100px 760px at 78% 0%,rgba(31,167,146,.20),transparent 60%),
-    linear-gradient(160deg,rgba(0,28,42,.82),rgba(0,42,61,.70) 55%,rgba(10,61,86,.80))}
+  background:radial-gradient(1100px 760px at 78% 0%,rgba(31,167,146,.28),transparent 60%),
+    radial-gradient(900px 600px at 12% 90%,rgba(15,110,98,.35),transparent 55%),
+    linear-gradient(160deg,#001c2a,#0a2a3d 55%,#0a3d56)}
 .login-topbar{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;align-items:center;
   justify-content:space-between;gap:12px;padding:22px 34px;max-width:1280px;margin:0 auto}
 .login-wordmark{font-family:var(--font-display);font-size:46px;line-height:1;color:#fff;letter-spacing:-.02em}
@@ -829,10 +829,7 @@ body{font-family:var(--font-body)}            /* Inter for Latin, Cairo for Arab
 
 <!-- LOGIN — UNIFIED: auto-detects connectivity, both options always available -->
 <div class="login-screen" id="loginScreen" style="display:none">
-  <!-- cinematic looping video field -->
-  <video class="login-video" autoplay loop muted playsinline poster="">
-    <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260314_131748_f2ca2a28-fed7-44c8-b9a9-bd9acdd5ec31.mp4" type="video/mp4">
-  </video>
+  <!-- static gradient field (CSS only — works fully offline) -->
   <div class="login-overlay"></div>
 
   <!-- top bar: Eva wordmark + faculty affiliation -->
@@ -843,7 +840,7 @@ body{font-family:var(--font-body)}            /* Inter for Latin, Cairo for Arab
 
   <!-- centred hero + login actions -->
   <div class="login-stage">
-    <h1 class="login-hero animate-fade-rise" dir="ltr">There is nothing worse than <em>incompetent teacher</em></h1>
+    <h1 class="login-hero animate-fade-rise">إيفا — تقييم الممارسة <em>السريرية اليومية</em></h1>
 
   <div class="login-card animate-fade-rise-delay-2">
     <div class="logo">🏥</div>
