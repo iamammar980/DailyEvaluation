@@ -9,65 +9,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-<!-- ════════════════════════════════════════════════════════════════════
-     PHASE B: ERROR MONITORING (Sentry) — privacy-strict, DSN-gated.
-     HOW TO ENABLE (one-time, by you):
-       1. Create a free account at sentry.io, add a "Browser JavaScript" project.
-       2. Copy your DSN (looks like https://abc123@o0.ingest.sentry.io/123).
-       3. Paste it into SENTRY_DSN below. Until then, monitoring stays OFF
-          and the app behaves exactly as before (nothing is sent anywhere).
-     PRIVACY: we deliberately scrub student names/grades before sending,
-     disable Session Replay, and send only error type + code location.
-     If university policy forbids any external data, use a self-hosted
-     GlitchTip instead — same code, just a different DSN host.
-     ═══════════════════════════════════════════════════════════════════ -->
 <script>
-  // ⬇⬇⬇ PASTE YOUR SENTRY DSN HERE TO TURN ON MONITORING. Leave '' to keep OFF.
-  window.SENTRY_DSN = '';
-  // Configure BEFORE the loader runs. Only initialises if a DSN is present.
-  window.sentryOnLoad = function () {
-    if (!window.SENTRY_DSN) return; // no DSN → stay completely inert
-    Sentry.init({
-      dsn: window.SENTRY_DSN,
-      environment: 'production',
-      // privacy: do not attach IPs / request bodies / user identity
-      sendDefaultPii: false,
-      // capture a small sample of performance traces; errors are always sent
-      tracesSampleRate: 0.1,
-      // scrub anything that could carry student names or grades before sending
-      beforeSend: function (event) {
-        try {
-          // drop the request URL query/hash (may carry identifiers)
-          if (event.request && event.request.url) {
-            event.request.url = String(event.request.url).split(/[?#]/)[0];
-          }
-          // strip user context entirely
-          delete event.user;
-          // redact long Arabic-name-like strings from the message
-          if (event.message && typeof event.message === 'string' && event.message.length > 200) {
-            event.message = event.message.slice(0, 200) + '…';
-          }
-        } catch (e) {}
-        return event;
-      }
-    });
-  };
-  // Lightweight helper the app can call to report a handled error with context,
-  // safe to call whether or not Sentry is loaded/enabled.
+  // Handled-error reporter: logs locally with context. If external monitoring is
+  // ever adopted, wire it here (single choke point) — never ship placeholder keys.
   window.reportIssue = function (where, err) {
-    try {
-      if (window.Sentry && window.SENTRY_DSN) {
-        Sentry.captureException(err instanceof Error ? err : new Error(String(err)), { tags: { where: where } });
-      } else if (typeof console !== 'undefined') {
-        console.error('[issue]', where, err);
-      }
-    } catch (e) {}
+    try { console.error('[issue]', where, err); } catch (e) {}
   };
 </script>
-<!-- Sentry Loader: replace PUBLIC_KEY in the URL with your own from the Loader Script page.
-     This tag is harmless when SENTRY_DSN is empty (init is skipped above). -->
-<!-- <script src="https://js.sentry-cdn.com/PUBLIC_KEY.min.js" crossorigin="anonymous"></script> -->
-<!-- ════════════════════════════════════════════════════════════════════ -->
 
 <!-- PWA: installable app metadata -->
 <link rel="manifest" href="/manifest.json">
