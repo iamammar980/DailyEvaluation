@@ -2150,6 +2150,8 @@ function enterOfflineModeWithUid(uid) {
   setTimeout(function(){ if(typeof routeFromHash==='function' && location.hash) routeFromHash(); }, 9000);
   // PHASE 5: auto-lock old evaluated records (signature/locking, 6.8)
   setTimeout(function(){ if(typeof autoLockPass==='function') autoLockPass(); }, 12000);
+  // PHASE 5 (6.5a): schedule-driven preselect — land on today's group
+  setTimeout(function(){ if(window.Store && typeof schedulePreselect==='function') Store.ready(schedulePreselect); }, 2500);
 }
 
 // ── RECONNECT (offline → back to login) ───────────────────────────────
@@ -2197,6 +2199,8 @@ function startListeners() {
       setTimeout(function(){ if(typeof routeFromHash==='function' && location.hash) routeFromHash(); }, 9000);
       // PHASE 5: auto-lock old evaluated records (signature/locking, 6.8)
       setTimeout(function(){ if(typeof autoLockPass==='function') autoLockPass(); }, 12000);
+      // PHASE 5 (6.5a): schedule-driven preselect — land on today's group
+      setTimeout(function(){ if(window.Store && typeof schedulePreselect==='function') Store.ready(schedulePreselect); }, 2500);
       // PHASE C: remind about backups once data is safely loaded (delayed so it
       // doesn't compete with first render)
       setTimeout(function(){ if(typeof checkBackupReminder==='function') checkBackupReminder(); }, 9000);
@@ -2494,6 +2498,71 @@ function updateDateLabel(){
 }
 
 // ═══════════════════════════════════════════
+// PHASE 5 (6.5a): schedule-driven preselect — on login, if today's list is
+// empty and the course schedule says a group is at MY hospital this week,
+// load that group automatically. Zero clicks to start grading.
+// ═══════════════════════════════════════════
+function schedulePreselect(){
+  try{
+    // prefer the canonical store; fall back to the classic globals so the
+    // feature works even before the config has been bridged
+    var c = (window.eva && eva.config && Array.isArray(eva.config.schedule) && eva.config.schedule.length)
+            ? eva.config
+            : (typeof courseConfig!=='undefined' && courseConfig) ? courseConfig : null;
+    if(!c || !c.startDate || !Array.isArray(c.schedule) || !c.schedule.length) return;
+    if(getStudents().length) return;                       // never overwrite a loaded list
+    var myHosp = ((c.settings && c.settings.hospitalName) ||
+                  (document.getElementById('hName') && document.getElementById('hName').value) || '').trim();
+    if(!myHosp) return;
+    var myHid = null;
+    (c.hospitals||[]).forEach(function(h){ if(h.name === myHosp) myHid = h.id; });
+    if(!myHid) return;
+    var start = new Date(c.startDate + 'T00:00:00'), now = new Date(today() + 'T00:00:00');
+    if(now < start) return;
+    var weekIdx = Math.floor((now - start) / (7 * 86400000)) + 1;  // 1-based calendar week
+    var match = null;
+    c.schedule.forEach(function(g){ (g.stations||[]).forEach(function(st){
+      if(st.hospitalId === myHid && weekIdx >= st.weekStart && weekIdx <= st.weekEnd) match = g;
+    }); });
+    if(!match) return;
+    var grp = (c.groups||[]).filter(function(x){ return x.id === match.groupId; })[0];
+    var names = (grp && grp.students) || [];
+    if(!names.length) return;
+    curGroup = (grp.shift === 'evening') ? 'evening' : 'morning';
+    setStudents(names.map(function(n){ return { name: n }; }));
+    try{ if(typeof saveStudents === 'function') saveStudents(); }catch(e){}
+    try{
+      var lbl=document.getElementById('curGroupLabel'), bdg=document.getElementById('curGroupBadge');
+      if(lbl) lbl.textContent = 'المجموعة ' + (curGroup==='evening' ? 'المسائية' : 'الصباحية');
+      if(bdg){ bdg.textContent = (curGroup==='evening' ? 'مسائي' : 'صباحي'); bdg.className='grp-badge '+curGroup; }
+    }catch(e){}
+    renderList();
+    toast('📅 حُمِّلت مجموعة اليوم تلقائياً: ' + (grp.label||'') + ' — ' + myHosp);
+  }catch(e){ if(window.reportIssue) reportIssue('schedulePreselect', e); }
+}
+
+// PHASE 5 (6.5b): local end-of-day reminder — «N تقييمات لم تكتمل اليوم».
+// Local Notifications API only (no push server); fires once per day after
+// 16:00 when evaluations are still pending. Enabled from the dashboard.
+function reminderCheck(){
+  try{
+    if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    if(new Date().getHours() < 16) return;
+    var key = 'hsp_reminded_' + today();
+    if(localStorage.getItem(key)) return;
+    var pending = (window.Selectors && Store.isReady()) ? Selectors.getPending(today()) : [];
+    if(!pending.length) return;
+    localStorage.setItem(key, '1');
+    new Notification('إيفا — تقييمات غير مكتملة', {
+      body: pending.length + ' تقييم لم يكتمل اليوم — ' + pending.slice(0,3).map(function(p){return p.name;}).join('، ') + (pending.length>3?'…':''),
+      icon: '/icon-192.png', dir: 'rtl', lang: 'ar'
+    });
+  }catch(e){}
+}
+setInterval(reminderCheck, 3600000);
+document.addEventListener('visibilitychange', function(){ if(!document.hidden) reminderCheck(); });
+
+// ═══════════════════════════════════════════
 // HOME DASHBOARD (phase-4) — pending, flags, quick actions.
 // Reads ONLY through Selectors/Flags over the canonical Store; subscribes
 // to the bus so it live-updates while open. No cross-tab coupling.
@@ -2535,6 +2604,11 @@ function renderHome(){
   h+='<button class="btn bo" onclick="showTab(\'paper\')">📄 الورقة اليومية</button>';
   h+='<button class="btn bo" onclick="if(typeof Sync!==\'undefined\'&&Sync.verify)Sync.verify();else if(typeof flushQueue===\'function\')flushQueue();toast(\'↻ جارٍ المزامنة\')">🔄 مزامنة الآن</button>';
   h+='<button class="btn bo" onclick="showTab(\'stat\')">📊 الإحصائيات</button>';
+  try{
+    if(typeof Notification!=='undefined' && Notification.permission==='default'){
+      h+='<button class="btn bo" onclick="Notification.requestPermission().then(function(){renderHome();reminderCheck();})">🔔 تفعيل تذكير نهاية اليوم</button>';
+    }
+  }catch(e){}
   h+='</div>';
   // flags list
   h+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px">';
@@ -3615,6 +3689,65 @@ function openProgressDetail(encName){
   if(riskLines.length){
     html += '<div style="background:#fdf2f2;border:1px solid var(--danger);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--danger);font-weight:600">'+riskLines.map(function(r){return esc(r);}).join(' • ')+'</div>';
   }
+
+  // ★ PHASE 5: entrustment trend + case log + feedback (from the canonical store)
+  try{
+    if(window.Selectors){
+      var __sid3 = studentIdByName(name);
+      if(__sid3){
+        var __tl = Selectors.getStudentTimeline(__sid3);
+        // entrustment progression (6.2)
+        var __ents = __tl.filter(function(t){ return t.entrustment; });
+        if(__ents.length){
+          var entNames={1:'مراقبة',2:'إشراف مباشر',3:'إشراف غير مباشر',4:'مستقل',5:'يُشرف على غيره'};
+          html+='<div style="background:var(--surface-2);border:1px solid var(--line-soft);border-radius:12px;padding:12px 14px;margin-bottom:14px">';
+          html+='<div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#2563a8">🪜 تطور مستوى الاستقلالية</div>';
+          html+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
+          __ents.forEach(function(t,i){
+            var col=t.entrustment>=4?'var(--success)':t.entrustment>=3?'#2563a8':'#c8862b';
+            html+='<span title="'+esc(t.dateISO||('دورة يوم '+t.legacyCycleDay))+'" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px">'
+              +'<b style="width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:'+col+';color:#fff;font-size:14px">'+t.entrustment+'</b>'
+              +'<span style="font-size:9px;color:var(--muted)">'+esc((t.dateISO||'').slice(5))+'</span></span>';
+            if(i<__ents.length-1) html+='<span style="color:var(--muted)">←</span>';
+          });
+          var __last=__ents[__ents.length-1].entrustment;
+          html+='</div><div style="font-size:12px;color:var(--muted);margin-top:6px">المستوى الحالي: <b style="color:var(--text)">'+__last+' — '+entNames[__last]+'</b></div></div>';
+        }
+        // case/procedure totals vs targets, with the gap list (6.6)
+        var __caseTot={};
+        __tl.forEach(function(t){ (t.cases||[]).forEach(function(c){ if(c&&c.label) __caseTot[c.label]=(__caseTot[c.label]||0)+(c.count||1); }); });
+        var __types=(eva.config.settings&&Array.isArray(eva.config.settings.caseTypes)&&eva.config.settings.caseTypes.length)?eva.config.settings.caseTypes:['أخذ تاريخ','فحص سريري','إجراء','عرض حالة'];
+        var __targets=(eva.config.settings&&eva.config.settings.caseTargets)||{};
+        if(Object.keys(__caseTot).length || __types.length){
+          var __gap=__types.filter(function(t){ return !__caseTot[t]; });
+          html+='<div style="background:var(--surface-2);border:1px solid var(--line-soft);border-radius:12px;padding:12px 14px;margin-bottom:14px">';
+          html+='<div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#7c3aed">🩺 سجل الحالات والإجراءات</div>';
+          html+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
+          __types.forEach(function(t){
+            var n=__caseTot[t]||0, tgt=__targets[t]||0;
+            html+='<span style="border:1.5px solid '+(n?'#7c3aed':'var(--border)')+';border-radius:16px;padding:4px 12px;font-size:12px;font-weight:700;color:'+(n?'#5b21b6':'var(--muted)')+'">'+esc(t)+': '+n+(tgt?('/'+tgt):'')+'</span>';
+          });
+          html+='</div>';
+          if(__gap.length) html+='<div style="font-size:12px;color:#b9770e;margin-top:8px">لم يُنفَّذ بعد: '+__gap.map(function(g){return esc(g);}).join('، ')+'</div>';
+          html+='</div>';
+        }
+        // structured feedback history (6.1)
+        var __fbs=__tl.filter(function(t){ return t.feedback && ((t.feedback.well||'').trim() || (t.feedback.improve||'').trim()); });
+        if(__fbs.length){
+          html+='<div style="background:var(--surface-2);border:1px solid var(--line-soft);border-radius:12px;padding:12px 14px;margin-bottom:14px">';
+          html+='<div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#0e7490">💬 التغذية الراجعة</div>';
+          __fbs.slice(-5).reverse().forEach(function(t){
+            html+='<div style="border-bottom:1px dashed var(--border);padding:6px 0;font-size:12.5px">';
+            html+='<div style="color:var(--muted);font-size:11px;margin-bottom:2px">'+esc(t.dateISO||('دورة يوم '+t.legacyCycleDay))+'</div>';
+            if((t.feedback.well||'').trim()) html+='<div>✅ '+esc(t.feedback.well)+'</div>';
+            if((t.feedback.improve||'').trim()) html+='<div style="color:#b9770e">🎯 '+esc(t.feedback.improve)+'</div>';
+            html+='</div>';
+          });
+          html+='</div>';
+        }
+      }
+    }
+  }catch(e){}
 
   // ── Cohort comparison: this student vs every other student (rank + delta) ──
   (function(){
@@ -5988,6 +6121,21 @@ function courseNormalize(cfg){
 function courseSave(){
   try{ localStorage.setItem('hsp_course', JSON.stringify(courseConfig)); }catch(e){}
   if(!isOfflineMode && currentUser && db){ guardedSet('courseConfig', courseConfig); }
+  // PHASE 5: keep the canonical store's config slice in step (groups,
+  // hospitals, schedule feed the dashboard, preselect and selectors)
+  try{
+    if(window.Store && Store.isReady() && courseConfig){
+      Store.update('config', function(cfg){
+        cfg = cfg || {};
+        cfg.groups = JSON.parse(JSON.stringify(courseConfig.groups||[]));
+        cfg.hospitals = JSON.parse(JSON.stringify(courseConfig.hospitals||[]));
+        cfg.schedule = JSON.parse(JSON.stringify(courseConfig.schedule||[]));
+        cfg.courseName = courseConfig.name||''; cfg.startDate = courseConfig.startDate||'';
+        cfg.daysPerWeek = courseConfig.daysPerWeek||2; cfg.weeksPerStation = courseConfig.weeksPerStation||2;
+        return cfg;
+      }, { action:'bridge:config' });
+    }
+  }catch(e){}
 }
 function courseGenerate(){
   var hospInput=(document.getElementById('crsHospitals')||{}).value||'';
