@@ -6278,6 +6278,9 @@ function statDrawCharts(data){
 
 function statMake(id,type,data,opts){
   var el=document.getElementById(id); if(!el) return;
+  // defensive: destroy any chart still bound to this canvas before reusing it
+  // (prevents Chart.js "canvas already in use" if a redraw races a prior draw)
+  try{ if(Chart.getChart){ var prev=Chart.getChart(el); if(prev) prev.destroy(); } }catch(e){}
   var base={responsive:true,maintainAspectRatio:false};
   for(var k in opts){ base[k]=opts[k]; }
   var ch=new Chart(el.getContext('2d'),{type:type,data:data,options:base});
