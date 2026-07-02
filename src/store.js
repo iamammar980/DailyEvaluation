@@ -214,6 +214,51 @@
 
     subscribe: function (ev, fn) { return window.bus.on(ev, fn); },
 
+    /* explicit deletion (update()'s patchFn cannot express it: a mutating
+       patch returns undefined and means "keep the draft") */
+    remove: function (path, meta) {
+      meta = meta || {};
+      var parts = String(path).split('.');
+      if (parts.length < 2) return false; // whole slices are never removed
+      var before = clone(getPath(window.eva, path));
+      if (before === undefined) return false;
+      var parent = getPath(window.eva, parts.slice(0, -1).join('.'));
+      if (parent == null) return false;
+      delete parent[parts[parts.length - 1]];
+
+      var slice = parts[0];
+      var evalId = (slice === 'evaluations') ? parts[1] : null;
+      if (slice === 'evaluations' && parts.length === 2) idbDel('evaluations', evalId);
+      else idbPut('kv', slice, clone(window.eva[slice]));
+
+      if (!meta.noAudit) {
+        var entry = {
+          ts: Date.now(),
+          uid: meta.uid || (window.currentUser ? currentUser.uid : 'local'),
+          name: meta.name || (window.currentUser ? (currentUser.displayName || currentUser.email || '') : ''),
+          action: meta.action || ('remove:' + path),
+          evalId: evalId, before: before, after: null
+        };
+        idbPut('audit', undefined, entry);
+        window.bus.emit('audit:appended', entry);
+      }
+      if (!meta.noSync) {
+        var item = { path: path, value: null, removed: true, ts: Date.now(),
+                     rev: null, deviceId: window.eva.meta.deviceId };
+        idbPut('outbox', undefined, item);
+        window.bus.emit('outbox:queued', item);
+      }
+      if (!meta.silent) {
+        var ev = meta.event ||
+          (slice === 'evaluations' ? 'evaluation:saved' :
+           slice === 'students' ? 'students:changed' :
+           slice === 'config' ? 'config:changed' :
+           slice === 'flags' ? 'flags:changed' : 'state:changed');
+        window.bus.emit(ev, { path: path, evalId: evalId, removed: true });
+      }
+      return true;
+    },
+
     /* audit + outbox accessors (store-internal persistence, read-only API) */
     auditRecent: function (limit) {
       return idbAll('audit').then(function (r) {
