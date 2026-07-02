@@ -31,9 +31,19 @@
     return any ? Math.round(Math.min(t, 15) * 100) / 100 : null;
   }
 
-  /* effective day total for a record: manual override, saved total, or sum */
+  /* effective day total for a record: multi-rater average when two or more
+     evaluators graded it (6.4), else manual override, saved total, or sum */
   function recordTotal(r) {
     if (!r) return null;
+    if (r.byEvaluator) {
+      var ks = Object.keys(r.byEvaluator);
+      if (ks.length >= 2) {
+        var s = 0, n = 0;
+        ks.forEach(function (k) { var t = r.byEvaluator[k] && r.byEvaluator[k].total;
+          if (typeof t === 'number') { s += t; n++; } });
+        if (n >= 2) return Math.round((s / n) * 100) / 100;
+      }
+    }
     if (typeof r.manualTotal === 'number') return Math.min(15, r.manualTotal);
     if (typeof r.total === 'number') return Math.min(15, r.total);
     return computeTotal(r.scores);

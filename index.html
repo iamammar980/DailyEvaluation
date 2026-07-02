@@ -2148,6 +2148,8 @@ function enterOfflineModeWithUid(uid) {
   setTimeout(function(){ if(window.Store && typeof migrateV1toV2==='function') Store.ready(migrateV1toV2); }, 8000);
   // PHASE 4: honor a deep-link hash once data + store are ready
   setTimeout(function(){ if(typeof routeFromHash==='function' && location.hash) routeFromHash(); }, 9000);
+  // PHASE 5: auto-lock old evaluated records (signature/locking, 6.8)
+  setTimeout(function(){ if(typeof autoLockPass==='function') autoLockPass(); }, 12000);
 }
 
 // ── RECONNECT (offline → back to login) ───────────────────────────────
@@ -2193,6 +2195,8 @@ function startListeners() {
       setTimeout(function(){ if(window.Store && typeof migrateV1toV2==='function') Store.ready(migrateV1toV2); }, 8000);
       // PHASE 4: honor a deep-link hash once data + store are ready
       setTimeout(function(){ if(typeof routeFromHash==='function' && location.hash) routeFromHash(); }, 9000);
+      // PHASE 5: auto-lock old evaluated records (signature/locking, 6.8)
+      setTimeout(function(){ if(typeof autoLockPass==='function') autoLockPass(); }, 12000);
       // PHASE C: remind about backups once data is safely loaded (delayed so it
       // doesn't compete with first render)
       setTimeout(function(){ if(typeof checkBackupReminder==='function') checkBackupReminder(); }, 9000);
@@ -2683,12 +2687,37 @@ function openEval(idx){
   // ★ Sign-off / lock banner
   if(rec.locked){
     var lockWhen = rec.lockedAt ? new Date(rec.lockedAt).toLocaleString('ar-SA') : '';
+    var sigLine = (rec.signature && rec.signature.name) ? ('✍️ التوقيع: '+esc(rec.signature.name)+(rec.signature.hash?' <span style="direction:ltr;unicode-bidi:embed;font-size:9px;color:var(--muted)" title="بصمة التحقق SHA-256">#'+esc(String(rec.signature.hash).slice(0,10))+'…</span>':'')) : '';
     html+='<div style="background:#e8f8f0;border:1px solid var(--success);border-radius:8px;padding:10px 12px;margin-bottom:11px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
     html+='<div><div style="font-size:13px;font-weight:700;color:var(--success)">🔒 تقييم معتمد ومقفل</div>';
-    html+='<div style="font-size:11px;color:var(--muted);margin-top:2px">بواسطة '+(rec.lockedBy||'')+(lockWhen?' — '+lockWhen:'')+'</div></div>';
+    html+='<div style="font-size:11px;color:var(--muted);margin-top:2px">بواسطة '+esc(rec.lockedBy||'')+(lockWhen?' — '+lockWhen:'')+'</div>';
+    if(sigLine) html+='<div style="font-size:11px;color:var(--muted);margin-top:2px">'+sigLine+'</div></div>';
+    else html+='</div>';
     html+='<button class="btn bo" style="font-size:12px" onclick="unlockEval('+idx+')">🔓 فتح للتعديل</button>';
     html+='</div>';
+  } else if(rec.amended){
+    html+='<div style="background:#fdf6e3;border:1px solid #c8862b;border-radius:8px;padding:8px 12px;margin-bottom:11px;font-size:12px;color:#8a5a00;font-weight:700">📝 تقييم معدَّل — فُتح بعد اعتماده'+(rec.amendedBy?(' بواسطة '+esc(rec.amendedBy)):'')+'</div>';
   }
+  // ★ PHASE 5 (6.4): multi-evaluator panel — the canonical record for this
+  // student/day may carry other raters' grades from other devices/accounts
+  try{
+    if(window.Selectors && s && s.name){
+      var __sid=studentIdByName(s.name);
+      if(__sid){
+        var __canon = eva.evaluations[curDate+'_'+curGroup+'_'+(function(){var hn=(eva.config.settings&&eva.config.settings.hospitalName)||'';var hs=eva.config.hospitals||[];for(var q=0;q<hs.length;q++)if(hs[q].name===hn)return hs[q].id;return hn?('h_'+hn.replace(/[.#$\[\]\/\s]+/g,'-')):'h_unknown';})()+'_'+__sid];
+        if(__canon && __canon.byEvaluator && Object.keys(__canon.byEvaluator).length>=2){
+          var __avg = Selectors.recordTotal(__canon);
+          html+='<div style="background:#eef4fe;border:1px solid #2563a8;border-radius:8px;padding:10px 12px;margin-bottom:11px">';
+          html+='<div style="font-size:13px;font-weight:700;color:#2563a8;margin-bottom:6px">👥 عدة مقيّمين — المتوسط المعتمد: '+(__avg!=null?__avg.toFixed(2):'—')+'/15</div>';
+          Object.keys(__canon.byEvaluator).forEach(function(u){
+            var e2=__canon.byEvaluator[u];
+            html+='<div style="font-size:12px;color:var(--muted);padding:2px 0">• '+esc(e2.name||u)+': <b style="color:var(--text)">'+(typeof e2.total==='number'?e2.total.toFixed(2):'—')+'/15</b></div>';
+          });
+          html+='</div>';
+        }
+      }
+    }
+  }catch(e){}
   for(var fi=0;fi<FIELDS.length;fi++){
     var f=FIELDS[fi];
     var secTotal=f.items.reduce(function(s,x){return s+x.m},0);
@@ -2745,8 +2774,35 @@ function openEval(idx){
     }    html+='</div></div>';
   }
   html+='<div class="tbar"><span class="tl">المجموع الكلي</span><div style="display:flex;align-items:baseline;gap:5px"><span class="tv" id="mTot">'+(rec.total!==undefined?rec.total.toFixed(2):'0.00')+'</span><span class="tm">/ 15</span></div></div>';
-  html+='<div class="narea"><label>ملاحظات:</label><textarea id="eNotes">'+(rec.notes||'')+'</textarea></div>';
+
+  // ★ PHASE 5 (6.2): entrustment / supervision scale — the modern clinical
+  // training measure: how much supervision does this student still need?
+  __evalEnt = rec.entrustment || null;
+  var entLabels=[[1,'١ مراقبة فقط'],[2,'٢ إشراف مباشر'],[3,'٣ إشراف غير مباشر'],[4,'٤ مستقل'],[5,'٥ يُشرف على غيره']];
+  html+='<div class="esec" style="border-top:3px solid #2563a8"><div class="estit" style="color:#2563a8">مستوى الاستقلالية</div>';
+  html+='<div id="entSeg" style="display:flex;gap:6px;flex-wrap:wrap;padding:6px 0">';
+  entLabels.forEach(function(e){
+    var on=(__evalEnt===e[0]);
+    html+='<button type="button" data-ent="'+e[0]+'" onclick="setEnt('+e[0]+')" style="cursor:pointer;border-radius:20px;padding:6px 13px;font-size:12.5px;font-weight:700;border:1.5px solid '+(on?'#2563a8':'var(--border)')+';background:'+(on?'#2563a8':'#fff')+';color:'+(on?'#fff':'var(--text)')+'">'+e[1]+'</button>';
+  });
+  html+='</div></div>';
+
+  // ★ PHASE 5 (6.1): structured narrative feedback (text only — no dictation)
+  var fb=rec.feedback||{};
+  html+='<div class="esec" style="border-top:3px solid #0e7490"><div class="estit" style="color:#0e7490">تغذية راجعة</div>';
+  html+='<div style="display:grid;gap:9px;padding:6px 0">';
+  html+='<div><label for="fbWell" style="font-size:12.5px;font-weight:700;display:block;margin-bottom:4px;color:var(--text)">ما الذي أُجيد؟</label><textarea id="fbWell" rows="2" oninput="evalDirty=true" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical">'+esc(fb.well||'')+'</textarea></div>';
+  html+='<div><label for="fbImprove" style="font-size:12.5px;font-weight:700;display:block;margin-bottom:4px;color:var(--text)">نقطة واحدة للتحسين</label><textarea id="fbImprove" rows="2" oninput="evalDirty=true" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical">'+esc(fb.improve||'')+'</textarea></div>';
+  html+='</div></div>';
+
+  // ★ PHASE 5 (6.6): case/procedure quick-log — tap a chip to add one
+  __evalCases={}; (rec.cases||[]).forEach(function(c){ if(c&&c.label) __evalCases[c.label]=(c.count||1); });
+  html+='<div class="esec" style="border-top:3px solid #7c3aed"><div class="estit" style="color:#7c3aed">سجل الحالات والإجراءات<span style="font-size:11px;color:var(--muted);font-weight:400;margin-right:8px">اضغط للإضافة، × للمسح</span></div>';
+  html+='<div id="caseChips" style="display:flex;gap:6px;flex-wrap:wrap;padding:6px 0"></div></div>';
+
+  html+='<div class="narea"><label>ملاحظات:</label><textarea id="eNotes">'+esc(rec.notes||'')+'</textarea></div>';
   document.getElementById('mBody').innerHTML=html;
+  renderCaseChips();
   recalc();
   applyLockState(rec.locked); // ★ disable inputs + footer when locked
   // ★ if a newer unsaved draft exists for this student/day, restore it
@@ -2757,6 +2813,41 @@ function openEval(idx){
   }
   evalDirty=false; // opening is not itself an unsaved edit
   document.getElementById('evalM').classList.add('open');
+}
+
+// ★ PHASE 5: modal state for entrustment + case log
+var __evalEnt=null, __evalCases={};
+function setEnt(v){
+  __evalEnt = (__evalEnt===v) ? null : v; // tap again to clear
+  evalDirty=true;
+  var seg=document.getElementById('entSeg'); if(!seg) return;
+  seg.querySelectorAll('button[data-ent]').forEach(function(b){
+    var on=(parseInt(b.getAttribute('data-ent'),10)===__evalEnt);
+    b.style.border='1.5px solid '+(on?'#2563a8':'var(--border)');
+    b.style.background=on?'#2563a8':'#fff';
+    b.style.color=on?'#fff':'var(--text)';
+  });
+}
+function evalCaseTypes(){
+  var s=(window.eva&&eva.config&&eva.config.settings)||{};
+  return (Array.isArray(s.caseTypes)&&s.caseTypes.length)?s.caseTypes:['أخذ تاريخ','فحص سريري','إجراء','عرض حالة'];
+}
+function renderCaseChips(){
+  var host=document.getElementById('caseChips'); if(!host) return;
+  var types=evalCaseTypes(); var h='';
+  types.forEach(function(t){
+    var n=__evalCases[t]||0;
+    h+='<span style="display:inline-flex;align-items:center;gap:6px;border-radius:20px;padding:5px 12px;font-size:12.5px;font-weight:700;cursor:pointer;border:1.5px solid '+(n?'#7c3aed':'var(--border)')+';background:'+(n?'#f3eefe':'#fff')+';color:'+(n?'#5b21b6':'var(--text)')+'" onclick="caseBump(\''+t.replace(/'/g,"\\'")+'\',1)">'
+      +esc(t)+(n?' <b style="background:#7c3aed;color:#fff;border-radius:10px;padding:0 7px;font-size:11px">'+n+'</b>':'')
+      +(n?' <b onclick="event.stopPropagation();caseBump(\''+t.replace(/'/g,"\\'")+'\',-999)" style="color:#b91c1c;font-size:12px">×</b>':'')
+      +'</span>';
+  });
+  host.innerHTML=h;
+}
+function caseBump(label,delta){
+  __evalCases[label]=Math.max(0,(__evalCases[label]||0)+delta);
+  if(!__evalCases[label]) delete __evalCases[label];
+  evalDirty=true; renderCaseChips();
 }
 
 // ★ Sign-off helpers
@@ -2791,26 +2882,81 @@ function applyLockState(locked){
   }
 }
 
+// ★ PHASE 5 (6.8): e-signature — typed name + SHA-256 over the grade content.
+// The hash makes silent tampering detectable: recompute and compare anytime.
+function signEvalRecord(rec, sessionK, idx, typedName){
+  var uid = currentUser ? currentUser.uid : 'local';
+  var basis = sessionK + '#' + idx + '#' + Date.now() + '#' + uid + '#' + JSON.stringify(rec.scores||{}) + '#' + (rec.total!=null?rec.total:'');
+  var ts = Date.now();
+  function finish(hashHex){
+    rec.signature = { name: typedName, ts: ts, hash: hashHex || null };
+    rec.locked = true; rec.lockedAt = ts;
+    rec.lockedBy = typedName || (currentUser ? (currentUser.email||currentUser.displayName||'') : '');
+    saveDay(sessionK);
+    openEval(idx); renderList();
+    toast('🔒 تم اعتماد التقييم وتوقيعه');
+  }
+  try{
+    if (window.crypto && crypto.subtle && window.TextEncoder){
+      crypto.subtle.digest('SHA-256', new TextEncoder().encode(basis)).then(function(buf){
+        var hex=''; new Uint8Array(buf).forEach(function(b){ hex += ('0'+b.toString(16)).slice(-2); });
+        finish(hex);
+      }).catch(function(){ finish(null); });
+    } else finish(null);
+  }catch(e){ finish(null); }
+}
+
 function lockEval(idx){
   var day=getSession(); if(!day[idx]) return;
   if(!day[idx].evaluated){ toast('احفظ التقييم أولاً قبل الاعتماد'); return; }
-  if(!confirm('اعتماد وقفل هذا التقييم؟ لن يمكن تعديله إلا بفتحه مجدداً.')) return;
-  day[idx].locked = true;
-  day[idx].lockedAt = Date.now();
-  day[idx].lockedBy = currentUser ? (currentUser.email||currentUser.displayName||'') : '';
-  saveDay(sessionKey());
-  openEval(idx); renderList();
-  toast('🔒 تم اعتماد التقييم');
+  var suggested = (document.getElementById('supName')&&document.getElementById('supName').value) ||
+                  (currentUser ? (currentUser.displayName||currentUser.email||'') : '');
+  var typed = prompt('للاعتماد والتوقيع، اكتب اسمك كتوقيع إلكتروني:', suggested);
+  if(typed===null) return;
+  typed = typed.trim();
+  if(!typed){ toast('التوقيع مطلوب للاعتماد'); return; }
+  signEvalRecord(day[idx], sessionKey(), idx, typed);
 }
 
 function unlockEval(idx){
   var day=getSession(); if(!day[idx]) return;
-  if(!confirm('فتح هذا التقييم للتعديل؟')) return;
+  if(!confirm('فتح هذا التقييم المعتمد للتعديل؟ سيُوسم التقييم بأنه «معدَّل» ويُسجَّل ذلك في سجل التغييرات.')) return;
   day[idx].locked = false;
-  delete day[idx].lockedAt; delete day[idx].lockedBy;
+  day[idx].amended = true;   // permanent: PDF exports print a «معدَّل» watermark
+  day[idx].amendedAt = Date.now();
+  day[idx].amendedBy = currentUser ? (currentUser.email||currentUser.displayName||'') : '';
+  // the amendment itself is an audited event (goes through the bridge/store)
+  try{ logChange(sessionKey(), idx, (day[idx].name||''), {locked:true}, {locked:false, amended:true}); }catch(e){}
   saveDay(sessionKey());
   openEval(idx); renderList();
-  toast('🔓 تم فتح التقييم للتعديل');
+  toast('🔓 فُتح التقييم — سيظهر كتقييم معدَّل');
+}
+
+// ★ PHASE 5 (6.8): auto-lock — evaluated records older than N days lock
+// themselves (default 7; configurable via settings.autoLockDays; 0 disables).
+function autoLockPass(){
+  try{
+    var days = (window.eva && eva.config.settings && typeof eva.config.settings.autoLockDays==='number')
+      ? eva.config.settings.autoLockDays : 7;
+    if(!days) return;
+    var cutoff = Date.now() - days*86400000;
+    var touched = {};
+    Object.keys(history).forEach(function(k){
+      var m = k.match(/^(\d{4}-\d{2}-\d{2})_/); if(!m) return;
+      if (new Date(m[1]+'T23:59:59').getTime() > cutoff) return; // still editable
+      var sess = history[k]; if(!sess) return;
+      Object.keys(sess).forEach(function(i){
+        if(!/^\d+$/.test(i)) return;
+        var r = sess[i];
+        if(r && r.evaluated && !r.locked){
+          r.locked = true; r.lockedAt = Date.now(); r.lockedBy = 'قفل تلقائي ('+days+' يوم)';
+          touched[k]=1;
+        }
+      });
+    });
+    Object.keys(touched).forEach(function(k){ saveDay(k); });
+    if(Object.keys(touched).length) toast('🔒 قُفلت تقييمات أقدم من '+days+' أيام تلقائياً');
+  }catch(e){ if(window.reportIssue) reportIssue('autoLockPass', e); }
 }
 
 function setEvalPaper(idx,val){
@@ -2910,6 +3056,13 @@ function saveEval(){
   rec.total=Math.min(t,15);
   rec.notes=document.getElementById('eNotes').value;
   rec.evaluated=true;
+  // ★ PHASE 5: entrustment + structured feedback + case log
+  rec.entrustment = __evalEnt || null;
+  rec.feedback = {
+    well: (document.getElementById('fbWell')||{value:''}).value.trim(),
+    improve: (document.getElementById('fbImprove')||{value:''}).value.trim()
+  };
+  rec.cases = Object.keys(__evalCases).map(function(l){ return { type:l, label:l, count:__evalCases[l] }; });
   // ★ stamp the student's NAME into the record. The record is keyed by list
   // index (day[curSt]); if the list order ever changes, the index alone would
   // silently mis-attribute grades. Storing the name makes attribution robust

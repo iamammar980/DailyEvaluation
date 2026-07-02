@@ -92,11 +92,16 @@
         notes: old.notes || '',
         paperDelivered: (old.paperDelivered === true || old.paperDelivered === false) ? old.paperDelivered : null,
         locked: !!old.locked,
+        entrustment: old.entrustment || null,
+        feedback: old.feedback || { well: '', improve: '' },
+        cases: Array.isArray(old.cases) ? old.cases : [],
         evaluatorUid: (window.currentUser ? currentUser.uid : null),
         evaluatorName: (window.currentUser ? (currentUser.displayName || currentUser.email || '') : ''),
         source: 'bridge'
       };
       if (typeof old.manualTotal === 'number') patch.manualTotal = old.manualTotal;
+      if (old.signature) patch.signature = old.signature;
+      if (old.amended) patch.amended = true;
       if (meta.kind === 'daily') {
         var hosp = sess.__hospital__ || (window.eva.config.settings && window.eva.config.settings.hospitalName) || '';
         patch.dateISO = meta.dateISO; patch.groupId = meta.shift; patch.hospitalId = hospitalId(hosp);
@@ -108,9 +113,23 @@
         patch.dateISO = null; patch.groupId = gid; patch.hospitalId = hid; patch.legacyCycleDay = meta.day;
         evalId = 'cycd' + meta.day + '_' + gid + '_' + hid + '_' + sid;
       }
-      // skip if unchanged (cheap content signature) to avoid audit/outbox churn
+      // multi-evaluator (6.4): keep a per-rater sub-record. Two evaluators on
+      // the same student/day land on the SAME evalId; each rater's numbers
+      // live under byEvaluator[uid] and the displayed total is their average.
       var existing = window.eva.evaluations[evalId];
-      var sig = JSON.stringify([patch.attendance, patch.total, patch.scores, patch.notes, patch.paperDelivered, patch.locked]);
+      if (patch.evaluated && patch.total != null && patch.evaluatorUid) {
+        var byEv = (existing && existing.byEvaluator) ? JSON.parse(JSON.stringify(existing.byEvaluator)) : {};
+        byEv[patch.evaluatorUid] = { total: patch.total, scores: patch.scores, ts: Date.now(),
+                                     name: patch.evaluatorName || patch.evaluatorUid,
+                                     entrustment: patch.entrustment || null };
+        patch.byEvaluator = byEv;
+      } else if (existing && existing.byEvaluator) {
+        patch.byEvaluator = existing.byEvaluator;
+      }
+      // skip if unchanged (cheap content signature) to avoid audit/outbox churn
+      var sig = JSON.stringify([patch.attendance, patch.total, patch.scores, patch.notes, patch.paperDelivered,
+                                patch.locked, patch.entrustment, patch.feedback, patch.cases, patch.signature || null,
+                                patch.byEvaluator || null]);
       if (existing && existing._sig === sig) return;
       patch._sig = sig;
       window.Store.update('evaluations.' + evalId, function (draft) {
