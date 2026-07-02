@@ -6431,8 +6431,12 @@ function statRender(){
   if(hasDaily) html+=statCard('الحضور وتسليم الورقة (التقييم اليومي)', 'cAtt');
   html+='</div>';
 
+  // ★ PHASE 5 (6.7): advanced analytics — leniency, item difficulty, percentiles
+  try{ html+=statAdvanced(data); }catch(e){}
+
   html+='<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">';
   html+='<button class="btn ba" onclick="statExportExcel()">📊 تصدير ملخص Excel</button>';
+  html+='<button class="btn bp" onclick="exportCommitteePDF()">🏛️ تقرير اللجنة PDF</button>';
   html+='<button class="btn bo" onclick="statRender()">🔄 تحديث</button>';
   html+='</div>';
 
@@ -6490,6 +6494,142 @@ function statKpi(label, val, color){
     +'<div style="font-size:26px;font-weight:800;color:'+color+'">'+val+'</div>'
     +'<div style="font-size:12px;color:var(--muted);margin-top:4px">'+label+'</div></div>';
 }
+// ★ PHASE 5 (6.7): advanced analytics — beyond descriptive charts.
+// All computed from the canonical store via Selectors so they always agree
+// with the exports and the committee report.
+function statAdvanced(data){
+  var h='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:16px">';
+  h+='<div style="font-size:14px;font-weight:800;color:var(--primary);margin-bottom:12px">📐 تحليلات متقدمة</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">';
+
+  // 1) cohort percentile per student (from the ranking, avg-based)
+  var ranked=(data.ranking||[]).filter(function(r){return r.avg!=null;});
+  if(ranked.length>=2){
+    h+='<div><div style="font-size:12.5px;font-weight:700;margin-bottom:6px">🎯 المئين داخل الدفعة (أعلى ٨)</div>';
+    ranked.slice(0,8).forEach(function(r,i){
+      var below=ranked.filter(function(x){return x.avg<=r.avg;}).length;
+      var pct=Math.round(below/ranked.length*100);
+      h+='<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0">'
+        +'<span style="min-width:110px;font-weight:600">'+esc(r.name)+'</span>'
+        +'<div style="flex:1;height:10px;background:var(--border);border-radius:5px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--primary)"></div></div>'
+        +'<b style="min-width:44px;text-align:left">'+pct+'٪</b></div>';
+    });
+    h+='</div>';
+  }
+
+  // 2) evaluator leniency vs the cohort mean
+  try{
+    var evs=(window.Selectors?Selectors.getEvaluatorStats():[]).filter(function(e){return e.count>=3;});
+    if(evs.length>=2){
+      h+='<div><div style="font-size:12.5px;font-weight:700;margin-bottom:6px">⚖️ ميل المقيّمين (المتوسط الممنوح مقابل متوسط الدفعة)</div>';
+      evs.sort(function(a,b){return b.delta-a.delta;}).slice(0,8).forEach(function(e){
+        var col=e.delta>0.5?'#c8862b':e.delta<-0.5?'#2563a8':'var(--muted)';
+        h+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0"><span>'+esc(e.name)+' <span style="color:var(--muted)">('+e.count+')</span></span>'
+          +'<b style="color:'+col+'">'+e.mean.toFixed(2)+' ('+(e.delta>=0?'+':'')+e.delta.toFixed(2)+')</b></div>';
+      });
+      h+='</div>';
+    }
+  }catch(e){}
+
+  // 3) item difficulty: average % of maximum earned per criterion
+  try{
+    var buckets={};
+    Object.keys((window.eva&&eva.evaluations)||{}).forEach(function(id){
+      var sc=eva.evaluations[id].scores||{};
+      FIELDS.forEach(function(sec){ sec.items.forEach(function(it){
+        var v=parseFloat(sc[it.k]); if(isNaN(v)||!it.m) return;
+        (buckets[it.k]=buckets[it.k]||{l:it.l,vals:[]}).vals.push(Math.max(0,Math.min(v,it.m))/it.m);
+      }); });
+    });
+    var diff=Object.keys(buckets).map(function(k){ var b=buckets[k];
+      return { l:b.l, pct: Math.round(b.vals.reduce(function(a,x){return a+x;},0)/b.vals.length*100), n:b.vals.length };
+    }).filter(function(d){return d.n>=3;}).sort(function(a,b){return a.pct-b.pct;});
+    if(diff.length){
+      h+='<div><div style="font-size:12.5px;font-weight:700;margin-bottom:6px">🧗 أصعب معايير التقييم (أدنى نسبة تحصيل)</div>';
+      diff.slice(0,6).forEach(function(d){
+        var col=d.pct<50?'#c0504a':d.pct<75?'#c8862b':'var(--success)';
+        h+='<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0">'
+          +'<span style="min-width:110px">'+esc(d.l)+'</span>'
+          +'<div style="flex:1;height:10px;background:var(--border);border-radius:5px;overflow:hidden"><div style="height:100%;width:'+d.pct+'%;background:'+col+'"></div></div>'
+          +'<b style="min-width:40px;text-align:left;color:'+col+'">'+d.pct+'٪</b></div>';
+      });
+      h+='</div>';
+    }
+  }catch(e){}
+
+  // 4) cycle-over-cycle progression (day 1 → 4 per group)
+  var prog=(data.cycles||[]).filter(function(c){return (c.dayAvg||[]).some(function(v){return v!=null;});});
+  if(prog.length){
+    h+='<div><div style="font-size:12.5px;font-weight:700;margin-bottom:6px">📈 التقدم عبر أيام الدورة</div>';
+    prog.slice(0,6).forEach(function(c){
+      var seq=(c.dayAvg||[]).map(function(v){return v==null?'—':v.toFixed(1);}).join(' ← ');
+      var first=null,last=null;(c.dayAvg||[]).forEach(function(v){ if(v!=null){ if(first==null)first=v; last=v; } });
+      var dir=(first!=null&&last!=null)?(last>first?'▲':last<first?'▼':'◄►'):'';
+      var col=dir==='▲'?'var(--success)':dir==='▼'?'#c0504a':'var(--muted)';
+      h+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0"><span>'+esc(cycGLabel(c.gkey))+'</span><b style="direction:ltr;unicode-bidi:embed;color:'+col+'">'+seq+' '+dir+'</b></div>';
+    });
+    h+='</div>';
+  }
+
+  h+='</div></div>';
+  return h;
+}
+
+// ★ PHASE 5 (6.7): formal committee report — built from the same selectors
+// as the dashboard so the numbers can never disagree. Amended records are
+// watermarked «معدَّل» per the sign-off policy (6.8).
+function exportCommitteePDF(){
+  var data=statGather();
+  var courseName=(window.eva&&eva.config&&eva.config.courseName)||'';
+  var hosp=(document.getElementById('hName')&&document.getElementById('hName').value)||'';
+  var sup=(document.getElementById('supName')&&document.getElementById('supName').value)||'';
+  // students with any amended record → mark in the report
+  var amendedByName={};
+  try{ Object.keys(eva.evaluations).forEach(function(id){ var r=eva.evaluations[id];
+    if(r.amended && r.studentId) amendedByName[Selectors.studentName(r.studentId)]=true; }); }catch(e){}
+  var h='<div style="font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#1a2b28;padding:8px">';
+  h+='<div style="text-align:center;border-bottom:3px double #14746b;padding-bottom:12px;margin-bottom:14px">';
+  h+='<div style="font-size:20px;font-weight:800;color:#14746b">تقرير لجنة التقييم السريري</div>';
+  h+='<div style="font-size:13px;margin-top:4px">كلية التمريض — جامعة بغداد'+(courseName?(' • '+esc(courseName)):'')+'</div>';
+  h+='<div style="font-size:12px;color:#555;margin-top:2px">'+(hosp?('المستشفى: '+esc(hosp)+' • '):'')+(sup?('المشرف: '+esc(sup)+' • '):'')+'التاريخ: '+today()+'</div>';
+  h+='</div>';
+  // ranking table
+  h+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px">';
+  h+='<thead><tr style="background:#14746b;color:#fff"><th style="padding:6px;border:1px solid #0e5a50">#</th><th style="padding:6px;border:1px solid #0e5a50">الطالب</th><th style="padding:6px;border:1px solid #0e5a50">المجموعة</th><th style="padding:6px;border:1px solid #0e5a50">أيام مقيّمة</th><th style="padding:6px;border:1px solid #0e5a50">المتوسط /15</th><th style="padding:6px;border:1px solid #0e5a50">المجموع الكلي</th><th style="padding:6px;border:1px solid #0e5a50">ملاحظات</th></tr></thead><tbody>';
+  (data.ranking||[]).forEach(function(r,i){
+    var risk = (window.Flags && Flags.forName(r.name).length) ? Flags.forName(r.name).map(function(f){return f.msg;}).join('؛ ') : '';
+    var amended = amendedByName[r.name] ? '<b style="color:#b45309">「معدَّل」</b> ' : '';
+    h+='<tr style="background:'+(i%2?'#f6faf9':'#fff')+'"><td style="padding:5px;border:1px solid #d4e3e0;text-align:center">'+(i+1)+'</td>'
+      +'<td style="padding:5px;border:1px solid #d4e3e0;font-weight:600">'+esc(r.name)+'</td>'
+      +'<td style="padding:5px;border:1px solid #d4e3e0;text-align:center">'+esc(cycGLabel(r.gkey))+'</td>'
+      +'<td style="padding:5px;border:1px solid #d4e3e0;text-align:center">'+(r.days||0)+'</td>'
+      +'<td style="padding:5px;border:1px solid #d4e3e0;text-align:center;font-weight:700">'+(r.avg!=null?r.avg.toFixed(2):'—')+'</td>'
+      +'<td style="padding:5px;border:1px solid #d4e3e0;text-align:center">'+(r.grand!=null?r.grand.toFixed(2):'—')+'</td>'
+      +'<td style="padding:5px;border:1px solid #d4e3e0;font-size:11px">'+amended+esc(risk)+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  // evaluator leniency (accountability section)
+  try{
+    var evs=Selectors.getEvaluatorStats().filter(function(e){return e.count>=3;});
+    if(evs.length>=2){
+      h+='<div style="font-size:13px;font-weight:800;color:#14746b;margin:10px 0 6px">اتساق المقيّمين</div>';
+      h+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px"><thead><tr style="background:#eef4f3"><th style="padding:5px;border:1px solid #d4e3e0">المقيّم</th><th style="padding:5px;border:1px solid #d4e3e0">عدد التقييمات</th><th style="padding:5px;border:1px solid #d4e3e0">متوسطه الممنوح</th><th style="padding:5px;border:1px solid #d4e3e0">الفرق عن متوسط الدفعة</th></tr></thead><tbody>';
+      evs.forEach(function(e){ h+='<tr><td style="padding:5px;border:1px solid #d4e3e0">'+esc(e.name)+'</td><td style="padding:5px;border:1px solid #d4e3e0;text-align:center">'+e.count+'</td><td style="padding:5px;border:1px solid #d4e3e0;text-align:center">'+e.mean.toFixed(2)+'</td><td style="padding:5px;border:1px solid #d4e3e0;text-align:center">'+(e.delta>=0?'+':'')+e.delta.toFixed(2)+'</td></tr>'; });
+      h+='</tbody></table>';
+    }
+  }catch(e){}
+  // signature block
+  h+='<div style="display:flex;justify-content:space-between;margin-top:34px;font-size:13px">';
+  h+='<div style="text-align:center">توقيع المشرف<br><br>________________<br>'+esc(sup||'')+'</div>';
+  h+='<div style="text-align:center">رئيس اللجنة<br><br>________________</div>';
+  h+='<div style="text-align:center">التاريخ<br><br>________________<br>'+today()+'</div>';
+  h+='</div>';
+  h+='<div style="font-size:10px;color:#888;margin-top:16px;border-top:1px solid #ddd;padding-top:6px">تقرير مُولَّد آلياً من نظام إيفا — الدرجات الموسومة «معدَّل» فُتحت بعد اعتمادها وسُجِّل ذلك في سجل التغييرات.</div>';
+  h+='</div>';
+  pdfDownload(h, 'تقرير_اللجنة_'+today()+'.pdf');
+  toast('🏛️ جارٍ إنشاء تقرير اللجنة…');
+}
+
 function statCard(title, canvasId){
   return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px">'
     +'<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">'+title+'</div>'
