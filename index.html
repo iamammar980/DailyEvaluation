@@ -45,6 +45,7 @@
 <script src="/src/selectors.js"></script>
 <script src="/src/migrate.js"></script>
 <script src="/src/bridge.js"></script>
+<script src="/src/flags.js"></script>
 <script src="/src/sync.js"></script>
 <!-- Firebase loads dynamically in JS only when online mode is chosen -->
 <style>
@@ -2491,9 +2492,12 @@ function renderList(){
     var sc=rec.total!==undefined?rec.total.toFixed(2):null;
     var attTime=rec.attendanceTime?'<span style="font-size:10px;color:var(--muted);margin-right:4px">'+rec.attendanceTime+'</span>':'';
     var lockIcon=rec.locked?'<span title="معتمد ومقفل" style="font-size:12px;margin-right:4px">🔒</span>':'';
+    // PHASE 4: derived follow-up flag badge (from the flag engine, by name)
+    var flagBadge='';
+    try{ if(window.Flags){ var fb=Flags.badgeByName(s.name); if(fb){ var fl=Flags.forName(s.name); var ttl=fl.map(function(f){return f.msg;}).join(' • '); flagBadge='<span class="flagbadge" title="'+esc(ttl)+'" style="font-size:12px;margin-right:4px;cursor:help">'+fb+'</span>'; } } }catch(e){}
     html+='<div class="srow'+(att==='absent'?' ar':'')+'">';
     html+='<div class="snum">'+shown+'</div>';
-    html+='<div class="sname" onclick="openEval('+i+')" style="display:flex;align-items:center;gap:4px">'+esc(s.name)+lockIcon+attTime+'</div>';
+    html+='<div class="sname" onclick="openEval('+i+')" style="display:flex;align-items:center;gap:4px">'+esc(s.name)+flagBadge+lockIcon+attTime+'</div>';
         html+='<div class="atg"><button class="ab '+(att==='present'?'abap':'abp')+'" onclick="setAtt(event,'+i+',\'present\')">✓</button><button class="ab '+(att==='absent'?'abaa':'aba')+'" onclick="setAtt(event,'+i+',\'absent\')">✗</button></div>';
     html+='<div class="sbadge'+(sc===null?' empty':'')+'"><span>'+(sc!==null?sc+'/15':'—')+'</span></div>';
     html+='<div class="ecell"><div class="ei '+(rec.evaluated?'done':'pend')+'" onclick="openEval('+i+')">'+(rec.evaluated?'✏️':'📝')+'</div></div>';
@@ -3030,9 +3034,10 @@ function renderPaper(){
   if(show.length===0){list.innerHTML='<div class="pempty">جميع الطلاب غائبون اليوم.</div>';updPS();return;}
   for(var j=0;j<show.length;j++){
     var i=show[j], rec=day[i]||{}, pd=rec.paperDelivered;
+    var pFlag=''; try{ if(window.Flags){ var pfb=Flags.badgeByName(sts[i].name); if(pfb){ var pfl=Flags.forName(sts[i].name); pFlag=' <span title="'+esc(pfl.map(function(f){return f.msg;}).join(' • '))+'" style="font-size:12px;cursor:help">'+pfb+'</span>'; } } }catch(e){}
     html+='<div class="prow'+(pd===true?' dr':pd===false?' nr':'')+'">';
     html+='<div class="snum">'+(j+1)+'</div>';
-    html+='<div style="font-size:15px;font-weight:500">'+esc(sts[i].name)+'</div>';
+    html+='<div style="font-size:15px;font-weight:500">'+esc(sts[i].name)+pFlag+'</div>';
     html+='<div class="ptog"><button class="pb '+(pd===true?'pbay':'pby')+'" onclick="setPaper('+i+',true)">✓ سلّم</button><button class="pb '+(pd===false?'pban':'pbn')+'" onclick="setPaper('+i+',false)">✗ لم يسلّم</button></div>';
     html+='</div>';
     if(pd===true)del++; if(pd===false)nd++;
@@ -3340,8 +3345,11 @@ function openProgressDetail(encName){
   html += '<button class="btn" style="background:#117a65;color:#fff;font-size:12px" onclick="printStudentSummary(\''+encName+'\')">🖨️ تقرير الطالب</button>';
   html += '</div>';
 
-  if(p.risk.length){
-    html += '<div style="background:#fdf2f2;border:1px solid var(--danger);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--danger);font-weight:600">⚠️ '+p.risk.join(' • ')+'</div>';
+  // PHASE 4: merge the derived flag-engine flags with the legacy risk list
+  var riskLines = (p.risk||[]).slice();
+  try{ if(window.Flags){ Flags.forName(name).forEach(function(f){ if(riskLines.indexOf(f.msg)<0) riskLines.push(f.msg); }); } }catch(e){}
+  if(riskLines.length){
+    html += '<div style="background:#fdf2f2;border:1px solid var(--danger);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--danger);font-weight:600">'+riskLines.map(function(r){return esc(r);}).join(' • ')+'</div>';
   }
 
   // ── Cohort comparison: this student vs every other student (rank + delta) ──
