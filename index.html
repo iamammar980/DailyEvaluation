@@ -46,6 +46,7 @@
 <script src="/src/migrate.js"></script>
 <script src="/src/bridge.js"></script>
 <script src="/src/flags.js"></script>
+<script src="/src/roles.js"></script>
 <script src="/src/sync.js"></script>
 <!-- Firebase loads dynamically in JS only when online mode is chosen -->
 <style>
@@ -889,6 +890,10 @@ body{font-family:var(--font-body)}            /* Inter for Latin, Cairo for Arab
         </div>
       </aside>
       <div class="content-area">
+      <!-- STUDENT PORTAL (phase-5, 6.3) — read-only; shown only for student role -->
+      <div class="tab-panel" id="pstudent" style="display:none">
+        <div id="studentPortal"></div>
+      </div>
       <!-- TAB: HOME DASHBOARD (phase-4) — pending, flags, quick actions -->
       <div class="tab-panel active" id="phome">
         <div id="homeContent"></div>
@@ -1158,7 +1163,11 @@ body{font-family:var(--font-body)}            /* Inter for Latin, Cairo for Arab
         </div>
         <div>
           <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">Web App URL</label>
-          <input id="gasUrl" type="text" placeholder="https://script.google.com/macros/s/xxxxx/exec" style="width:100%;border:1px solid #ddd;border-radius:6px;padding:7px 10px;font-size:12px;direction:ltr" oninput="saveGasConfig()">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <input id="gasUrl" type="text" placeholder="https://script.google.com/macros/s/xxxxx/exec" style="flex:1;min-width:220px;border:1px solid #ddd;border-radius:6px;padding:7px 10px;font-size:12px;direction:ltr" oninput="saveGasConfig()">
+            <button class="btn bo" style="font-size:12px;white-space:nowrap" onclick="testGasSend()">✉️ إرسال تجريبي</button>
+          </div>
+          <div id="gasTestResult" style="font-size:11px;margin-top:6px"></div>
         </div>
       </div>
 
@@ -2641,6 +2650,104 @@ function renderHome(){
   bus.on('evaluation:saved',r); bus.on('flags:changed',r); bus.on('students:changed',r); bus.on('store:ready',r); bus.on('config:changed',r); } })();
 
 // ═══════════════════════════════════════════
+// STUDENT PORTAL (phase-5, 6.3) — a student sees ONLY their own record,
+// read-only: trend, entrustment progression, feedback (with a mandatory
+// "I have read this ✓" acknowledgement), and attendance. Comparative
+// statistics of other students are never shown.
+// ═══════════════════════════════════════════
+function applyRoleView(){
+  try{
+    var isStudent = window.Roles && Roles.isStudent();
+    // hide the instructor sidenav + show only the portal for students
+    var aside=document.querySelector('.sidenav');
+    if(aside) aside.style.display = isStudent ? 'none' : '';
+    document.querySelectorAll('.tab-panel').forEach(function(p){
+      if(p.id==='pstudent') return;
+      if(isStudent){ p.classList.remove('active'); p.style.display='none'; }
+    });
+    var sp=document.getElementById('pstudent');
+    if(sp){ sp.style.display = isStudent ? '' : 'none'; if(isStudent) sp.classList.add('active'); }
+    if(isStudent) renderStudentPortal();
+  }catch(e){ if(window.reportIssue) reportIssue('applyRoleView', e); }
+}
+
+function renderStudentPortal(){
+  var host=document.getElementById('studentPortal'); if(!host) return;
+  var sid = window.Roles ? Roles.studentId() : null;
+  if(!sid){
+    host.innerHTML='<div style="border:2px dashed var(--primary);border-radius:12px;padding:30px;text-align:center;background:#eef7f6;margin-top:20px">'
+      +'<div style="font-size:40px;margin-bottom:10px">🎓</div>'
+      +'<div style="font-size:16px;font-weight:700;color:var(--primary);margin-bottom:8px">لا يوجد سجل مرتبط بحسابك</div>'
+      +'<div style="font-size:13px;color:var(--muted);line-height:1.9">تأكد أن بريدك الإلكتروني مسجَّل في قاعدة بيانات الطلاب لدى المشرف.</div></div>';
+    return;
+  }
+  var s = window.Selectors ? Selectors.student(sid) : null;
+  var tl = window.Selectors ? Selectors.getStudentTimeline(sid) : [];
+  var graded = tl.filter(function(t){ return t.total!=null; });
+  var avg = graded.length ? (graded.reduce(function(a,t){return a+t.total;},0)/graded.length) : null;
+  var present = tl.filter(function(t){return t.attendance==='present';}).length;
+  var absent = tl.filter(function(t){return t.attendance==='absent';}).length;
+  var entNames={1:'مراقبة',2:'إشراف مباشر',3:'إشراف غير مباشر',4:'مستقل',5:'يُشرف على غيره'};
+
+  var h='';
+  h+='<div style="background:linear-gradient(135deg,var(--primary),#0c5b52);color:#fff;border-radius:16px;padding:20px 22px;margin-bottom:16px">';
+  h+='<div style="font-size:20px;font-weight:800">🎓 '+esc(s?s.name:'')+'</div>';
+  h+='<div style="font-size:13px;opacity:.9;margin-top:4px">ملفي التدريبي — عرض فقط</div></div>';
+  // KPIs
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px">';
+  h+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--primary)">'+(avg!=null?avg.toFixed(1):'—')+'</div><div style="font-size:12px;color:var(--muted)">متوسطي /15</div></div>';
+  h+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--success)">'+present+'</div><div style="font-size:12px;color:var(--muted)">أيام حضور</div></div>';
+  h+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:'+(absent?'#c0504a':'var(--muted)')+'">'+absent+'</div><div style="font-size:12px;color:var(--muted)">أيام غياب</div></div>';
+  h+='</div>';
+  // entrustment progression
+  var ents=tl.filter(function(t){return t.entrustment;});
+  if(ents.length){
+    var last=ents[ents.length-1].entrustment;
+    h+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px">';
+    h+='<div style="font-size:14px;font-weight:800;color:#2563a8;margin-bottom:8px">🪜 مستوى استقلاليتي</div>';
+    h+='<div style="font-size:22px;font-weight:800;color:var(--primary)">'+last+' — '+entNames[last]+'</div>';
+    h+='<div style="font-size:12px;color:var(--muted);margin-top:4px">تسلسل: '+ents.map(function(t){return t.entrustment;}).join(' ← ')+'</div></div>';
+  }
+  // feedback with acknowledgement
+  var fbs=tl.filter(function(t){ return t.feedback && ((t.feedback.well||'').trim()||(t.feedback.improve||'').trim()); });
+  h+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px">';
+  h+='<div style="font-size:14px;font-weight:800;color:#0e7490;margin-bottom:10px">💬 ملاحظات المشرفين</div>';
+  if(!fbs.length){ h+='<div style="font-size:13px;color:var(--muted)">لا توجد ملاحظات بعد.</div>'; }
+  else{
+    fbs.slice().reverse().forEach(function(t){
+      var acked = t.id && studentAckState(t.id);
+      h+='<div style="border-bottom:1px dashed var(--border);padding:9px 0">';
+      h+='<div style="font-size:11px;color:var(--muted);margin-bottom:3px">'+esc(t.dateISO||('دورة يوم '+t.legacyCycleDay))+'</div>';
+      if((t.feedback.well||'').trim()) h+='<div style="font-size:13px">✅ '+esc(t.feedback.well)+'</div>';
+      if((t.feedback.improve||'').trim()) h+='<div style="font-size:13px;color:#b9770e">🎯 '+esc(t.feedback.improve)+'</div>';
+      if(acked){ h+='<div style="font-size:12px;color:var(--success);margin-top:5px;font-weight:700">✓ قرأت الملاحظات</div>'; }
+      else{ h+='<button class="btn bp" style="font-size:12px;margin-top:6px" onclick="studentAck(\''+t.id+'\')">قرأت الملاحظات ✓</button>'; }
+      h+='</div>';
+    });
+  }
+  h+='</div>';
+  host.innerHTML=h;
+}
+
+// acknowledgement is stored on the record (visible to the evaluator) and
+// goes through the Store so it's audited + synced.
+function studentAckState(evalId){
+  var r = window.eva && eva.evaluations[evalId];
+  return !!(r && r.ack && r.ack.seen);
+}
+function studentAck(evalId){
+  if(!window.Store || !eva.evaluations[evalId]) return;
+  var sid = window.Roles ? Roles.studentId() : null;
+  Store.update('evaluations.'+evalId, function(rec){
+    rec.ack = { seen:true, ts:Date.now(), by: sid };
+    return rec;
+  }, { action:'student:ack:'+evalId });
+  renderStudentPortal();
+  toast('شكراً — تم تسجيل اطّلاعك على الملاحظات ✓');
+}
+if(window.bus){ bus.on('role:resolved', applyRoleView); bus.on('evaluation:saved', function(){ if(window.Roles&&Roles.isStudent()) renderStudentPortal(); }); }
+
+// ═══════════════════════════════════════════
 // STUDENT LIST
 // ═══════════════════════════════════════════
 function renderList(){
@@ -2867,6 +2974,7 @@ function openEval(idx){
   html+='<div style="display:grid;gap:9px;padding:6px 0">';
   html+='<div><label for="fbWell" style="font-size:12.5px;font-weight:700;display:block;margin-bottom:4px;color:var(--text)">ما الذي أُجيد؟</label><textarea id="fbWell" rows="2" oninput="evalDirty=true" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical">'+esc(fb.well||'')+'</textarea></div>';
   html+='<div><label for="fbImprove" style="font-size:12.5px;font-weight:700;display:block;margin-bottom:4px;color:var(--text)">نقطة واحدة للتحسين</label><textarea id="fbImprove" rows="2" oninput="evalDirty=true" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical">'+esc(fb.improve||'')+'</textarea></div>';
+  if(rec.ack && rec.ack.seen){ html+='<div style="font-size:11px;color:var(--success);font-weight:700">✓ اطّلع الطالب على الملاحظات'+(rec.ack.ts?(' — '+new Date(rec.ack.ts).toLocaleDateString('ar-SA')):'')+'</div>'; }
   html+='</div></div>';
 
   // ★ PHASE 5 (6.6): case/procedure quick-log — tap a chip to add one
@@ -6913,6 +7021,24 @@ window.addEventListener('offline', function() {
 
 function saveGasConfig(){
   try{ localStorage.setItem('hsp_gas_url', document.getElementById('gasUrl').value.trim()); }catch(e){}
+}
+
+// ★ PHASE 5 (6.9): one-time guided setup — test-send button. Validates the
+// URL host before posting (only script.google.com), so a wrong/hostile URL
+// never receives student data.
+function testGasSend(){
+  var out=document.getElementById('gasTestResult'); if(out) out.innerHTML='';
+  var url=(document.getElementById('gasUrl')&&document.getElementById('gasUrl').value||'').trim();
+  if(!url){ if(out){out.style.color='#c0504a';out.textContent='الصق رابط الخدمة أولاً';} return; }
+  var host=''; try{ host=new URL(url).hostname; }catch(e){ if(out){out.style.color='#c0504a';out.textContent='الرابط غير صالح';} return; }
+  if(host!=='script.google.com'){ if(out){out.style.color='#c0504a';out.textContent='الرابط يجب أن يكون على script.google.com';} return; }
+  var to=(document.getElementById('supName')&&document.getElementById('supName').value||'').trim();
+  if(out){ out.style.color='var(--muted)'; out.textContent='⏳ جارٍ الإرسال التجريبي…'; }
+  var payload={ test:true, subject:'إيفا — رسالة تجريبية', body:'هذه رسالة تجريبية للتأكد من إعداد خدمة البريد.', to:'' };
+  fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)})
+    .then(function(r){ return r.text(); })
+    .then(function(t){ if(out){ out.style.color='var(--success)'; out.textContent='✅ استجابت الخدمة — الإعداد يعمل'; } })
+    .catch(function(e){ if(out){ out.style.color='#c0504a'; out.textContent='❌ تعذّر الوصول للخدمة — تحقق من الرابط وإعداد النشر'; } });
 }
 
 function loadGasConfig(){
