@@ -862,12 +862,16 @@ body{font-family:var(--font-body)}            /* Inter for Latin, Cairo for Arab
     <div class="main">
       <aside class="sidenav">
         <div class="nav-group">
+          <div class="nav-group-label">اليوم</div>
+          <button class="tab-btn active" id="tbhome" onclick="showTab('home')">🏠 اليوم</button>
+        </div>
+        <div class="nav-group">
           <div class="nav-group-label">نظام الكورس (جديد)</div>
-          <button class="tab-btn" id="tbcourse" onclick="showTab('course')">🎓 إعداد الكورس <span style="font-size:9px;opacity:.6">v8</span></button>
+          <button class="tab-btn" id="tbcourse" onclick="showTab('course')">🎓 إعداد الكورس</button>
         </div>
         <div class="nav-group">
           <div class="nav-group-label">العمل اليومي</div>
-          <button class="tab-btn active" id="tba" onclick="showTab('att')">👥 الحضور والتقييم</button>
+          <button class="tab-btn" id="tba" onclick="showTab('att')">👥 الحضور والتقييم</button>
           <button class="tab-btn" id="tbp" onclick="showTab('paper')">📄 الورقة اليومية</button>
           <button class="tab-btn" id="tbr" onclick="showTab('roster')">🏥 جدول المجموعات</button>
         </div>
@@ -885,13 +889,17 @@ body{font-family:var(--font-body)}            /* Inter for Latin, Cairo for Arab
         </div>
       </aside>
       <div class="content-area">
+      <!-- TAB: HOME DASHBOARD (phase-4) — pending, flags, quick actions -->
+      <div class="tab-panel active" id="phome">
+        <div id="homeContent"></div>
+      </div>
       <!-- TAB: COURSE SETUP (new system, separate) -->
       <div class="tab-panel" id="pcourse">
         <input type="file" id="courseStudentFile" accept=".xlsx,.xls" style="display:none" onchange="courseImportStudents(event)">
         <div id="courseContent"></div>
       </div>
       <!-- TAB: ATTENDANCE -->
-      <div class="tab-panel active" id="pa">
+      <div class="tab-panel" id="pa">
         <!-- classic day-view (the 4-day cycle mode was removed in phase-2;
              cycle data lives in history and is served by the rotation tab) -->
         <div id="paClassicWrap">
@@ -2424,13 +2432,14 @@ var FIELDS=[
 function showTab(n){
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-  var panels={att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',audit:'pal',prog:'ppg',rot:'prot',stat:'pstat',course:'pcourse'};
-  var btns={att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',audit:'tbal',prog:'tbpg',rot:'tbrot',stat:'tbstat',course:'tbcourse'};
+  var panels={home:'phome',att:'pa',paper:'pp',roster:'pr',hist:'ph',db:'pdb',audit:'pal',prog:'ppg',rot:'prot',stat:'pstat',course:'pcourse'};
+  var btns={home:'tbhome',att:'tba',paper:'tbp',roster:'tbr',hist:'tbh',db:'tbdb',audit:'tbal',prog:'tbpg',rot:'tbrot',stat:'tbstat',course:'tbcourse'};
   var panel=document.getElementById(panels[n]);
   panel.classList.add('active');
   // restart the entrance animation so every switch feels alive
   panel.style.animation='none'; void panel.offsetWidth; panel.style.animation='';
   document.getElementById(btns[n]).classList.add('active');
+  if(n==='home')   renderHome();
   // Attendance tab always shows TODAY — never shows historical data
   if(n==='att'){ curDate=today(); renderList(); }
   if(n==='paper')  renderPaper();
@@ -2479,6 +2488,79 @@ function updateDateLabel(){
   var el=document.getElementById('curDateLabel');
   if(el) el.textContent=curDate;
 }
+
+// ═══════════════════════════════════════════
+// HOME DASHBOARD (phase-4) — pending, flags, quick actions.
+// Reads ONLY through Selectors/Flags over the canonical Store; subscribes
+// to the bus so it live-updates while open. No cross-tab coupling.
+// ═══════════════════════════════════════════
+function renderHome(){
+  var cont=document.getElementById('homeContent'); if(!cont) return;
+  var todayISO=today();
+  var pending=[], flagged=[];
+  try{ if(window.Selectors) pending=Selectors.getPending(todayISO); }catch(e){}
+  try{
+    var seen={};
+    Object.keys((window.eva&&eva.flags)||{}).forEach(function(sid){
+      var fs=eva.flags[sid]||[]; if(!fs.length) return;
+      var nm=(window.Selectors?Selectors.studentName(sid):sid);
+      flagged.push({ id:sid, name:nm, sev: fs.some(function(f){return f.severity==='danger';})?'danger':'warn',
+                     msgs: fs.map(function(f){return f.msg;}) });
+    });
+  }catch(e){}
+  flagged.sort(function(a,b){ return (a.sev==='danger'?0:1)-(b.sev==='danger'?0:1); });
+
+  var supName=(document.getElementById('supName')&&document.getElementById('supName').value)||'';
+  var dnames=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  var dObj=new Date(todayISO+'T00:00:00');
+  var h='';
+  // greeting header
+  h+='<div style="background:linear-gradient(135deg,var(--primary),#0c5b52);color:#fff;border-radius:16px;padding:20px 22px;margin-bottom:16px">';
+  h+='<div style="font-size:20px;font-weight:800">🏠 اليوم'+(supName?(' — '+esc(supName)):'')+'</div>';
+  h+='<div style="font-size:13px;opacity:.9;margin-top:4px">'+dnames[dObj.getDay()]+' • '+todayISO+'</div>';
+  h+='</div>';
+  // KPI row
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px">';
+  h+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center"><div style="font-size:30px;font-weight:800;color:'+(pending.length?'#c8862b':'#2f9e6f')+'">'+pending.length+'</div><div style="font-size:12px;color:var(--muted)">تقييمات متبقية اليوم</div></div>';
+  h+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center"><div style="font-size:30px;font-weight:800;color:'+(flagged.length?'#c0504a':'#2f9e6f')+'">'+flagged.length+'</div><div style="font-size:12px;color:var(--muted)">طلاب بحاجة متابعة</div></div>';
+  h+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center"><div style="font-size:30px;font-weight:800;color:var(--primary)">'+Object.keys((window.eva&&eva.students)||{}).length+'</div><div style="font-size:12px;color:var(--muted)">إجمالي الطلاب</div></div>';
+  h+='</div>';
+  // quick actions
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">';
+  h+='<button class="btn bp" onclick="showTab(\'att\')">▶️ بدء تقييم اليوم</button>';
+  h+='<button class="btn bo" onclick="showTab(\'paper\')">📄 الورقة اليومية</button>';
+  h+='<button class="btn bo" onclick="if(typeof Sync!==\'undefined\'&&Sync.verify)Sync.verify();else if(typeof flushQueue===\'function\')flushQueue();toast(\'↻ جارٍ المزامنة\')">🔄 مزامنة الآن</button>';
+  h+='<button class="btn bo" onclick="showTab(\'stat\')">📊 الإحصائيات</button>';
+  h+='</div>';
+  // flags list
+  h+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px">';
+  h+='<div style="font-size:15px;font-weight:800;color:var(--primary);margin-bottom:10px">🚩 متابعة أكاديمية</div>';
+  if(!flagged.length){ h+='<div style="font-size:13px;color:var(--muted)">لا يوجد طلاب بحاجة متابعة حالياً ✓</div>'; }
+  else{
+    flagged.slice(0,12).forEach(function(f){
+      h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px dashed var(--border);cursor:pointer" onclick="openStudentById(\''+f.id+'\')">';
+      h+='<span style="font-size:15px">'+(f.sev==='danger'?'🚩':'⚠️')+'</span>';
+      h+='<span style="font-weight:700;min-width:120px">'+esc(f.name)+'</span>';
+      h+='<span style="font-size:12px;color:var(--muted);flex:1">'+esc(f.msgs.join(' • '))+'</span>';
+      h+='</div>';
+    });
+  }
+  h+='</div>';
+  // pending list
+  if(pending.length){
+    h+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px">';
+    h+='<div style="font-size:15px;font-weight:800;color:var(--primary);margin-bottom:10px">⏳ بانتظار التقييم اليوم</div>';
+    pending.slice(0,20).forEach(function(p){
+      h+='<div style="display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 12px;margin:3px;font-size:13px">'+esc(p.name)+'</div>';
+    });
+    h+='</div>';
+  }
+  cont.innerHTML=h;
+}
+// live-refresh the dashboard while it's the open tab (and render it once the
+// store is ready, since it's the default landing panel)
+(function(){ if(window.bus){ var t=null; function r(){ clearTimeout(t); t=setTimeout(function(){ var el=document.getElementById('phome'); if(el&&el.classList.contains('active')) renderHome(); },250); }
+  bus.on('evaluation:saved',r); bus.on('flags:changed',r); bus.on('students:changed',r); bus.on('store:ready',r); bus.on('config:changed',r); } })();
 
 // ═══════════════════════════════════════════
 // STUDENT LIST
